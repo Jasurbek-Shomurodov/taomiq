@@ -5,6 +5,7 @@ import { deleteDish, saveDish, type FormState } from "@/lib/admin/actions";
 import { ALLERGENS } from "@/lib/data/allergens";
 import type { Dish } from "@/lib/data/types";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
+import { CyrillicField } from "../CyrillicField";
 
 /** Downscale a photo in the browser so uploads stay small on a phone connection. */
 async function resizeImage(file: File, maxSide = 1600): Promise<Blob> {
@@ -67,15 +68,16 @@ export function DishForm({ dish }: { dish: Dish | null }) {
         {dish && <input type="hidden" name="id" value={dish.id} />}
         <input type="hidden" name="photo_url" value={photoUrl} />
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className={label}>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className={`${label} content-start`}>
             Название (русский)
             <input name="name_ru" required defaultValue={dish?.name_ru} className="field font-normal" />
           </label>
-          <label className={label}>
+          <label className={`${label} content-start`}>
             Название (oʻzbekcha)
             <input name="name_uz" required defaultValue={dish?.name_uz} className="field font-normal" />
           </label>
+          <CyrillicField name="name_uzc" latinName="name_uz" label="Название (ўзбекча)" defaultValue={dish?.name_uzc ?? ""} />
         </div>
 
         <fieldset className="grid gap-3">
@@ -135,15 +137,19 @@ export function DishForm({ dish }: { dish: Dish | null }) {
           </p>
         </fieldset>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <label className={label}>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <label className={`${label} content-start`}>
             Состав (русский)
             <textarea name="ingredients_ru" rows={3} defaultValue={dish?.ingredients_ru} className="field font-normal" />
           </label>
-          <label className={label}>
+          <label className={`${label} content-start`}>
             Состав (oʻzbekcha)
             <textarea name="ingredients_uz" rows={3} defaultValue={dish?.ingredients_uz} className="field font-normal" />
           </label>
+          <CyrillicField
+            name="ingredients_uzc" latinName="ingredients_uz" label="Состав (ўзбекча)" rows={3}
+            defaultValue={dish?.ingredients_uzc ?? ""}
+          />
         </div>
 
         <fieldset>

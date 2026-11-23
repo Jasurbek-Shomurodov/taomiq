@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { saveDurations, saveProgram, type FormState } from "@/lib/admin/actions";
 import type { Duration, Program } from "@/lib/data/types";
+import { CyrillicField } from "../CyrillicField";
 
 function Result({ state }: { state: FormState }) {
   if (state.ok) return <span role="status" className="text-sm text-forest">{state.ok}</span>;
@@ -29,23 +30,30 @@ export function ProgramForm({ program }: { program: Program }) {
         </label>
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <label className={label}>
+      <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        <label className={`${label} content-start`}>
           Подзаголовок (русский)
           <input name="tagline_ru" defaultValue={program.tagline_ru} className="field font-normal" />
         </label>
-        <label className={label}>
+        <label className={`${label} content-start`}>
           Подзаголовок (oʻzbekcha)
           <input name="tagline_uz" defaultValue={program.tagline_uz} className="field font-normal" />
         </label>
-        <label className={label}>
+        <CyrillicField
+          name="tagline_uzc" latinName="tagline_uz" label="Подзаголовок (ўзбекча)" defaultValue={program.tagline_uzc ?? ""}
+        />
+        <label className={`${label} content-start`}>
           Описание (русский)
           <textarea name="description_ru" rows={3} defaultValue={program.description_ru} className="field font-normal" />
         </label>
-        <label className={label}>
+        <label className={`${label} content-start`}>
           Описание (oʻzbekcha)
           <textarea name="description_uz" rows={3} defaultValue={program.description_uz} className="field font-normal" />
         </label>
+        <CyrillicField
+          name="description_uzc" latinName="description_uz" label="Описание (ўзбекча)" rows={3}
+          defaultValue={program.description_uzc ?? ""}
+        />
       </div>
 
       <table className="mt-5 w-full text-left text-sm">

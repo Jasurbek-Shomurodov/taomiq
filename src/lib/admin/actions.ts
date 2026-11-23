@@ -42,6 +42,8 @@ export async function saveDish(_prev: FormState, form: FormData): Promise<FormSt
   const row = {
     name_ru: text(form, "name_ru"),
     name_uz: text(form, "name_uz"),
+    // Optional: empty means the site converts the Latin name (src/lib/data/localized.ts).
+    name_uzc: text(form, "name_uzc"),
     photo_url: text(form, "photo_url") || null,
     default_weight_g: Math.round(num(form, "default_weight_g")),
     kcal_100: num(form, "kcal_100"),
@@ -50,6 +52,7 @@ export async function saveDish(_prev: FormState, form: FormData): Promise<FormSt
     carbs_100: num(form, "carbs_100"),
     ingredients_ru: text(form, "ingredients_ru"),
     ingredients_uz: text(form, "ingredients_uz"),
+    ingredients_uzc: text(form, "ingredients_uzc"),
     allergens: form.getAll("allergens").map(String),
     verified: form.get("verified") === "on",
     active: form.get("active") === "on",
@@ -181,6 +184,9 @@ export async function saveProgram(_prev: FormState, form: FormData): Promise<For
       tagline_uz: text(form, "tagline_uz"),
       description_ru: text(form, "description_ru"),
       description_uz: text(form, "description_uz"),
+      // Optional: empty means the site converts the Latin text (src/lib/data/localized.ts).
+      tagline_uzc: text(form, "tagline_uzc"),
+      description_uzc: text(form, "description_uzc"),
       active: form.get("active") === "on",
     })
     .eq("id", id);
