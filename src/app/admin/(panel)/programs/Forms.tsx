@@ -1,6 +1,8 @@
 "use client";
 
 import { useActionState } from "react";
+import { getAdminDictionary } from "@/i18n/admin";
+import type { Locale } from "@/i18n/config";
 import { saveDurations, saveProgram, type FormState } from "@/lib/admin/actions";
 import type { Duration, Program } from "@/lib/data/types";
 import { CyrillicField } from "../CyrillicField";
@@ -11,10 +13,12 @@ function Result({ state }: { state: FormState }) {
   return null;
 }
 
-const label = "grid gap-1.5 text-sm font-semibold text-forest";
+const label = "grid content-start gap-1.5 text-sm font-semibold text-forest";
 
-export function ProgramForm({ program }: { program: Program }) {
+export function ProgramForm({ program, locale }: { program: Program; locale: Locale }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveProgram, {});
+  const t = getAdminDictionary(locale);
+  const lang = t.common.fieldLang;
 
   return (
     <form action={action} className="rounded-2xl border border-line bg-white p-6">
@@ -26,43 +30,44 @@ export function ProgramForm({ program }: { program: Program }) {
         </h2>
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" name="active" defaultChecked={program.active} />
-          Показывать на сайте
+          {t.programs.showOnSite}
         </label>
       </div>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <label className={`${label} content-start`}>
-          Подзаголовок (русский)
+        <label className={label}>
+          {t.programs.tagline} ({lang.ru})
           <input name="tagline_ru" defaultValue={program.tagline_ru} className="field font-normal" />
         </label>
-        <label className={`${label} content-start`}>
-          Подзаголовок (oʻzbekcha)
+        <label className={label}>
+          {t.programs.tagline} ({lang.uz})
           <input name="tagline_uz" defaultValue={program.tagline_uz} className="field font-normal" />
         </label>
         <CyrillicField
-          name="tagline_uzc" latinName="tagline_uz" label="Подзаголовок (ўзбекча)" defaultValue={program.tagline_uzc ?? ""}
+          name="tagline_uzc" latinName="tagline_uz" label={`${t.programs.tagline} (${lang.uzc})`}
+          defaultValue={program.tagline_uzc ?? ""} t={t.cyrillic}
         />
-        <label className={`${label} content-start`}>
-          Описание (русский)
+        <label className={label}>
+          {t.programs.description} ({lang.ru})
           <textarea name="description_ru" rows={3} defaultValue={program.description_ru} className="field font-normal" />
         </label>
-        <label className={`${label} content-start`}>
-          Описание (oʻzbekcha)
+        <label className={label}>
+          {t.programs.description} ({lang.uz})
           <textarea name="description_uz" rows={3} defaultValue={program.description_uz} className="field font-normal" />
         </label>
         <CyrillicField
-          name="description_uzc" latinName="description_uz" label="Описание (ўзбекча)" rows={3}
-          defaultValue={program.description_uzc ?? ""}
+          name="description_uzc" latinName="description_uz" label={`${t.programs.description} (${lang.uzc})`} rows={3}
+          defaultValue={program.description_uzc ?? ""} t={t.cyrillic}
         />
       </div>
 
       <table className="mt-5 w-full text-left text-sm">
         <thead>
           <tr className="border-b border-line">
-            <th className="label py-2 text-muted">Калорийность</th>
-            <th className="label py-2 text-muted">Цена за день, сум</th>
-            <th className="label py-2 text-muted">Приёмов пищи</th>
-            <th className="label py-2 text-muted">На сайте</th>
+            <th className="label py-2 text-muted">{t.programs.kcal}</th>
+            <th className="label py-2 text-muted">{t.programs.pricePerDay}</th>
+            <th className="label py-2 text-muted">{t.programs.meals}</th>
+            <th className="label py-2 text-muted">{t.programs.onSite}</th>
           </tr>
         </thead>
         <tbody>
@@ -70,25 +75,25 @@ export function ProgramForm({ program }: { program: Program }) {
             <tr key={variant.id} className="border-b border-line last:border-0">
               <td className="py-2 font-semibold tabular-nums text-forest">
                 <input type="hidden" name="variant_id" value={variant.id} />
-                {variant.kcal} ккал
+                {variant.kcal} {t.common.kcal}
               </td>
               <td className="py-2 pr-3">
                 <input
-                  aria-label={`Цена за день, ${variant.kcal} ккал`}
+                  aria-label={t.programs.priceAria(variant.kcal)}
                   name={`price_${variant.id}`} type="number" min="0" step="1000" required
                   defaultValue={variant.price_per_day} className="field max-w-40 tabular-nums"
                 />
               </td>
               <td className="py-2 pr-3">
                 <input
-                  aria-label={`Приёмов пищи, ${variant.kcal} ккал`}
+                  aria-label={t.programs.mealsAria(variant.kcal)}
                   name={`meals_${variant.id}`} type="number" min="1" max="5" required
                   defaultValue={variant.meals_per_day} className="field max-w-24 tabular-nums"
                 />
               </td>
               <td className="py-2">
                 <input
-                  aria-label={`Показывать ${variant.kcal} ккал`}
+                  aria-label={t.programs.showAria(variant.kcal)}
                   type="checkbox" name={`active_${variant.id}`} defaultChecked={variant.active}
                 />
               </td>
@@ -99,7 +104,7 @@ export function ProgramForm({ program }: { program: Program }) {
 
       <div className="mt-5 flex items-center gap-4">
         <button type="submit" disabled={pending} className="btn btn-forest !py-2.5 disabled:opacity-60">
-          {pending ? "Сохраняем…" : "Сохранить"}
+          {pending ? t.common.saving : t.common.save}
         </button>
         <Result state={state} />
       </div>
@@ -107,8 +112,9 @@ export function ProgramForm({ program }: { program: Program }) {
   );
 }
 
-export function DurationsForm({ durations }: { durations: Duration[] }) {
+export function DurationsForm({ durations, locale }: { durations: Duration[]; locale: Locale }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveDurations, {});
+  const t = getAdminDictionary(locale);
 
   return (
     <form action={action} className="mt-4 rounded-2xl border border-line bg-white p-6">
@@ -116,7 +122,7 @@ export function DurationsForm({ durations }: { durations: Duration[] }) {
         {durations.map((d) => (
           <label key={d.days} className={label}>
             <input type="hidden" name="days" value={d.days} />
-            {d.days} дней{d.is_trial ? " (пробные)" : ""}
+            {`${t.programs.days(d.days)}${d.is_trial ? t.programs.trial : ""}`}
             <span className="flex items-center gap-2 font-normal text-muted">
               <input
                 name={`markup_${d.days}`} type="number" step="0.5" required
@@ -129,7 +135,7 @@ export function DurationsForm({ durations }: { durations: Duration[] }) {
       </div>
       <div className="mt-5 flex items-center gap-4">
         <button type="submit" disabled={pending} className="btn btn-forest !py-2.5 disabled:opacity-60">
-          {pending ? "Сохраняем…" : "Сохранить"}
+          {pending ? t.common.saving : t.common.save}
         </button>
         <Result state={state} />
       </div>

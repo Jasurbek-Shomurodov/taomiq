@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getAdminDictionary } from "@/i18n/admin";
 import { formatSum } from "@/i18n/config";
-import { requireOwner } from "@/lib/admin/auth";
+import { requireOwner, requireStaff } from "@/lib/admin/auth";
 import {
   ORDER_STATUSES,
-  STATUS_TABS,
   formatDateTime,
   formatDay,
   formatPhone,
@@ -15,7 +15,10 @@ import {
 import { ORDERS_PAGE_SIZE, listOrders, orderCounts } from "@/lib/admin/queries";
 import { StatusBadge } from "./StatusBadge";
 
-export const metadata: Metadata = { title: "Заказы" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { staff } = await requireStaff();
+  return { title: getAdminDictionary(staff.locale).orders.title };
+}
 
 function one(value: string | string[] | undefined): string {
   return (Array.isArray(value) ? value[0] : value) ?? "";
@@ -30,7 +33,9 @@ function href(status: OrderStatus | null, page = 1): string {
 }
 
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
-  const { supabase } = await requireOwner();
+  const { supabase, staff } = await requireOwner();
+  const { locale } = staff;
+  const t = getAdminDictionary(locale);
   const params = await searchParams;
   const statusParam = one(params.status);
   const status = isOrderStatus(statusParam) ? statusParam : null;
@@ -52,9 +57,9 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   if (!result) {
     return (
       <div>
-        <h1 className="font-serif text-4xl text-forest">Заказы</h1>
+        <h1 className="font-serif text-4xl text-forest">{t.orders.title}</h1>
         <p role="alert" className="mt-6 rounded-2xl border border-danger/30 bg-danger/5 p-6 text-danger">
-          Не удалось загрузить заказы. Обновите страницу через минуту.
+          {t.orders.loadFailed}
         </p>
       </div>
     );
@@ -65,36 +70,32 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
 
   return (
     <div>
-      <h1 className="font-serif text-4xl text-forest">Заказы</h1>
-      <p className="mt-1 text-sm text-muted">Новые сверху. Позвоните клиенту, подтвердите заказ и отметьте оплату.</p>
+      <h1 className="font-serif text-4xl text-forest">{t.orders.title}</h1>
+      <p className="mt-1 text-sm text-muted">{t.orders.lead}</p>
 
-      <nav aria-label="Статусы заказов" className="mt-6 flex gap-2 overflow-x-auto pb-1">
-        <Tab href={href(null)} active={!status} label="Все" count={all} />
+      <nav aria-label={t.orders.statusesAria} className="mt-6 flex gap-2 overflow-x-auto pb-1">
+        <Tab href={href(null)} active={!status} label={t.orders.all} count={all} />
         {ORDER_STATUSES.map((s) => (
-          <Tab key={s} href={href(s)} active={status === s} label={STATUS_TABS[s]} count={counts[s]} />
+          <Tab key={s} href={href(s)} active={status === s} label={t.orders.tabs[s]} count={counts[s]} />
         ))}
       </nav>
 
       {orders.length === 0 ? (
         <p className="mt-6 rounded-2xl border border-dashed border-line bg-white/60 p-10 text-center text-muted">
-          {page > 1
-            ? "На этой странице заказов нет."
-            : status
-              ? `Нет заказов в разделе «${STATUS_TABS[status]}».`
-              : "Заказов пока нет. Они появятся здесь, как только клиент оформит заказ на сайте."}
+          {page > 1 ? t.orders.pageEmpty : status ? t.orders.statusEmpty(t.orders.tabs[status]) : t.orders.none}
         </p>
       ) : (
         <div className="mt-4 overflow-x-auto rounded-2xl border border-line bg-white">
           <table className="w-full min-w-[52rem] text-left text-sm">
             <thead>
               <tr className="border-b border-line">
-                <th className="label p-3 text-muted">№</th>
-                <th className="label p-3 text-muted">Создан</th>
-                <th className="label p-3 text-muted">Клиент</th>
-                <th className="label p-3 text-muted">Программа</th>
-                <th className="label p-3 text-muted">Старт</th>
-                <th className="label p-3 text-right text-muted">Сумма, сум</th>
-                <th className="label p-3 text-muted">Статус</th>
+                <th className="label p-3 text-muted">{t.orders.number}</th>
+                <th className="label p-3 text-muted">{t.orders.created}</th>
+                <th className="label p-3 text-muted">{t.orders.customer}</th>
+                <th className="label p-3 text-muted">{t.orders.program}</th>
+                <th className="label p-3 text-muted">{t.orders.start}</th>
+                <th className="label p-3 text-right text-muted">{t.orders.sum}</th>
+                <th className="label p-3 text-muted">{t.orders.status}</th>
               </tr>
             </thead>
             <tbody>
@@ -105,7 +106,7 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                       {order.number}
                     </Link>
                   </td>
-                  <td className="whitespace-nowrap p-3 tabular-nums text-muted">{formatDateTime(order.created_at)}</td>
+                  <td className="whitespace-nowrap p-3 tabular-nums text-muted">{formatDateTime(order.created_at, locale)}</td>
                   <td className="p-3">
                     <Link href={`/orders/${order.id}`} className="block">
                       <span className="block font-semibold text-forest">{order.customer_name}</span>
@@ -115,13 +116,14 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
                   <td className="p-3">
                     {order.program_name} / <span className="tabular-nums">{order.kcal}</span>
                     <span className="block text-xs text-muted">
-                      {order.days} дн.{order.weekdays_only ? ", без выходных" : ""}
+                      {t.orders.daysShort(order.days)}
+                      {order.weekdays_only ? t.orders.noWeekends : ""}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap p-3 tabular-nums">{formatDay(order.start_date)}</td>
+                  <td className="whitespace-nowrap p-3 tabular-nums">{formatDay(order.start_date, locale)}</td>
                   <td className="p-3 text-right tabular-nums">{formatSum(order.total)}</td>
                   <td className="p-3">
-                    <StatusBadge status={order.status} />
+                    <StatusBadge status={order.status} locale={locale} />
                   </td>
                 </tr>
               ))}
@@ -131,20 +133,18 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       )}
 
       {pages > 1 && (
-        <nav aria-label="Страницы" className="mt-4 flex items-center justify-between gap-4 text-sm">
+        <nav aria-label={t.orders.pagesAria} className="mt-4 flex items-center justify-between gap-4 text-sm">
           {page > 1 ? (
             <Link href={href(status, page - 1)} className="btn btn-outline !py-2">
-              ← Новее
+              {t.orders.newer}
             </Link>
           ) : (
             <span />
           )}
-          <span className="tabular-nums text-muted">
-            Страница {page} из {pages}
-          </span>
+          <span className="tabular-nums text-muted">{t.orders.pageOf(page, pages)}</span>
           {page < pages ? (
             <Link href={href(status, page + 1)} className="btn btn-outline !py-2">
-              Старше →
+              {t.orders.older}
             </Link>
           ) : (
             <span />

@@ -1,10 +1,12 @@
 import Link from "next/link";
+import { getAdminDictionary } from "@/i18n/admin";
 import { requireStaff } from "@/lib/admin/auth";
 import { listDishes, listPrograms, menuCounts, newOrderCount } from "@/lib/admin/queries";
 import { CYCLE_DAYS } from "@/lib/data/types";
 
 export default async function AdminHome() {
   const { supabase, staff } = await requireStaff();
+  const t = getAdminDictionary(staff.locale);
   const [programs, dishes, counts, newOrders] = await Promise.all([
     listPrograms(supabase),
     listDishes(supabase),
@@ -23,19 +25,19 @@ export default async function AdminHome() {
 
   return (
     <div>
-      <h1 className="font-serif text-4xl text-forest">Здравствуйте{staff.name ? `, ${staff.name}` : ""}</h1>
+      <h1 className="font-serif text-4xl text-forest">{t.home.hello(staff.name)}</h1>
 
       <div className={`mt-6 grid gap-4 ${newOrders === undefined ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4"}`}>
         {newOrders !== undefined && (
-          <Stat label="Новые заказы" value={newOrders ?? "—"} href="/orders?status=new" warn={(newOrders ?? 0) > 0} />
+          <Stat label={t.home.newOrders} value={newOrders ?? "—"} href="/orders?status=new" warn={(newOrders ?? 0) > 0} />
         )}
-        <Stat label="Блюд в базе" value={dishes.length} href="/dishes" />
-        <Stat label="Без проверенной техкарты" value={unverified} href="/dishes" warn={unverified > 0} />
-        <Stat label="Без фотографии" value={noPhoto} href="/dishes" warn={noPhoto > 0} />
+        <Stat label={t.home.dishes} value={dishes.length} href="/dishes" />
+        <Stat label={t.home.unverified} value={unverified} href="/dishes" warn={unverified > 0} />
+        <Stat label={t.home.noPhoto} value={noPhoto} href="/dishes" warn={noPhoto > 0} />
       </div>
 
-      <h2 className="mt-10 font-serif text-2xl text-forest">Заполнение меню</h2>
-      <p className="mt-1 text-sm text-muted">Сколько из {CYCLE_DAYS} дней заполнено по каждой калорийности.</p>
+      <h2 className="mt-10 font-serif text-2xl text-forest">{t.home.menuTitle}</h2>
+      <p className="mt-1 text-sm text-muted">{t.home.menuLead(CYCLE_DAYS)}</p>
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-white">
         {programs.flatMap((program) =>

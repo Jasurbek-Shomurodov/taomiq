@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useState } from "react";
+import type { AdminDictionary } from "@/i18n/admin";
 import { translit } from "@/lib/translit";
 
 /**
@@ -14,6 +15,7 @@ export function CyrillicField({
   label,
   defaultValue,
   rows,
+  t,
 }: {
   /** Form field name, e.g. "name_uzc". */
   name: string;
@@ -23,6 +25,7 @@ export function CyrillicField({
   defaultValue: string;
   /** Rows for a textarea; a single-line input when omitted. */
   rows?: number;
+  t: AdminDictionary["cyrillic"];
 }) {
   const id = useId();
   const [value, setValue] = useState(defaultValue);
@@ -31,7 +34,7 @@ export function CyrillicField({
     const latin = event.currentTarget.form?.elements.namedItem(latinName);
     if (!(latin instanceof HTMLInputElement || latin instanceof HTMLTextAreaElement)) return;
     const converted = translit(latin.value.trim());
-    if (value.trim() && value !== converted && !window.confirm("Заменить текст в кириллице переводом из латиницы?")) return;
+    if (value.trim() && value !== converted && !window.confirm(t.replaceConfirm)) return;
     setValue(converted);
   }
 
@@ -44,18 +47,21 @@ export function CyrillicField({
           onClick={fill}
           className="cursor-pointer text-xs font-semibold text-forest underline underline-offset-4 hover:text-graphite"
         >
-          Заполнить из латиницы
+          {t.fill}
         </button>
       </div>
       {rows ? (
         <textarea
-          id={id} name={name} rows={rows} value={value}
+          id={id} name={name} rows={rows} value={value} lang="uz-Cyrl"
           onChange={(e) => setValue(e.target.value)} className="field font-normal"
         />
       ) : (
-        <input id={id} name={name} value={value} onChange={(e) => setValue(e.target.value)} className="field font-normal" />
+        <input
+          id={id} name={name} value={value} lang="uz-Cyrl"
+          onChange={(e) => setValue(e.target.value)} className="field font-normal"
+        />
       )}
-      <span className="text-xs font-normal text-muted">Пусто — сайт покажет латиницу, переведённую автоматически.</span>
+      <span className="text-xs font-normal text-muted">{t.emptyHint}</span>
     </div>
   );
 }

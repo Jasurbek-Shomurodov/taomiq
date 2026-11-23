@@ -1,8 +1,11 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { getAdminDictionary } from "@/i18n/admin";
+import type { Locale } from "@/i18n/config";
 import { deleteDish, saveDish, type FormState } from "@/lib/admin/actions";
 import { ALLERGENS } from "@/lib/data/allergens";
+import { localized } from "@/lib/data/localized";
 import type { Dish } from "@/lib/data/types";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
 import { CyrillicField } from "../CyrillicField";
@@ -20,9 +23,11 @@ async function resizeImage(file: File, maxSide = 1600): Promise<Blob> {
   );
 }
 
-export function DishForm({ dish }: { dish: Dish | null }) {
+export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveDish, {});
   const [deleteState, deleteAction, deleting] = useActionState<FormState, FormData>(deleteDish, {});
+  const t = getAdminDictionary(locale);
+  const lang = t.common.fieldLang;
 
   const [photoUrl, setPhotoUrl] = useState(dish?.photo_url ?? "");
   const [uploading, setUploading] = useState(false);
@@ -54,13 +59,13 @@ export function DishForm({ dish }: { dish: Dish | null }) {
       if (error) throw error;
       setPhotoUrl(supabase.storage.from("dish-photos").getPublicUrl(path).data.publicUrl);
     } catch {
-      setUploadError("Не удалось загрузить фото. Попробуйте ещё раз.");
+      setUploadError(t.dish.uploadFailed);
     } finally {
       setUploading(false);
     }
   }
 
-  const label = "grid gap-1.5 text-sm font-semibold text-forest";
+  const label = "grid content-start gap-1.5 text-sm font-semibold text-forest";
 
   return (
     <>
@@ -69,19 +74,22 @@ export function DishForm({ dish }: { dish: Dish | null }) {
         <input type="hidden" name="photo_url" value={photoUrl} />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <label className={`${label} content-start`}>
-            Название (русский)
+          <label className={label}>
+            {t.dish.name} ({lang.ru})
             <input name="name_ru" required defaultValue={dish?.name_ru} className="field font-normal" />
           </label>
-          <label className={`${label} content-start`}>
-            Название (oʻzbekcha)
+          <label className={label}>
+            {t.dish.name} ({lang.uz})
             <input name="name_uz" required defaultValue={dish?.name_uz} className="field font-normal" />
           </label>
-          <CyrillicField name="name_uzc" latinName="name_uz" label="Название (ўзбекча)" defaultValue={dish?.name_uzc ?? ""} />
+          <CyrillicField
+            name="name_uzc" latinName="name_uz" label={`${t.dish.name} (${lang.uzc})`}
+            defaultValue={dish?.name_uzc ?? ""} t={t.cyrillic}
+          />
         </div>
 
         <fieldset className="grid gap-3">
-          <legend className="text-sm font-semibold text-forest">Фото блюда</legend>
+          <legend className="text-sm font-semibold text-forest">{t.dish.photo}</legend>
           <div className="flex flex-wrap items-center gap-4">
             <span className="relative block h-28 w-36 overflow-hidden rounded-xl bg-ivory-deep">
               {/* Plain <img>: the preview may be a just-uploaded file not yet known to the image optimizer. */}
@@ -90,12 +98,10 @@ export function DishForm({ dish }: { dish: Dish | null }) {
             </span>
             <div className="grid gap-2 text-sm">
               <input type="file" accept="image/*" onChange={onPhoto} disabled={uploading} />
-              <span className="text-muted">
-                {uploading ? "Загружаем…" : "Реальное фото порции, горизонтальное. Без стоковых картинок."}
-              </span>
+              <span className="text-muted">{uploading ? t.dish.uploading : t.dish.photoHint}</span>
               {photoUrl && (
                 <button type="button" onClick={() => setPhotoUrl("")} className="w-fit cursor-pointer text-danger">
-                  Убрать фото
+                  {t.dish.removePhoto}
                 </button>
               )}
               {uploadError && <span role="alert" className="text-danger">{uploadError}</span>}
@@ -104,10 +110,10 @@ export function DishForm({ dish }: { dish: Dish | null }) {
         </fieldset>
 
         <fieldset className="grid gap-3">
-          <legend className="text-sm font-semibold text-forest">Пищевая ценность на 100 г готового блюда</legend>
+          <legend className="text-sm font-semibold text-forest">{t.dish.nutrition}</legend>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             <label className={label}>
-              Порция, г
+              {t.dish.portion}
               <input
                 name="default_weight_g" type="number" min="1" step="1" required inputMode="numeric"
                 value={weight} onChange={(e) => setWeight(e.target.value)} className="field font-normal tabular-nums"
@@ -115,10 +121,10 @@ export function DishForm({ dish }: { dish: Dish | null }) {
             </label>
             {(
               [
-                ["kcal_100", "Ккал"],
-                ["protein_100", "Белки, г"],
-                ["fat_100", "Жиры, г"],
-                ["carbs_100", "Углеводы, г"],
+                ["kcal_100", t.dish.kcal],
+                ["protein_100", t.dish.protein],
+                ["fat_100", t.dish.fat],
+                ["carbs_100", t.dish.carbs],
               ] as const
             ).map(([key, title]) => (
               <label key={key} className={label}>
@@ -132,28 +138,32 @@ export function DishForm({ dish }: { dish: Dish | null }) {
             ))}
           </div>
           <p className="rounded-lg bg-ivory p-3 text-sm tabular-nums text-graphite">
-            В порции {weight || 0} г: <b>{portion(per100.kcal_100)} ккал</b> · Б {portion(per100.protein_100)} · Ж{" "}
-            {portion(per100.fat_100)} · У {portion(per100.carbs_100)}
+            {t.dish.inPortion(weight || "0")}{" "}
+            <b>
+              {portion(per100.kcal_100)} {t.common.kcal}
+            </b>{" "}
+            · {t.common.p} {portion(per100.protein_100)} · {t.common.f} {portion(per100.fat_100)} · {t.common.c}{" "}
+            {portion(per100.carbs_100)}
           </p>
         </fieldset>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <label className={`${label} content-start`}>
-            Состав (русский)
+          <label className={label}>
+            {t.dish.ingredients} ({lang.ru})
             <textarea name="ingredients_ru" rows={3} defaultValue={dish?.ingredients_ru} className="field font-normal" />
           </label>
-          <label className={`${label} content-start`}>
-            Состав (oʻzbekcha)
+          <label className={label}>
+            {t.dish.ingredients} ({lang.uz})
             <textarea name="ingredients_uz" rows={3} defaultValue={dish?.ingredients_uz} className="field font-normal" />
           </label>
           <CyrillicField
-            name="ingredients_uzc" latinName="ingredients_uz" label="Состав (ўзбекча)" rows={3}
-            defaultValue={dish?.ingredients_uzc ?? ""}
+            name="ingredients_uzc" latinName="ingredients_uz" label={`${t.dish.ingredients} (${lang.uzc})`} rows={3}
+            defaultValue={dish?.ingredients_uzc ?? ""} t={t.cyrillic}
           />
         </div>
 
         <fieldset>
-          <legend className="text-sm font-semibold text-forest">Аллергены</legend>
+          <legend className="text-sm font-semibold text-forest">{t.dish.allergens}</legend>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm">
             {ALLERGENS.map((allergen) => (
               <label key={allergen.code} className="flex items-center gap-2">
@@ -161,7 +171,7 @@ export function DishForm({ dish }: { dish: Dish | null }) {
                   type="checkbox" name="allergens" value={allergen.code}
                   defaultChecked={dish?.allergens.includes(allergen.code)}
                 />
-                {allergen.ru}
+                {allergen[locale]}
               </label>
             ))}
           </div>
@@ -170,11 +180,11 @@ export function DishForm({ dish }: { dish: Dish | null }) {
         <div className="grid gap-2 text-sm">
           <label className="flex items-center gap-2">
             <input type="checkbox" name="verified" defaultChecked={dish?.verified ?? false} />
-            Техкарта проверена — цифры можно показывать клиентам
+            {t.dish.verified}
           </label>
           <label className="flex items-center gap-2">
             <input type="checkbox" name="active" defaultChecked={dish?.active ?? true} />
-            Активно — блюдо видно на сайте
+            {t.dish.active}
           </label>
         </div>
 
@@ -182,7 +192,7 @@ export function DishForm({ dish }: { dish: Dish | null }) {
 
         <div>
           <button type="submit" disabled={pending || uploading} className="btn btn-forest disabled:opacity-60">
-            {pending ? "Сохраняем…" : "Сохранить"}
+            {pending ? t.common.saving : t.common.save}
           </button>
         </div>
       </form>
@@ -191,13 +201,13 @@ export function DishForm({ dish }: { dish: Dish | null }) {
         <form
           action={deleteAction}
           onSubmit={(event) => {
-            if (!confirm(`Удалить блюдо «${dish.name_ru}»? Это нельзя отменить.`)) event.preventDefault();
+            if (!confirm(t.dish.deleteConfirm(localized(dish, "name", locale)))) event.preventDefault();
           }}
           className="mt-4"
         >
           <input type="hidden" name="id" value={dish.id} />
           <button type="submit" disabled={deleting} className="cursor-pointer text-sm text-danger hover:underline">
-            Удалить блюдо
+            {t.dish.delete}
           </button>
           {deleteState.error && <p role="alert" className="mt-2 text-sm text-danger">{deleteState.error}</p>}
         </form>

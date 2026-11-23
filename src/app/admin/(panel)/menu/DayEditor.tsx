@@ -2,16 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { getAdminDictionary } from "@/i18n/admin";
+import type { Locale } from "@/i18n/config";
 import { copyMenuFromVariant, saveMenuDay, type FormState, type MenuRow } from "@/lib/admin/actions";
-import { SLOTS, type Slot } from "@/lib/data/types";
-
-const SLOT_LABELS: Record<Slot, string> = {
-  breakfast: "Завтрак",
-  snack1: "Перекус",
-  lunch: "Обед",
-  snack2: "Полдник",
-  dinner: "Ужин",
-};
+import { CYCLE_DAYS, SLOTS, type Slot } from "@/lib/data/types";
 
 type DishOption = { id: string; name: string; weight: number; kcal: number; protein: number; fat: number; carbs: number };
 type Row = { dish_id: string; weight: string };
@@ -22,6 +16,7 @@ export function DayEditor({
   targetKcal,
   mealsPerDay,
   day,
+  locale,
   dishes,
   saved,
   otherVariants,
@@ -31,11 +26,14 @@ export function DayEditor({
   targetKcal: number;
   mealsPerDay: number;
   day: number;
+  locale: Locale;
   dishes: DishOption[];
   saved: MenuRow[];
   otherVariants: { id: string; label: string }[];
 }) {
   const router = useRouter();
+  const t = getAdminDictionary(locale);
+  const m = t.menu;
   const [pending, startTransition] = useTransition();
   const [result, setResult] = useState<FormState>({});
   const [copySource, setCopySource] = useState(otherVariants[0]?.id ?? "");
@@ -96,8 +94,8 @@ export function DayEditor({
   function copy(scope: "day" | "all") {
     const source = otherVariants.find((v) => v.id === copySource);
     if (!source) return;
-    const what = scope === "day" ? `день ${day}` : "все 30 дней";
-    if (!confirm(`Скопировать ${what} из «${source.label}» в «${variantLabel}»?\nТекущие блюда на эти дни будут заменены.`)) return;
+    const what = scope === "day" ? m.copyWhatDay(day) : m.copyWhatAll(CYCLE_DAYS);
+    if (!confirm(m.copyConfirm(what, source.label, variantLabel))) return;
     startTransition(async () => {
       const outcome = await copyMenuFromVariant(variantId, copySource, scope === "day" ? day : null);
       setResult(outcome);
@@ -109,11 +107,9 @@ export function DayEditor({
     <section className="mt-8">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
         <h2 className="font-serif text-2xl text-forest">
-          {variantLabel} · День {day}
+          {variantLabel} · {m.day(day)}
         </h2>
-        <p className="text-sm text-muted">
-          Заполнено {filled} из {mealsPerDay} приёмов пищи
-        </p>
+        <p className="text-sm text-muted">{m.filled(filled, mealsPerDay)}</p>
       </div>
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-white">
@@ -122,14 +118,14 @@ export function DayEditor({
           const n = nutrition(row);
           return (
             <div key={slot} className="grid gap-3 border-b border-line p-4 last:border-0 md:grid-cols-[7rem_1fr_7rem_14rem] md:items-center">
-              <span className="label text-muted">{SLOT_LABELS[slot]}</span>
+              <span className="label text-muted">{m.slots[slot]}</span>
               <select
-                aria-label={`${SLOT_LABELS[slot]}: блюдо`}
+                aria-label={m.dishAria(m.slots[slot])}
                 value={row.dish_id}
                 onChange={(e) => pickDish(slot, e.target.value)}
                 className="field"
               >
-                <option value="">— не выбрано —</option>
+                <option value="">{m.notSelected}</option>
                 {dishes.map((dish) => (
                   <option key={dish.id} value={dish.id}>
                     {dish.name}
@@ -138,7 +134,7 @@ export function DayEditor({
               </select>
               <label className="flex items-center gap-2 text-sm text-muted">
                 <input
-                  aria-label={`${SLOT_LABELS[slot]}: вес, г`}
+                  aria-label={m.weightAria(m.slots[slot])}
                   type="number" min="1" step="5" inputMode="numeric"
                   value={row.weight}
                   disabled={!row.dish_id}
@@ -148,13 +144,18 @@ export function DayEditor({
                   }}
                   className="field tabular-nums disabled:bg-ivory"
                 />
-                г
+                {t.common.g}
               </label>
               <span className="text-sm tabular-nums text-graphite">
                 {row.dish_id ? (
                   <>
-                    <b>{n.kcal} ккал</b>
-                    <span className="text-muted"> · Б {n.protein} · Ж {n.fat} · У {n.carbs}</span>
+                    <b>
+                      {n.kcal} {t.common.kcal}
+                    </b>
+                    <span className="text-muted">
+                      {" "}
+                      · {t.common.p} {n.protein} · {t.common.f} {n.fat} · {t.common.c} {n.carbs}
+                    </span>
                   </>
                 ) : (
                   <span className="text-muted">—</span>
@@ -168,23 +169,26 @@ export function DayEditor({
       {/* Day total against the calorie target */}
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-forest p-5 text-ivory">
         <div className="tabular-nums">
-          <p className="label text-gold">Итого за день</p>
+          <p className="label text-gold">{m.total}</p>
           <p className="mt-1 font-serif text-3xl">
-            {total.kcal} <span className="text-lg text-ivory/70">/ {targetKcal} ккал</span>
+            {total.kcal}{" "}
+            <span className="text-lg text-ivory/70">
+              / {targetKcal} {t.common.kcal}
+            </span>
           </p>
           <p className="text-sm text-ivory/70">
-            Б {total.protein} · Ж {total.fat} · У {total.carbs}
+            {t.common.p} {total.protein} · {t.common.f} {total.fat} · {t.common.c} {total.carbs}
           </p>
         </div>
         <p className={`rounded-full px-4 py-1.5 text-sm font-semibold tabular-nums ${withinTarget ? "bg-sage text-forest" : "bg-ivory text-danger"}`}>
           {filled === 0
-            ? "День пуст"
+            ? m.dayEmpty
             : withinTarget
-              ? "В пределах ±5% от цели"
-              : `${deviation > 0 ? "+" : ""}${deviation} ккал от цели`}
+              ? m.withinTarget
+              : m.offTarget(`${deviation > 0 ? "+" : ""}${deviation}`)}
         </p>
         <button type="button" onClick={save} disabled={pending} className="btn btn-gold disabled:opacity-60">
-          {pending ? "Сохраняем…" : "Сохранить день"}
+          {pending ? t.common.saving : m.saveDay}
         </button>
       </div>
 
@@ -193,14 +197,11 @@ export function DayEditor({
 
       {otherVariants.length > 0 && (
         <div className="mt-8 rounded-2xl border border-line bg-white p-5">
-          <h3 className="font-semibold text-forest">Скопировать из другой калорийности</h3>
-          <p className="mt-1 text-sm text-muted">
-            Блюда переносятся те же, граммовки пересчитываются по калорийности и округляются до 10 г. После копирования
-            проверьте порции.
-          </p>
+          <h3 className="font-semibold text-forest">{m.copyTitle}</h3>
+          <p className="mt-1 text-sm text-muted">{m.copyText}</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <select
-              aria-label="Откуда копировать"
+              aria-label={m.copyFrom}
               value={copySource}
               onChange={(e) => setCopySource(e.target.value)}
               className="field w-auto"
@@ -212,10 +213,10 @@ export function DayEditor({
               ))}
             </select>
             <button type="button" onClick={() => copy("day")} disabled={pending} className="btn btn-outline !py-2 text-forest">
-              Только день {day}
+              {m.onlyDay(day)}
             </button>
             <button type="button" onClick={() => copy("all")} disabled={pending} className="btn btn-outline !py-2 text-forest">
-              Все 30 дней
+              {m.allDays(CYCLE_DAYS)}
             </button>
           </div>
         </div>

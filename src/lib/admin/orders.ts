@@ -1,4 +1,4 @@
-import type { Locale } from "@/i18n/config";
+import { htmlLang, type Locale } from "@/i18n/config";
 
 /**
  * Order statuses and the allowed moves between them, shared by the admin pages (server and client)
@@ -12,32 +12,21 @@ export function isOrderStatus(value: string): value is OrderStatus {
   return (ORDER_STATUSES as readonly string[]).includes(value);
 }
 
-export const STATUS_LABELS: Record<OrderStatus, string> = {
-  new: "Новый",
-  confirmed: "Подтверждён",
-  paid: "Оплачен",
-  active: "Доставляется",
-  completed: "Завершён",
-  cancelled: "Отменён",
-};
+/**
+ * The one forward step from each open status. The button texts and status names live in the admin
+ * dictionaries (src/i18n/admin), keyed by these statuses.
+ */
+export const NEXT_STATUS = {
+  new: "confirmed",
+  confirmed: "paid",
+  paid: "active",
+  active: "completed",
+} as const satisfies Partial<Record<OrderStatus, OrderStatus>>;
+export type ForwardStatus = keyof typeof NEXT_STATUS;
 
-/** Tab titles on the orders list (plural). */
-export const STATUS_TABS: Record<OrderStatus, string> = {
-  new: "Новые",
-  confirmed: "Подтверждённые",
-  paid: "Оплаченные",
-  active: "Доставляются",
-  completed: "Завершённые",
-  cancelled: "Отменённые",
-};
-
-/** The one forward step from each status, with the button text. */
-export const NEXT_STATUS: Partial<Record<OrderStatus, { to: OrderStatus; action: string }>> = {
-  new: { to: "confirmed", action: "Подтвердить" },
-  confirmed: { to: "paid", action: "Отметить оплату" },
-  paid: { to: "active", action: "Начать доставку" },
-  active: { to: "completed", action: "Завершить" },
-};
+export function hasNextStatus(status: OrderStatus): status is ForwardStatus {
+  return Object.hasOwn(NEXT_STATUS, status);
+}
 
 /** Open orders can be cancelled; completed and cancelled ones are final. */
 export function canCancel(status: OrderStatus): boolean {
@@ -45,7 +34,7 @@ export function canCancel(status: OrderStatus): boolean {
 }
 
 export function canMove(from: OrderStatus, to: OrderStatus): boolean {
-  return NEXT_STATUS[from]?.to === to || (to === "cancelled" && canCancel(from));
+  return (hasNextStatus(from) && NEXT_STATUS[from] === to) || (to === "cancelled" && canCancel(from));
 }
 
 export const STATUS_TONES: Record<OrderStatus, string> = {
@@ -108,9 +97,12 @@ export function formatPhone(phone: string): string {
   return m ? `+998 ${m[1]} ${m[2]}-${m[3]}-${m[4]}` : phone;
 }
 
-/** Timestamp in Tashkent time: "23.11.2026, 14:05". */
-export function formatDateTime(iso: string): string {
-  return new Date(iso).toLocaleString("ru-RU", {
+/** Date formats per language; Russian by default (the Telegram order card is always Russian). */
+const DATE_LOCALE: Record<Locale, string> = { ...htmlLang, ru: "ru-RU" };
+
+/** Timestamp in Tashkent time: "23.11.2026, 14:05" (ru), "23/11/2026, 14:05" (uz). */
+export function formatDateTime(iso: string, locale: Locale = "ru"): string {
+  return new Date(iso).toLocaleString(DATE_LOCALE[locale], {
     timeZone: "Asia/Tashkent",
     day: "2-digit",
     month: "2-digit",
@@ -120,11 +112,11 @@ export function formatDateTime(iso: string): string {
   });
 }
 
-/** A calendar date (YYYY-MM-DD) with the weekday: "пн, 24.11.2026". */
-export function formatDay(date: string): string {
+/** A calendar date (YYYY-MM-DD) with the weekday: "пн, 24.11.2026" (ru), "Dush, 24/11/2026" (uz). */
+export function formatDay(date: string, locale: Locale = "ru"): string {
   const [y, m, d] = date.split("-").map(Number);
   if (!y || !m || !d) return date;
-  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString("ru-RU", {
+  return new Date(Date.UTC(y, m - 1, d)).toLocaleDateString(DATE_LOCALE[locale], {
     timeZone: "UTC",
     weekday: "short",
     day: "2-digit",
