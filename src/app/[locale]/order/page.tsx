@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog";
+import { localized } from "@/lib/data/localized";
 import { SOURCE_KEYS, SOURCE_VALUE_MAX, startDateRange } from "@/lib/order/rules";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
@@ -71,7 +72,7 @@ async function OrderLoader({
       slug: p.slug,
       name: p.name,
       tagColor: p.tag_color,
-      tagline: locale === "ru" ? p.tagline_ru : p.tagline_uz,
+      tagline: localized(p, "tagline", locale),
       variants: p.variants.map((v) => ({ id: v.id, kcal: v.kcal, meals: v.meals_per_day, price: v.price_per_day })),
     }));
   if (programs.length === 0 || durations.length === 0) {

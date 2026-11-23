@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n";
+import { localized } from "@/lib/data/localized";
 import { portionNutrition, sumNutrition, type MenuEntry } from "@/lib/data/types";
 import { InViewGrow } from "./InViewGrow";
 import { Monogram } from "./Logo";
@@ -62,8 +63,8 @@ export function MenuDay({
       <ul className={`stagger ${DISH_LIST}`}>
         {entries.map((entry, index) => {
           const n = portionNutrition(entry.dish, entry.weight_g);
-          const name = locale === "ru" ? entry.dish.name_ru : entry.dish.name_uz;
-          const ingredients = locale === "ru" ? entry.dish.ingredients_ru : entry.dish.ingredients_uz;
+          const name = localized(entry.dish, "name", locale);
+          const ingredients = localized(entry.dish, "ingredients", locale);
           const eager = eagerFirstImage && index === 0;
           return (
             <li key={entry.id} className={DISH_CARD}>

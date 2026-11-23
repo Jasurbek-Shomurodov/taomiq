@@ -9,7 +9,7 @@
 import "./alertFontConfig"; // must run before sharp loads
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { formatSum, plural } from "../../i18n/config";
+import { formatSum, isLocale, localeNameRu, plural } from "../../i18n/config";
 import { ALERT_FONT_DIRECTORY, ALERT_FONT_FILES, ALERT_FONT_SANS, ALERT_FONT_SERIF } from "./alertFontConfig";
 
 /** The TQ monogram on a transparent background, cropped from the approved logo by scripts/build-brand-assets.mjs. */
@@ -44,8 +44,6 @@ const PAD = 64;
 const HEADER = 196;
 const MARK = 116; // monogram size in the header
 const COLUMN_2 = 616;
-
-const LANGUAGE: Record<string, string> = { uz: "узбекский", ru: "русский" };
 
 function escapeXml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c] ?? c);
@@ -90,7 +88,7 @@ export function orderAlertSvg(order: OrderAlert, monogram: string | null = null)
   const programName = clip(drawableText(order.programName) || "—", 26);
   const window = clip(drawableText(order.window) || "—", 24);
   const days = `${order.days} ${plural(order.days, ["день", "дня", "дней"])}`;
-  const language = LANGUAGE[order.locale] ?? drawableText(order.locale);
+  const language = isLocale(order.locale) ? localeNameRu[order.locale] : drawableText(order.locale);
 
   const programY = HEADER + 92;
   const factsY = programY + 88;

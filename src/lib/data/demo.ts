@@ -24,8 +24,10 @@ const program = (
   tag_color,
   tagline_uz,
   tagline_ru,
+  tagline_uzc: "", // empty: the site converts the Latin text, as for a real row nobody has edited yet
   description_uz,
   description_ru,
+  description_uzc: "",
   sort,
   active: true,
   variants: variants.map(([kcal, meals_per_day, price_per_day], index) => ({
@@ -80,6 +82,7 @@ const dish = (
   id,
   name_uz,
   name_ru,
+  name_uzc: "", // empty: the site converts the Latin text, as for a real row nobody has edited yet
   photo_url: null,
   default_weight_g,
   kcal_100,
@@ -88,6 +91,7 @@ const dish = (
   carbs_100,
   ingredients_uz,
   ingredients_ru,
+  ingredients_uzc: "",
   allergens,
   verified: false,
   active: true,

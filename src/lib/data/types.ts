@@ -20,8 +20,11 @@ export type Program = {
   tag_color: string;
   tagline_uz: string;
   tagline_ru: string;
+  /** Hand-written Cyrillic Uzbek; empty means "convert the Latin text" (src/lib/data/localized.ts). */
+  tagline_uzc: string;
   description_uz: string;
   description_ru: string;
+  description_uzc: string;
   sort: number;
   active: boolean;
   variants: Variant[];
@@ -37,6 +40,8 @@ export type Dish = {
   id: string;
   name_uz: string;
   name_ru: string;
+  /** Hand-written Cyrillic Uzbek; empty means "convert the Latin text" (src/lib/data/localized.ts). */
+  name_uzc: string;
   photo_url: string | null;
   default_weight_g: number;
   kcal_100: number;
@@ -45,6 +50,7 @@ export type Dish = {
   carbs_100: number;
   ingredients_uz: string;
   ingredients_ru: string;
+  ingredients_uzc: string;
   allergens: string[];
   verified: boolean;
   active: boolean;

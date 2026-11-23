@@ -5,7 +5,7 @@ What gets built for taomiq.uz v1. Design follows [01-brand-foundation.md](01-bra
 ## 1. Principles
 
 1. **Mobile first.** 82% of Uzbek users are mobile-first; every screen is designed at 375 px before desktop.
-2. **Two languages, equal quality:** Uzbek (Latin, default) and Russian. No raw keys, no half-translated pages.
+2. **Three languages, equal quality:** Uzbek in Latin script (default), Uzbek in Cyrillic script and Russian ([plan](plans/third-locale-uzbek-cyrillic.md), 23 Nov 2026). No raw keys, no half-translated pages.
 3. **Price and menu are never hidden.**
 4. **One primary action per screen:** "Choose plan" / «Выбрать рацион» / "Ratsion tanlash".
 5. **Calm premium:** Deep Forest and Ivory surfaces, gold accents, serif headings, real photography, generous spacing. No timers, pop-ups or flashing banners.
@@ -118,4 +118,4 @@ See section 8 of [05-technical-architecture.md](05-technical-architecture.md): o
 
 ## 12. Out of scope for v1
 
-Native apps · Telegram Mini App · saved-card auto-renewal · Uzum payments · bonus points · gift certificates · courier mobile app with live tracking · English version · Uzbek Cyrillic.
+Native apps · Telegram Mini App · saved-card auto-renewal · Uzum payments · bonus points · gift certificates · courier mobile app with live tracking · English version. (Uzbek Cyrillic moved into scope on 23 Nov 2026: [plan](plans/third-locale-uzbek-cyrillic.md).)

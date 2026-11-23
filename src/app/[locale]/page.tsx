@@ -7,6 +7,7 @@ import { MenuDay } from "@/components/MenuDay";
 import { getDictionary } from "@/i18n";
 import { formatSum, isLocale } from "@/i18n/config";
 import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
+import { localized } from "@/lib/data/localized";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { faqPage } from "@/lib/structured-data";
@@ -113,9 +114,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                   <span className="h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
                   <p className="label mt-5 text-ivory/60">TAOMIQ</p>
                   <h3 className="font-serif text-4xl">{program.name}</h3>
-                  <p className="mt-1 text-gold">{locale === "ru" ? program.tagline_ru : program.tagline_uz}</p>
+                  <p className="mt-1 text-gold">{localized(program, "tagline", locale)}</p>
                   <p className="mt-4 text-sm leading-relaxed text-ivory/75">
-                    {locale === "ru" ? program.description_ru : program.description_uz}
+                    {localized(program, "description", locale)}
                   </p>
 
                   <p className="label mt-6 text-ivory/60">{t.programs.levels}</p>

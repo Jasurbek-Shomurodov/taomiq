@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { defaultLocale, locales } from "@/i18n/config";
+import { defaultLocale, htmlLang, locales } from "@/i18n/config";
 import { getPrograms } from "@/lib/data/catalog";
 import { site } from "@/lib/site";
 
@@ -21,7 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: `${site.url}/${locale}${path}`,
       alternates: {
         languages: {
-          ...Object.fromEntries(locales.map((l) => [l, `${site.url}/${l}${path}`])),
+          ...Object.fromEntries(locales.map((l) => [htmlLang[l], `${site.url}/${l}${path}`])),
           "x-default": `${site.url}/${defaultLocale}${path}`,
         },
       },

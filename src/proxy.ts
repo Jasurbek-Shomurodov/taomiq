@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { defaultLocale, isLocale, locales } from "@/i18n/config";
+import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
 
 /** A request for a file (a dot extension at the end), not a page. */
 const FILE_PATH = /\.[a-zA-Z0-9]+$/;
@@ -10,8 +10,23 @@ function noindex(response: NextResponse): NextResponse {
 }
 
 /**
+ * The site language for a first visit with no locale in the path, from Accept-Language, in the
+ * browser's order. A language tag cannot tell the two Uzbek scripts apart unless it names the
+ * script, so uz-Cyrl → uzc and any other uz → uz (Latin). Once a visitor picks a language, the
+ * path carries it and this is not consulted again.
+ */
+function preferredLocale(acceptLanguage: string): Locale {
+  for (const part of acceptLanguage.toLowerCase().split(",")) {
+    const tag = part.split(";")[0].trim();
+    if (tag === "uz" || tag.startsWith("uz-")) return tag.split("-").includes("cyrl") ? "uzc" : "uz";
+    if (tag === "ru" || tag.startsWith("ru-")) return "ru";
+  }
+  return defaultLocale;
+}
+
+/**
  * Two sites, one app:
- *  - taomiq.uz        → /[locale]/…  (client site, uz + ru)
+ *  - taomiq.uz        → /[locale]/…  (client site, uz + uzc + ru)
  *  - admin.taomiq.uz  → /admin/…     (back office)
  * In development use http://localhost:5555 and http://admin.localhost:5555.
  */
@@ -44,13 +59,8 @@ export function proxy(request: NextRequest) {
   const first = pathname.split("/")[1] ?? "";
   if (isLocale(first)) return NextResponse.next();
 
-  // No locale in the path: pick one from the browser, default to Uzbek.
-  const accepted = (request.headers.get("accept-language") ?? "").toLowerCase();
-  const preferred =
-    accepted
-      .split(",")
-      .map((part) => part.split(";")[0].trim().slice(0, 2))
-      .find((code) => (locales as readonly string[]).includes(code)) ?? defaultLocale;
+  // No locale in the path: pick one from the browser, default to Uzbek (Latin).
+  const preferred = preferredLocale(request.headers.get("accept-language") ?? "");
 
   const url = request.nextUrl.clone();
   url.pathname = `/${preferred}${pathname === "/" ? "" : pathname}`;

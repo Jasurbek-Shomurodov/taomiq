@@ -74,10 +74,10 @@ supabase/   migrations/, seed.sql
 | `profiles` | Customer | `id` (auth uid), `phone`, `name`, `locale`, `telegram_id`, `referral_code` |
 | `addresses` | Delivery addresses | `profile_id`, `text`, `entrance/floor/apt`, `geo` (PostGIS point), `zone_id`, `comment` |
 | `delivery_zones` | Polygons + rules | `name`, `polygon`, `fee`, `windows[]`, `active` |
-| `programs` | LIGHT, BALANCE… | `slug`, `name_uz/ru`, `tagline_uz/ru`, `tag_color`, `active`, `sort` |
+| `programs` | LIGHT, BALANCE… | `slug`, `name`, `tagline_uz/uzc/ru`, `description_uz/uzc/ru`, `tag_color`, `active`, `sort` |
 | `program_variants` | A kcal level in a program | `program_id`, `kcal`, `meals_per_day`, `protein/fat/carb` targets |
 | `price_rules` | Price per day by duration | `variant_id`, `days` (1/7/14/30), `price_per_day` (UZS), `ikpu_code`, `package_code`, `vat_rate` |
-| `dishes` | Dish catalogue | `name_uz/ru`, `photo`, `weight_g`, `kcal`, `p/f/c`, `ingredients_uz/ru`, `allergens[]`, `verified` |
+| `dishes` | Dish catalogue | `name_uz/uzc/ru`, `photo`, `weight_g`, `kcal`, `p/f/c`, `ingredients_uz/uzc/ru`, `allergens[]`, `verified` |
 | `menu_days` | 30-day rotating menu | `variant_id`, `cycle_day` (1–30), `slot` (breakfast…), `dish_id` |
 | `subscriptions` | A purchased plan | `profile_id`, `variant_id`, `days_total`, `days_left`, `weekdays[]`, `start_date`, `status`, `address_id`, `window`, `exclusions[]` |
 | `deliveries` | One row per delivery day | `subscription_id`, `date`, `status`, `window`, `address_snapshot`, `courier_id` |

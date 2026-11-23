@@ -1,3 +1,5 @@
+import type { Locale } from "@/i18n/config";
+
 /**
  * Order statuses and the allowed moves between them, shared by the admin pages (server and client)
  * and the order actions. The database only checks that a status is one of these values.
@@ -75,7 +77,7 @@ export type Order = {
   delivery_window: string;
   comment: string;
   exclusions: string;
-  locale: "uz" | "ru";
+  locale: Locale;
   source: Record<string, string>;
   staff_note: string;
   consent_at: string;

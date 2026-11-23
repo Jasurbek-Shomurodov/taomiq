@@ -1,13 +1,13 @@
-/** Allergen codes stored on dishes, with labels for both site languages. */
+/** Allergen codes stored on dishes, with labels for every site language. */
 export const ALLERGENS = [
-  { code: "gluten", ru: "Глютен", uz: "Glyuten" },
-  { code: "milk", ru: "Молоко", uz: "Sut" },
-  { code: "egg", ru: "Яйца", uz: "Tuxum" },
-  { code: "fish", ru: "Рыба", uz: "Baliq" },
-  { code: "seafood", ru: "Морепродукты", uz: "Dengiz mahsulotlari" },
-  { code: "nuts", ru: "Орехи", uz: "Yongʻoq" },
-  { code: "peanut", ru: "Арахис", uz: "Yeryongʻoq" },
-  { code: "soy", ru: "Соя", uz: "Soya" },
-  { code: "sesame", ru: "Кунжут", uz: "Kunjut" },
-  { code: "honey", ru: "Мёд", uz: "Asal" },
+  { code: "gluten", ru: "Глютен", uz: "Glyuten", uzc: "Глютен" },
+  { code: "milk", ru: "Молоко", uz: "Sut", uzc: "Сут" },
+  { code: "egg", ru: "Яйца", uz: "Tuxum", uzc: "Тухум" },
+  { code: "fish", ru: "Рыба", uz: "Baliq", uzc: "Балиқ" },
+  { code: "seafood", ru: "Морепродукты", uz: "Dengiz mahsulotlari", uzc: "Денгиз маҳсулотлари" },
+  { code: "nuts", ru: "Орехи", uz: "Yongʻoq", uzc: "Ёнғоқ" },
+  { code: "peanut", ru: "Арахис", uz: "Yeryongʻoq", uzc: "Ерёнғоқ" },
+  { code: "soy", ru: "Соя", uz: "Soya", uzc: "Соя" },
+  { code: "sesame", ru: "Кунжут", uz: "Kunjut", uzc: "Кунжут" },
+  { code: "honey", ru: "Мёд", uz: "Asal", uzc: "Асал" },
 ] as const;

@@ -12,7 +12,7 @@
 | 6 | Delivery zones and cutoff time | Inside the ring road; cutoff 14:00 the day before | Before phase 2 |
 | 7 | Accept cash on first delivery? | No — online payment only, to keep the flow self-service. Every competitor accepts cash, so this may cost some orders | Before phase 2 |
 | 8 | Legal form | IP or OOO (self-employed status is unlikely to get payment integrations) | **Yes** (Track A) |
-| 9 | Site languages | Uzbek (Latin) + Russian; no English at launch | Before phase 1 |
+| 9 | Site languages | Decided 23 Nov 2026: Uzbek (Latin, default), Uzbek (Cyrillic) and Russian, on the site and in the admin; no English at launch ([plan](plans/third-locale-uzbek-cyrillic.md)) | Before phase 1 |
 | 10 | Body font | Manrope or Inter — brandbook leaves it open | Before design |
 | 11 | Program tag colours | Not defined in the brandbook | Before design |
 | 12 | Kitchen launch date | Drives whether we soft-launch with a lead form first | Planning |

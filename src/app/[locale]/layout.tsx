@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Manrope, Noto_Serif_Display } from "next/font/google";
+import type { CSSProperties } from "react";
+import { Manrope, Noto_Serif_Display, Onest } from "next/font/google";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
 import { Footer, Header } from "@/components/SiteChrome";
 import { getDictionary } from "@/i18n";
-import { isLocale, locales } from "@/i18n/config";
+import { htmlLang, isLocale, locales, ogLocale, type Locale } from "@/i18n/config";
 import { site } from "@/lib/site";
 import { organizationAndWebsite } from "@/lib/structured-data";
 import "../globals.css";
@@ -21,6 +22,28 @@ const sans = Manrope({
   subsets: ["latin", "latin-ext", "cyrillic"],
   display: "swap",
 });
+
+// Manrope has no Қ Ғ Ҳ (nor the ʻ of Latin Uzbek). Onest, a grotesque with nearly the same
+// proportions, draws just those letters on Cyrillic Uzbek pages. It is in the font stack only on
+// those pages and is not preloaded: the browser fetches its files by unicode-range when needed.
+const uzbekLetters = Onest({
+  subsets: ["cyrillic-ext"],
+  preload: false,
+  display: "swap",
+});
+
+/**
+ * The sans stack per language. For Cyrillic Uzbek, Onest goes right after Manrope and before
+ * Manrope's metric-matched system fallback (Arial), so a missing letter never comes from Arial.
+ */
+function sansOverride(locale: Locale): CSSProperties | undefined {
+  if (locale !== "uzc") return undefined;
+  const families = (font: { style: { fontFamily: string } }) => font.style.fontFamily.split(",").map((f) => f.trim());
+  const [manrope, ...manropeFallbacks] = families(sans);
+  const [onest] = families(uzbekLetters); // without Onest's own Arial fallback: Manrope's metrics apply
+  const stack = [manrope, onest, ...manropeFallbacks, "system-ui", "sans-serif"].join(", ");
+  return { "--font-sans": stack } as CSSProperties;
+}
 
 export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
@@ -42,7 +65,7 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
     description: t.meta.description,
     openGraph: {
       siteName: site.name,
-      locale: locale === "ru" ? "ru_UZ" : "uz_UZ",
+      locale: ogLocale[locale],
       type: "website",
     },
   };
@@ -54,7 +77,11 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   const t = getDictionary(locale);
 
   return (
-    <html lang={locale} className={`${serif.variable} ${sans.variable} antialiased`}>
+    <html
+      lang={htmlLang[locale]}
+      className={`${serif.variable} ${sans.variable} antialiased`}
+      style={sansOverride(locale)}
+    >
       <body className="flex min-h-dvh flex-col">
         <JsonLd data={organizationAndWebsite(locale, t.meta.description)} />
         <Header locale={locale} t={t} />

@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
-import { defaultLocale, locales, type Locale } from "@/i18n/config";
+import { defaultLocale, htmlLang, locales, ogLocale, type Locale } from "@/i18n/config";
 import { site } from "@/lib/site";
-
-const OG_LOCALE: Record<Locale, string> = { uz: "uz_UZ", ru: "ru_UZ" };
 
 type PageMetadataInput = {
   locale: Locale;
@@ -39,7 +37,7 @@ export function pageMetadata({
           alternates: {
             canonical: url,
             languages: {
-              ...Object.fromEntries(locales.map((l) => [l, `/${l}${path}`])),
+              ...Object.fromEntries(locales.map((l) => [htmlLang[l], `/${l}${path}`])),
               "x-default": `/${defaultLocale}${path}`,
             },
           },
@@ -49,7 +47,7 @@ export function pageMetadata({
       url,
       title,
       description,
-      locale: OG_LOCALE[locale],
+      locale: ogLocale[locale],
       siteName: site.name,
       type: "website",
     },

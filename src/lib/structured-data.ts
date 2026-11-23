@@ -2,7 +2,8 @@
  * schema.org builders. They state only what the site itself shows: names, descriptions,
  * catalogue prices and the FAQ text. No ratings, reviews, address or phone until those exist.
  */
-import type { Locale } from "@/i18n/config";
+import { htmlLang, type Locale } from "@/i18n/config";
+import { localized } from "@/lib/data/localized";
 import { pricePerDay, type Duration, type Program } from "@/lib/data/types";
 import { site } from "@/lib/site";
 
@@ -27,7 +28,7 @@ export function organizationAndWebsite(locale: Locale, description: string) {
         name: site.name,
         url: `${site.url}/${locale}`,
         description,
-        inLanguage: locale,
+        inLanguage: htmlLang[locale],
         publisher: { "@id": ORGANIZATION_ID },
       },
     ],
@@ -38,7 +39,7 @@ export function faqPage(items: readonly { q: string; a: string }[], locale: Loca
   return {
     "@context": CONTEXT,
     "@type": "FAQPage",
-    inLanguage: locale,
+    inLanguage: htmlLang[locale],
     mainEntity: items.map((item) => ({
       "@type": "Question",
       name: item.q,
@@ -78,7 +79,7 @@ export function programProduct(program: Program, durations: Duration[], locale: 
     "@context": CONTEXT,
     "@type": "Product",
     name: `${site.name} ${program.name}`,
-    description: locale === "ru" ? program.description_ru : program.description_uz,
+    description: localized(program, "description", locale),
     url,
     brand: { "@type": "Brand", name: site.name },
     ...(offers.length > 0 && {

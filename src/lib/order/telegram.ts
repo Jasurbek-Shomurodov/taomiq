@@ -1,5 +1,6 @@
 import "server-only";
 import { after } from "next/server";
+import { isLocale, localeNameRu } from "@/i18n/config";
 import { formatDay } from "@/lib/admin/orders";
 import { createSecretClient } from "@/lib/supabase/secret";
 import type { OrderAlert } from "./alertImage";
@@ -25,7 +26,7 @@ function alertText(order: OrderAlert): string {
     `Новый заказ № ${order.number}`,
     `${order.programName} / ${order.kcal} ккал · ${order.days} дн., ${order.weekdaysOnly ? "только будни" : "каждый день"}`,
     `Старт: ${formatDay(order.startDate)} · ${order.window}`,
-    `Язык сайта: ${order.locale}`,
+    `Язык сайта: ${isLocale(order.locale) ? localeNameRu[order.locale] : order.locale}`,
     "Клиент и телефон — в админке, раздел «Заказы».",
   ].join("\n");
 }

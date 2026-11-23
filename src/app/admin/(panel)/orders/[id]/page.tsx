@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { formatSum } from "@/i18n/config";
+import { formatSum, localeNameRu } from "@/i18n/config";
 import { requireOwner } from "@/lib/admin/auth";
 import { formatDateTime, formatDay, formatPhone, type Order } from "@/lib/admin/orders";
 import { getOrder } from "@/lib/admin/queries";
@@ -11,8 +11,6 @@ import { StatusBadge } from "../StatusBadge";
 export const metadata: Metadata = { title: "Заказ" };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const LOCALE_LABELS = { uz: "узбекский", ru: "русский" } as const;
 
 export default async function OrderPage({ params }: PageProps<"/admin/orders/[id]">) {
   const { id } = await params;
@@ -52,7 +50,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
         <StatusBadge status={order.status} />
       </div>
       <p className="mt-1 text-sm text-muted">
-        Создан {formatDateTime(order.created_at)} · язык сайта: {LOCALE_LABELS[order.locale] ?? order.locale}
+        Создан {formatDateTime(order.created_at)} · язык сайта: {localeNameRu[order.locale] ?? order.locale}
         {order.updated_at !== order.created_at && <> · изменён {formatDateTime(order.updated_at)}</>}
       </p>
 

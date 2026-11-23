@@ -10,9 +10,9 @@ Google holds about 76% of search in Uzbekistan and Yandex about 22%, so both mat
 
 | Item | Decision |
 |---|---|
-| URL structure | `/uz/…` (default) and `/ru/…`; root `/` redirects by `Accept-Language`, falling back to `uz` |
-| hreflang | `uz`, `ru`, `x-default` → Uzbek; reciprocal and self-referencing on every page |
-| Uzbek script | Latin. Cyrillic Uzbek is not built at launch |
+| URL structure | `/uz/…` (default), `/uzc/…` (Uzbek Cyrillic) and `/ru/…`; root `/` redirects by `Accept-Language` (`uz-Cyrl` → `uzc`, other `uz` → `uz`), falling back to `uz` |
+| hreflang | `uz-Latn`, `uz-Cyrl`, `ru`, `x-default` → Uzbek Latin; reciprocal and self-referencing on every page |
+| Uzbek script | Latin (default) and Cyrillic, as two locales; catalogue text falls back to a Latin→Cyrillic conversion until staff write it |
 | Rendering | Static/ISR for all public pages; no content hidden behind client-side JS (Healthy Food's prices are invisible to crawlers for this reason) |
 | Metadata | Unique title, description, canonical and Open Graph image per page and per locale |
 | Structured data | `Organization` + `LocalBusiness` (address, hours, phone, geo), `Product` + `Offer` on program pages (price in UZS), `FAQPage`, `BreadcrumbList`, `Article` on blog, `AggregateRating` once real reviews exist |

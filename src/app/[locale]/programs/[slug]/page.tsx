@@ -6,6 +6,7 @@ import { MenuDay } from "@/components/MenuDay";
 import { getDictionary } from "@/i18n";
 import { formatSum, isLocale, locales } from "@/i18n/config";
 import { getDurations, getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data/catalog";
+import { localized } from "@/lib/data/localized";
 import { pricePerDay } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
 import { programProduct } from "@/lib/structured-data";
@@ -23,8 +24,8 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/programs
   return pageMetadata({
     locale,
     path: `/programs/${slug}`,
-    title: `${program.name} — ${locale === "ru" ? program.tagline_ru : program.tagline_uz}`,
-    description: locale === "ru" ? program.description_ru : program.description_uz,
+    title: `${program.name} — ${localized(program, "tagline", locale)}`,
+    description: localized(program, "description", locale),
   });
 }
 
@@ -48,9 +49,9 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
           <span className="block h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
           <p className="label mt-5 text-ivory/60">TAOMIQ</p>
           <h1 className="font-serif text-6xl md:text-7xl">{program.name}</h1>
-          <p className="mt-2 text-xl text-gold">{locale === "ru" ? program.tagline_ru : program.tagline_uz}</p>
+          <p className="mt-2 text-xl text-gold">{localized(program, "tagline", locale)}</p>
           <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ivory/80">
-            {locale === "ru" ? program.description_ru : program.description_uz}
+            {localized(program, "description", locale)}
           </p>
           <Link href={`/${locale}/order?program=${program.slug}`} className="btn btn-gold mt-8">
             {t.nav.cta}
