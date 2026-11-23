@@ -108,6 +108,41 @@ test("program page shows its calorie levels and prices", async ({ page }) => {
   }
 });
 
+/** The JSON-LD blocks of a page, parsed (a malformed one fails the test). */
+async function jsonLdTypes(page: Page): Promise<string[]> {
+  const blocks = await page.locator('script[type="application/ld+json"]').allTextContents();
+  return blocks.map((text) => (JSON.parse(text) as { "@type"?: string })["@type"] ?? "");
+}
+
+for (const locale of locales) {
+  test(`FAQ page renders in ${locale} and owns the FAQPage data`, async ({ page }) => {
+    const t = getDictionary(locale);
+    const response = await page.goto(`/${locale}/faq`);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(t.faq.title);
+    await expect(page.locator("summary", { hasText: t.faq.items[0].q })).toBeVisible();
+    expect(await jsonLdTypes(page)).toEqual(expect.arrayContaining(["FAQPage", "BreadcrumbList"]));
+
+    await page.goto(`/${locale}`);
+    expect(await jsonLdTypes(page)).not.toContain("FAQPage");
+  });
+
+  test(`prices page renders in ${locale} with every program`, async ({ page }) => {
+    const t = getDictionary(locale);
+    const response = await page.goto(`/${locale}/prices`);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(t.prices.title);
+    for (const program of demoPrograms) {
+      await expect(page.getByRole("heading", { level: 2, name: `TAOMIQ ${program.name}` })).toBeVisible();
+    }
+    // A price cell, computed as the program page and the order form compute it.
+    const variant = demoPrograms[0].variants[0];
+    const perDay = formatSum(pricePerDay(variant.price_per_day, demoDurations[0].markup_pct));
+    await expect(page.getByText(perDay, { exact: true }).filter({ visible: true }).first()).toBeVisible();
+    expect(await jsonLdTypes(page)).toEqual(expect.arrayContaining(["ItemList", "BreadcrumbList"]));
+  });
+}
+
 test("calculator gives a daily norm and a matching program", async ({ page }) => {
   const t = ru.calculator;
   await page.goto("/ru/calculator");
@@ -190,5 +225,6 @@ test("robots.txt and sitemap.xml are served on the public host", async ({ reques
 
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
-  expect(await sitemap.text()).toContain("/uz/menu");
+  const urls = await sitemap.text();
+  for (const path of ["/uz/menu", "/uz/faq", "/uz/prices"]) expect(urls).toContain(path);
 });

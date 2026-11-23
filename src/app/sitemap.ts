@@ -11,8 +11,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "",
     "/menu",
     ...programs.map((p) => `/programs/${p.slug}`),
+    "/prices",
     "/calculator",
     "/delivery",
+    "/faq",
     "/privacy",
   ];
 

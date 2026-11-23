@@ -13,11 +13,12 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
     { href: `/${locale}/menu`, label: t.nav.menu },
     { href: `/${locale}/calculator`, label: t.nav.calculator },
     { href: `/${locale}/delivery`, label: t.nav.delivery },
-    { href: `/${locale}#faq`, label: t.nav.faq },
+    { href: `/${locale}/faq`, label: t.nav.faq },
   ];
 
+  // .site-header: named in view transitions, so it stays still while the page changes (globals.css).
   return (
-    <header className="sticky top-0 z-40 border-b border-ivory/10 bg-forest/95 backdrop-blur">
+    <header className="site-header sticky top-0 z-40 border-b border-ivory/10 bg-forest/95 backdrop-blur">
       {/* One row: 56 px on phones and tablets (sections in the MobileNav sheet), 64 px from lg. */}
       <div className="container-page flex h-14 items-center justify-between gap-3 lg:h-16 lg:gap-4">
         <Link href={`/${locale}`} className="text-xl">
@@ -78,10 +79,11 @@ export function Footer({
         </nav>
         <nav className="flex flex-col gap-2 text-sm">
           <Link href={`/${locale}/menu`} className="hover:text-ivory">{t.nav.menu}</Link>
+          <Link href={`/${locale}/prices`} className="hover:text-ivory">{t.nav.prices}</Link>
           <Link href={`/${locale}/calculator`} className="hover:text-ivory">{t.nav.calculator}</Link>
           <Link href={`/${locale}/delivery`} className="hover:text-ivory">{t.nav.delivery}</Link>
           <Link href={`/${locale}#how`} className="hover:text-ivory">{t.nav.how}</Link>
-          <Link href={`/${locale}#faq`} className="hover:text-ivory">{t.nav.faq}</Link>
+          <Link href={`/${locale}/faq`} className="hover:text-ivory">{t.nav.faq}</Link>
         </nav>
         <div className="col-span-2 flex flex-col gap-2 text-sm md:col-span-1">
           <a href={site.telegram} className="hover:text-ivory" rel="noopener">Telegram</a>

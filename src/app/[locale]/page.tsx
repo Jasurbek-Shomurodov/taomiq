@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { JsonLd } from "@/components/JsonLd";
+import { ViewTransition } from "react";
+import { FaqList } from "@/components/FaqList";
 import { Monogram } from "@/components/Logo";
 import { MenuDay } from "@/components/MenuDay";
+import { PageTransition } from "@/components/PageTransition";
 import { getDictionary } from "@/i18n";
 import { formatSum, isLocale } from "@/i18n/config";
 import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
@@ -11,7 +13,6 @@ import { localized } from "@/lib/data/localized";
 import { lowestPricePerDay } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
-import { faqPage } from "@/lib/structured-data";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
   const { locale } = await params;
@@ -43,7 +44,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const preview = todayMenu.length > 0 || !featuredVariant ? todayMenu : await getMenuDay(featuredVariant.id, 1);
 
   return (
-    <>
+    <PageTransition>
       {/* Hero */}
       <section className="bg-forest text-ivory">
         <div className="container-page grid gap-10 py-16 md:grid-cols-[1.3fr_1fr] md:items-center md:py-24">
@@ -127,7 +128,11 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                       href={`/${locale}/programs/${program.slug}`}
                       className="after:absolute after:inset-0 after:rounded-3xl after:content-['']"
                     >
-                      {program.name}
+                      {/* The name grows into the program page's h1 (globals.css, .program-morph). The span
+                          is the named box, so the link's card-wide ::after stays out of the snapshot. */}
+                      <ViewTransition name={`program-name-${program.slug}`} share="program-morph" default="none">
+                        <span className="inline-block">{program.name}</span>
+                      </ViewTransition>
                     </Link>
                   </h3>
                   <p className="mt-1 text-gold">{localized(program, "tagline", locale)}</p>
@@ -203,26 +208,15 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </section>
 
       {/* FAQ */}
+      {/* The FAQPage structured data lives on /faq, the page that owns the questions. */}
       <section id="faq" className="container-page scroll-mt-20 lg:scroll-mt-28 py-16 md:py-20">
-        <JsonLd data={faqPage(t.faq.items, locale)} />
         <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.faq.title}</h2>
-        <div className="mt-8 max-w-3xl divide-y divide-line border-y border-line">
-          {t.faq.items.map((item) => (
-            <details key={item.q} className="faq group">
-              {/* Padding lives on the summary so the whole 56 px+ row is the tap target. */}
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-5 text-lg font-semibold text-forest">
-                {item.q}
-                <span
-                  className="text-gold transition-transform duration-(--duration-base) ease-out-calm group-open:rotate-45"
-                  aria-hidden
-                >
-                  +
-                </span>
-              </summary>
-              <p className="pb-5 leading-relaxed text-muted">{item.a}</p>
-            </details>
-          ))}
+        <div className="mt-8">
+          <FaqList items={t.faq.items} />
         </div>
+        <Link href={`/${locale}/faq`} className="btn btn-outline mt-8 text-forest">
+          {t.faq.all} <span aria-hidden>→</span>
+        </Link>
       </section>
 
       {/* Final call to action */}
@@ -236,6 +230,6 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           </div>
         </div>
       </section>
-    </>
+    </PageTransition>
   );
 }

@@ -67,10 +67,38 @@ export function faqPage(items: readonly { q: string; a: string }[], locale: Loca
 }
 
 /**
- * A program as a Product. One Offer per calorie level and duration, priced per day
+ * A program as a Product (program page). One Offer per calorie level and duration, priced per day
  * exactly as the price table on the page shows it.
  */
 export function programProduct(program: Program, durations: Duration[], locale: Locale, kcalWord: string) {
+  return { "@context": CONTEXT, ...programProductNode(program, durations, locale, kcalWord) };
+}
+
+/**
+ * The price list (/prices): every program as the same Product node the program page states, with the same
+ * @id and Offers, so search engines read one product per program however many pages list it.
+ */
+export function programPriceList(
+  programs: Program[],
+  durations: Duration[],
+  locale: Locale,
+  kcalWord: string,
+  name: string,
+) {
+  return {
+    "@context": CONTEXT,
+    "@type": "ItemList",
+    name,
+    url: `${site.url}/${locale}/prices`,
+    itemListElement: programs.map((program, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      item: programProductNode(program, durations, locale, kcalWord),
+    })),
+  };
+}
+
+function programProductNode(program: Program, durations: Duration[], locale: Locale, kcalWord: string) {
   const url = `${site.url}/${locale}/programs/${program.slug}`;
   const offers = program.variants.flatMap((variant) =>
     durations.map((duration) => {
@@ -94,8 +122,8 @@ export function programProduct(program: Program, durations: Duration[], locale: 
   const prices = offers.map((offer) => offer.price);
 
   return {
-    "@context": CONTEXT,
     "@type": "Product",
+    "@id": `${url}#product`,
     name: `${site.name} ${program.name}`,
     description: localized(program, "description", locale),
     url,

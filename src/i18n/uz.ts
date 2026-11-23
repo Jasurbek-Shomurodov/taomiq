@@ -14,6 +14,7 @@ const uz: Dictionary = {
     faq: "Savollar",
     calculator: "Kalkulyator",
     delivery: "Yetkazib berish",
+    prices: "Narxlar",
     cta: "Ratsion tanlash",
     sections: "Boʻlimlar",
     close: "Yopish",
@@ -123,14 +124,30 @@ const uz: Dictionary = {
     perDay: "kuniga",
     total: "jami",
   },
+  prices: {
+    metaTitle: "Ratsion narxlari Toshkentda: kunlik va jami narx",
+    metaDescription:
+      "TAOMIQ ratsion narxlari: LIGHT, BALANCE va PROTEIN, har bir kaloriya va muddat uchun kunlik va jami narx. Yetkazib berish narxga kiritilgan.",
+    title: "Ratsion narxlari",
+    lead: "Barcha dasturlar, kaloriya va muddatlar bir sahifada: kunlik narx va butun muddat uchun jami summa.",
+    perDayRule: "Narx ratsionning bir kuni uchun koʻrsatilgan, yonida — butun muddat uchun jami summa.",
+    samePrice: "Saytdagi narx toʻlovdagi narx bilan bir xil.",
+  },
   faq: {
     title: "Koʻp soʻraladigan savollar",
+    metaTitle: "Ratsion yetkazib berish va toʻlov haqida savollar",
+    metaDescription:
+      "Ratsion qachon yetkaziladi, pauza qilsa boʻladimi, taomlar halolmi, kaloriyani qanday tanlash va qanday toʻlash mumkin — TAOMIQ haqida savollarga javoblar.",
+    lead: "Yetkazib berish, pauza, taomlar va toʻlov haqida qisqacha.",
+    all: "Barcha savollar",
+    more: "Savolingizga javob topmadingizmi?",
+    topics: { delivery: "Yetkazib berish va pauza", food: "Taomlar va kaloriya", order: "Buyurtma va toʻlov" },
     items: [
-      { q: "Ratsion qachon yetkaziladi?", a: "Har kuni ertalab, siz tanlagan ikki soatlik oraliqda. Bir kun oldin kechqurun eslatib qoʻyamiz." },
-      { q: "Ovqatlanishni pauzaga qoʻysa boʻladimi?", a: "Ha. Toʻlangan kunlar kuymaydi — ularni oʻzingizga qulay sanalarga koʻchirasiz." },
-      { q: "Taomlar halolmi?", a: "Ha. Choʻchqa goʻshti va alkogol ishlatmaymiz, mahsulotlarni ishonchli yetkazib beruvchilardan olamiz." },
-      { q: "Kaloriyani qanday tanlash kerak?", a: "Saytdagi kalkulyatordan foydalaning: u boʻy, vazn, yosh va faollik boʻyicha kunlik meʼyorni baholab, mos ratsionni koʻrsatadi. Ikkilansangiz — bizga yozing, tanlashga yordam beramiz." },
-      { q: "Qanday toʻlash mumkin?", a: "Saytda buyurtma bering — menejer siz bilan bogʻlanib, buyurtmani tasdiqlaydi va qanday toʻlashni aytadi. Payme va Click orqali onlayn toʻlov ulanmoqda." },
+      { topic: "delivery", q: "Ratsion qachon yetkaziladi?", a: "Har kuni ertalab, siz tanlagan ikki soatlik oraliqda. Bir kun oldin kechqurun eslatib qoʻyamiz." },
+      { topic: "delivery", q: "Ovqatlanishni pauzaga qoʻysa boʻladimi?", a: "Ha. Toʻlangan kunlar kuymaydi — ularni oʻzingizga qulay sanalarga koʻchirasiz." },
+      { topic: "food", q: "Taomlar halolmi?", a: "Ha. Choʻchqa goʻshti va alkogol ishlatmaymiz, mahsulotlarni ishonchli yetkazib beruvchilardan olamiz." },
+      { topic: "food", q: "Kaloriyani qanday tanlash kerak?", a: "Saytdagi kalkulyatordan foydalaning: u boʻy, vazn, yosh va faollik boʻyicha kunlik meʼyorni baholab, mos ratsionni koʻrsatadi. Ikkilansangiz — bizga yozing, tanlashga yordam beramiz." },
+      { topic: "order", q: "Qanday toʻlash mumkin?", a: "Saytda buyurtma bering — menejer siz bilan bogʻlanib, buyurtmani tasdiqlaydi va qanday toʻlashni aytadi. Payme va Click orqali onlayn toʻlov ulanmoqda." },
     ],
   },
   cta: {
