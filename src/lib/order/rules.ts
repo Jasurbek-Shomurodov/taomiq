@@ -32,6 +32,24 @@ export const ORDER_FIELDS = [
   "consent",
 ] as const;
 export type OrderField = (typeof ORDER_FIELDS)[number];
+
+/** The order form's sections, which phones show one at a time: 0 Plan, 1 Delivery, 2 Contact. */
+export const ORDER_STEPS = 3;
+export type OrderStep = 0 | 1 | 2;
+
+/** The section (phone step) that holds each field. */
+export const FIELD_STEP: Record<OrderField, OrderStep> = {
+  plan: 0,
+  duration: 0,
+  start: 0,
+  address: 1,
+  window: 1,
+  comment: 1,
+  name: 2,
+  phone: 2,
+  exclusions: 2,
+  consent: 2,
+};
 export type FieldErrorCode = "invalid" | "too_long";
 export type FieldErrors = Partial<Record<OrderField, FieldErrorCode>>;
 

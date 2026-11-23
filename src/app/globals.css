@@ -198,6 +198,13 @@ h2[tabindex="-1"]:focus-visible {
     border-color: var(--color-forest);
     outline: none;
   }
+  /* Order form: an invalid field's border turns red and back (160 ms). After :focus, so it stays red. */
+  .field {
+    transition: border-color var(--duration-fast) var(--ease-out-calm);
+  }
+  .field[aria-invalid="true"] {
+    border-color: var(--color-danger);
+  }
 }
 
 /* ---------------------------------------------------------------------------------------
@@ -425,18 +432,39 @@ details.faq > summary::-webkit-details-marker {
   animation: var(--duration-base) var(--ease-out-calm) both fade;
 }
 
-/* Program finder (quiz/Quiz.tsx): the old question leaves fast (160 ms), the next fades in and rises 12 px (240 ms). */
-::view-transition-group(.quiz-step) {
+/* Program finder (quiz/Quiz.tsx) and the phone order steps (order/OrderForm.tsx): the old question or step leaves
+   fast (160 ms), the next fades in and rises 12 px (240 ms). */
+::view-transition-group(.quiz-step),
+::view-transition-group(.order-step) {
   animation-duration: var(--duration-base);
   animation-timing-function: var(--ease-out-calm);
 }
-::view-transition-old(.quiz-step) {
+::view-transition-old(.quiz-step),
+::view-transition-old(.order-step) {
   animation: var(--duration-fast) var(--ease-exit) both fade reverse;
 }
-::view-transition-new(.quiz-step) {
+::view-transition-new(.quiz-step),
+::view-transition-new(.order-step) {
   animation:
     var(--duration-base) var(--ease-out-calm) both fade,
     var(--duration-base) var(--ease-out-calm) both lift;
+}
+
+/* Order received (order/success/page.tsx): the check draws itself (400 ms, stroke-dashoffset on a path with
+   pathLength 1), then the order number rises in. At rest both are fully drawn and in place. */
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .check-draw {
+    animation: draw var(--duration-slow) var(--ease-out-calm) var(--duration-fast) both;
+  }
+  .number-rise {
+    animation: var(--animate-rise);
+    animation-delay: var(--duration-base);
+  }
 }
 
 /* Menu Suspense reveal: the skeleton leaves fast, then the menu fades in and lifts 12 px. */

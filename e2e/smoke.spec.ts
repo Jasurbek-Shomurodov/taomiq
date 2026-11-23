@@ -304,7 +304,8 @@ test("calculator suite: protein, BMI and water give their estimates; the tabs ma
   await expect(summary).toContainText(`${tools.water.resultLabel}: ${formatDecimal(water.min)}–${formatDecimal(water.max)} ${tools.water.unit}.`);
 });
 
-test("order form: errors keep typed values, a valid order gets the demo notice", async ({ page }) => {
+test("order form: errors keep typed values, a valid order gets the demo notice", async ({ page, isMobile }) => {
+  test.skip(isMobile, "phones get the stepped form: see the phone test below");
   const t = uz.order;
   const address = "Toshkent, Amir Temur koʻchasi 1, 5-xonadon";
   await page.goto("/uz/order");
@@ -331,6 +332,164 @@ test("order form: errors keep typed values, a valid order gets the demo notice",
   await expect(page.getByRole("alert").filter({ hasText: t.general.demo })).toBeVisible();
   await expect(page).toHaveURL(/\/uz\/order$/);
   await expect(page.getByLabel(t.name, { exact: true })).toHaveValue("Test");
+});
+
+/** A field of a server action's multipart body (React prefixes the form's keys, as in "_1_address"). */
+function postedField(body: string, key: string): string | undefined {
+  return new RegExp(`name="(?:_?\\d+_)?${key}"\\r\\n\\r\\n([^\\r]*)`).exec(body)?.[1];
+}
+
+test("order form on a phone: one step at a time, Next checks only that step, Back keeps every answer", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(!isMobile, "phones only: wider screens show the whole form at once (next test)");
+  const t = ru.order;
+  const stepName = (n: number, title: string) =>
+    `${t.step.replace("{n}", String(n)).replace("{total}", "3")}: ${title}`;
+  const heading = (n: number, title: string) => page.getByRole("heading", { level: 2, name: stepName(n, title) });
+  const plan = heading(1, t.sections.plan);
+  const delivery = heading(2, t.sections.delivery);
+  const contact = heading(3, t.sections.contact);
+  // After a step change the bar's buttons rest for a moment (disabled); click() waits until they are enabled.
+  const next = page.getByRole("button", { name: t.next, exact: true });
+  const back = page.getByRole("button", { name: t.back, exact: true });
+  const submit = page.getByRole("button", { name: t.submit, exact: true });
+  const address = page.getByLabel(t.address, { exact: true });
+  const addressText = "Ташкент, ул. Амира Темура 1, кв. 5";
+  const posts: string[] = [];
+  await page.clock.install();
+  page.on("request", (r) => {
+    if (r.method() === "POST" && new URL(r.url()).pathname === "/ru/order") posts.push(r.postData() ?? "");
+  });
+
+  // Arriving from a program page: step 1, with that program and level chosen.
+  const program = demoPrograms.find((p) => p.slug !== "balance")!;
+  const variant = program.variants[program.variants.length - 1];
+  await page.goto(`/ru/order?program=${program.slug}&kcal=${variant.kcal}&utm_source=e2e-phone`);
+  await expect(page.locator("form").filter({ has: address })).toHaveAttribute("method", "post");
+  await expect(plan).toBeVisible();
+  await expect(delivery).toBeHidden();
+  await expect(contact).toBeHidden();
+  await expect(page.getByRole("radio", { name: program.name })).toBeChecked();
+  await expect(page.getByRole("radio", { name: `${variant.kcal} ${t.kcal}` })).toBeChecked();
+  await choose(page, t.weekdays);
+
+  await next.click();
+  await expect(delivery).toBeVisible();
+  await expect(delivery).toBeFocused();
+  await expect(plan).toBeHidden();
+
+  // Next with the address empty: the error shows, the address takes focus, the step stays.
+  await next.click();
+  await expect(page.getByText(t.errors.address)).toBeVisible();
+  await expect(address).toBeFocused();
+  await expect(delivery).toBeVisible();
+  await expect(page.getByText(t.errors.name)).toBeHidden();
+
+  // Enter in a text field goes to the next step; it does not send the order.
+  await address.fill(addressText);
+  await page.getByLabel(t.comment).fill("Позвонить за 10 минут");
+  await page.getByLabel(t.comment).press("Enter");
+  await expect(contact).toBeVisible();
+  await expect(contact).toBeFocused();
+  await expect(submit).toBeVisible();
+  await expect(next).toHaveCount(0);
+  await page.getByLabel(t.name, { exact: true }).fill("Тест");
+  await page.getByLabel(t.phone, { exact: true }).fill("901234567");
+  await page.getByRole("checkbox").check();
+
+  // The page's Back keeps every answer. The step is not in the URL.
+  await back.click();
+  await expect(delivery).toBeVisible();
+  await expect(address).toHaveValue(addressText);
+  await back.click();
+  await expect(plan).toBeVisible();
+  await expect(page.getByRole("radio", { name: t.weekdays })).toBeChecked();
+  await expect(page.getByRole("radio", { name: program.name })).toBeChecked();
+  expect(new URL(page.url()).hash).toBe("");
+  await next.click();
+  await expect(delivery).toBeVisible();
+  await expect(address).toHaveValue(addressText);
+
+  // A fast double tap on Next with step 3 already filled shows step 3 and sends nothing: both taps at once, and a
+  // second tap that lands after step 3 is up. The page clock is paused, so that tap always comes before the
+  // button's rest ends, however slow the machine.
+  await next.dblclick();
+  await expect(contact).toBeVisible();
+  await expect(submit).toBeEnabled();
+  expect(posts).toHaveLength(0);
+  await back.click();
+  await expect(delivery).toBeVisible();
+  await expect(next).toBeEnabled();
+  const spot = (await next.boundingBox())!;
+  await page.clock.pauseAt(Date.now() + 60_000);
+  await page.mouse.click(spot.x + spot.width / 2, spot.y + spot.height / 2);
+  await expect(contact).toBeVisible();
+  await expect(submit).toBeDisabled();
+  await page.mouse.click(spot.x + spot.width / 2, spot.y + spot.height / 2);
+  await page.clock.resume();
+  await expect(submit).toBeEnabled();
+  expect(posts).toHaveLength(0);
+  await expect(page.getByText(t.errors.name)).toBeHidden();
+  await expect(page.getByLabel(t.name, { exact: true })).toHaveValue("Тест");
+
+  // The phone sends every field of all three steps, hidden or not. Demo mode answers "ordering opens soon".
+  const posted = page.waitForRequest((r) => r.method() === "POST" && new URL(r.url()).pathname === "/ru/order");
+  await submit.click();
+  const body = (await posted).postData() ?? "";
+  const expected: Record<string, string> = {
+    locale: "ru",
+    utm_source: "e2e-phone",
+    program: program.slug,
+    variant_id: variant.id,
+    schedule: "weekdays",
+    address: addressText,
+    comment: "Позвонить за 10 минут",
+    name: "Тест",
+    phone: "901234567",
+    consent: "on",
+  };
+  for (const [key, value] of Object.entries(expected)) expect(postedField(body, key), key).toBe(value);
+  for (const key of ["days", "start_date", "window"]) expect(postedField(body, key), key).toBeTruthy();
+  await expect(page.getByRole("alert").filter({ hasText: t.general.demo })).toBeVisible();
+  expect(posts).toHaveLength(1);
+
+  // A field the server rejects (here a delivery window it does not offer) brings back the step that holds it.
+  await page.locator('input[name="window"]:checked').evaluate((input: HTMLInputElement) => (input.value = "00:00–01:00"));
+  await submit.click();
+  await expect(delivery).toBeVisible();
+  await expect(page.getByText(t.errors.window)).toBeVisible();
+  await expect(page.locator("#order-window")).toBeFocused();
+  await expect(address).toHaveValue(addressText);
+
+  // From there Back goes to step 1, and Next twice back to step 3: no dead taps.
+  await back.click();
+  await expect(plan).toBeVisible();
+  await next.click();
+  await expect(delivery).toBeVisible();
+  await next.click();
+  await expect(contact).toBeVisible();
+  await expect(page.getByLabel(t.name, { exact: true })).toHaveValue("Тест");
+  expect(posts).toHaveLength(2);
+});
+
+test("order form on a wide screen: all three sections at once, no steps", async ({ page, isMobile }) => {
+  test.skip(isMobile, "phones get the stepped form (previous test)");
+  const t = ru.order;
+  await page.goto("/ru/order");
+  for (const title of [t.sections.plan, t.sections.delivery, t.sections.contact]) {
+    await expect(page.getByRole("heading", { level: 2, name: title, exact: true })).toBeVisible();
+  }
+  await expect(page.getByLabel(t.address, { exact: true })).toBeVisible();
+  await expect(page.getByLabel(t.name, { exact: true })).toBeVisible();
+  await expect(page.locator("form").filter({ has: page.getByLabel(t.address, { exact: true }) })).toHaveAttribute(
+    "method",
+    "post",
+  );
+  await expect(page.getByText(t.step.replace("{n}", "1").replace("{total}", "3"), { exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: t.next, exact: true })).toBeHidden();
+  await expect(page.getByRole("button", { name: t.back, exact: true })).toBeHidden();
 });
 
 for (const locale of locales) {

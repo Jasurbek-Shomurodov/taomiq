@@ -29,6 +29,20 @@ export default async function OrderSuccessPage({ params, searchParams }: PagePro
     <PageTransition>
       <section className="container-page py-16 text-center md:py-24">
         <Lockup onDark={false} width={120} className="mx-auto" />
+        {/* Decorative: the check draws itself in 400 ms (globals.css, .check-draw); static with reduced motion. */}
+        <svg viewBox="0 0 56 56" className="mx-auto mt-8 size-14" aria-hidden>
+          <circle cx="28" cy="28" r="28" className="fill-forest" />
+          <path
+            d="M17 29l7.5 7.5L39 21"
+            fill="none"
+            pathLength={1}
+            strokeDasharray="1"
+            strokeWidth="3"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="check-draw stroke-gold"
+          />
+        </svg>
         <h1 className="mt-8 font-serif text-5xl text-forest md:text-6xl">{t.order.success.title}</h1>
         <Suspense fallback={<div className="mx-auto mt-8 h-24 w-56 animate-pulse rounded-2xl bg-ivory-deep" />}>
           <OrderNumber t={t} searchParams={searchParams} />
@@ -59,7 +73,7 @@ async function OrderNumber({
   if (!value || !/^\d{1,12}$/.test(value)) return null;
 
   return (
-    <div className="mx-auto mt-8 inline-block rounded-2xl border border-line bg-white px-8 py-5">
+    <div className="number-rise mx-auto mt-8 inline-block rounded-2xl border border-line bg-white px-8 py-5">
       <p className="label text-muted">{t.order.success.number}</p>
       <p className="mt-1 font-serif text-4xl text-forest tabular-nums">№ {value}</p>
     </div>

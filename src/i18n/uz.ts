@@ -206,6 +206,9 @@ const uz: Dictionary = {
     payNote: "Toʻlov menejer buyurtmani tasdiqlagandan soʻng amalga oshiriladi. Payme va Click orqali onlayn toʻlov tez orada qoʻshiladi.",
     submit: "Buyurtma berish",
     pending: "Yuborilmoqda…",
+    next: "Davom etish",
+    back: "Orqaga",
+    step: "{n}-qadam, jami {total}",
     currency: "soʻm",
     errors: {
       plan: "Dastur va kaloriyani tanlang.",

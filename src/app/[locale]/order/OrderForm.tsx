@@ -1,13 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { startTransition, useActionState, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  ViewTransition,
+  addTransitionType,
+  startTransition,
+  useActionState,
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Dictionary } from "@/i18n";
 import { formatSum, plural, type Locale } from "@/i18n/config";
 import { pricePerDay, type Duration } from "@/lib/data/types";
 import { submitOrder, type OrderState } from "@/lib/order/actions";
 import {
+  FIELD_STEP,
   LIMITS,
+  ORDER_FIELDS,
+  ORDER_STEPS,
   addDays,
   firstDeliveryDate,
   firstErrorField,
@@ -18,7 +33,9 @@ import {
   weekday,
   type FieldErrors,
   type OrderField,
+  type OrderStep,
 } from "@/lib/order/rules";
+import { StepProgress } from "./StepProgress";
 
 export type OrderProgram = {
   slug: string;
@@ -66,9 +83,63 @@ function focusField(field: OrderField | undefined) {
   const element = document.getElementById(fieldId(field));
   element?.focus();
   element?.scrollIntoView({ block: "center", behavior: "smooth" });
+  if (element) nudge(element);
 }
 
-export function OrderForm({
+/** One 4 px sideways nudge (160 ms) on an invalid field: the text box, the phone frame or the consent row. */
+function nudge(element: HTMLElement) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const target =
+    element instanceof HTMLInputElement && element.type === "checkbox"
+      ? element.parentElement
+      : (element.closest<HTMLElement>(".field") ?? element);
+  target?.animate([{ transform: "none" }, { transform: "translateX(4px)" }, { transform: "none" }], {
+    duration: 160,
+    easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+  });
+}
+
+/**
+ * Phones (below md) show one section at a time. The other sections stay rendered, only hidden with
+ * display: none (`max-md:hidden`), so their inputs keep their values and are still part of the FormData the
+ * submit sends; `noValidate` means the browser never tries to validate or focus a hidden input. Read only in
+ * event handlers and effects, never during render: server and client both render step 1 first.
+ */
+const isStepped = () => !window.matchMedia("(min-width: 48rem)").matches;
+
+/*
+ * The step lives in component state only, never in the URL or the browser history: the page's Back button goes
+ * to the previous step, the browser's Back leaves the page (the page is kept, so Forward returns to the same step
+ * with every answer). History entries were tried and dropped: kept pages (<Activity>), reloads and Next's own
+ * history writes made the browser's Back on this form sometimes a dead tap.
+ */
+const LAST_STEP = (ORDER_STEPS - 1) as OrderStep;
+const stepHeadingId = (step: OrderStep) => `order-step-${step + 1}`;
+/** After a step change the bar's button ignores taps this long, so a quick second tap never lands on the next one. */
+const SETTLE_MS = 400;
+
+/** The errors of one step's fields, or of every other step's. */
+function errorsOf(errors: FieldErrors, step: OrderStep, keep: boolean): FieldErrors {
+  const result: FieldErrors = {};
+  for (const field of ORDER_FIELDS) {
+    if (errors[field] && (FIELD_STEP[field] === step) === keep) result[field] = errors[field];
+  }
+  return result;
+}
+
+/**
+ * After an order went through, the server redirects to the success page while this page is kept (hidden) for
+ * back/forward. The kept form would still hold the name, phone, address and consent, one tap from a second order,
+ * so the form body is replaced by a fresh one (new key): Back from the success page shows an empty form at step 1,
+ * with the URL's program and level chosen again.
+ */
+export function OrderForm(props: Props) {
+  const [round, setRound] = useState(0);
+  const placed = useCallback(() => setRound((n) => n + 1), []);
+  return <OrderFormBody key={round} {...props} onPlaced={placed} />;
+}
+
+function OrderFormBody({
   locale,
   t,
   programs,
@@ -83,7 +154,8 @@ export function OrderForm({
   telegramUrl,
   initialName = "",
   initialPhone = "",
-}: Props) {
+  onPlaced,
+}: Props & { onPlaced: () => void }) {
   const [state, formAction, pending] = useActionState<OrderState, FormData>(submitOrder, {});
 
   // Every field is controlled, so nothing typed is lost when the server returns an error.
@@ -112,6 +184,18 @@ export function OrderForm({
     setTouched((prev) => (prev.has(field) ? prev : new Set(prev).add(field)));
 
   const alertRef = useRef<HTMLDivElement>(null);
+
+  // Phones: which section is on screen. Every width renders 0 first; from md all sections show and this is unused.
+  const [step, setStep] = useState<OrderStep>(0);
+  const columnRef = useRef<HTMLDivElement>(null);
+  // True for SETTLE_MS after a step change: the bar's button is disabled, Next and submit do nothing.
+  const [settling, setSettling] = useState(false);
+  const settleTimer = useRef(0);
+  useEffect(() => () => window.clearTimeout(settleTimer.current), []);
+  // Set by a step change (never on arrival), so focus moves only after one.
+  const moved = useRef(false);
+  // The invalid field to focus once its step is on screen, instead of the step heading.
+  const focusAfter = useRef<OrderField | null>(null);
 
   // New answer from the server with a fresh date range: move the selection to the first allowed date.
   // (Adjusting state while rendering, so the chips and summary update in the same render.)
@@ -155,22 +239,67 @@ export function OrderForm({
 
   const generalError = pending ? null : state.demo ? t.general.demo : state.error ? t.general[state.error] : null;
 
-  // Move focus to whatever the server answered.
+  /**
+   * Puts another step on screen: back to the top of the form, then the new section fades in and rises 12 px. The
+   * bar's button is disabled for SETTLE_MS, so a fast second tap on Next never lands on the next step's button.
+   */
+  function show(next: OrderStep, field?: OrderField) {
+    const column = columnRef.current;
+    if (column && column.getBoundingClientRect().top < 64) column.scrollIntoView({ block: "start", behavior: "instant" });
+    focusAfter.current = field ?? null;
+    moved.current = true;
+    window.clearTimeout(settleTimer.current);
+    settleTimer.current = window.setTimeout(() => setSettling(false), SETTLE_MS);
+    // One commit: the new step and the resting button appear together. Until then the old button is still the
+    // same element, and a second tap on it only asks for the same step again.
+    startTransition(() => {
+      addTransitionType("order-step");
+      setSettling(true);
+      setStep(next);
+    });
+  }
+
+  /** Focuses an invalid field; on a phone, first brings up the step that holds it. */
+  function reveal(field: OrderField | undefined) {
+    if (!field) return;
+    if (FIELD_STEP[field] === step || !isStepped()) focusField(field);
+    else show(FIELD_STEP[field], field);
+  }
+
+  // After a step change, keyboard and screen-reader users land on the new step's heading ("Step 2 of 3: Delivery"),
+  // or on the invalid field that caused the change.
   useEffect(() => {
-    const field = state.fields ? firstErrorField(state.fields) : undefined;
+    if (!moved.current) return;
+    const field = focusAfter.current;
+    focusAfter.current = null;
     if (field) focusField(field);
-    else if (state.error || state.demo) {
+    else document.getElementById(stepHeadingId(step))?.focus({ preventScroll: true });
+  }, [step]);
+
+  // Set when a valid order is sent; cleared by any answer from the server. If the page is hidden while it is still
+  // set, the action redirected to the success page: the order is placed, so the kept form starts over.
+  const sent = useRef(false);
+  const onHide = useEffectEvent(() => {
+    if (sent.current) onPlaced();
+  });
+  useLayoutEffect(() => () => onHide(), []);
+
+  // Move focus to whatever the server answered (on a phone, on the step that holds the first invalid field).
+  const onAnswer = useEffectEvent((answer: OrderState) => {
+    sent.current = false;
+    const field = answer.fields ? firstErrorField(answer.fields) : undefined;
+    if (field) reveal(field);
+    else if (answer.error || answer.demo) {
       alertRef.current?.focus();
       alertRef.current?.scrollIntoView({ block: "center", behavior: "smooth" });
     }
+  });
+  useEffect(() => {
+    onAnswer(state);
   }, [state]);
 
-  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    setTouched(new Set());
-
-    const found = validateOrder(
+  function check(): FieldErrors {
+    return validateOrder(
       {
         variantId: variant.id,
         days: duration.days,
@@ -191,9 +320,56 @@ export function OrderForm({
         ...range,
       },
     );
+  }
+
+  /**
+   * Phones' Next (its own type="button", never a submit): checks only this step's fields (the same validateOrder
+   * result, filtered by FIELD_STEP). With an error it stays, shows it and focuses the field; otherwise the next step
+   * comes up. Errors already shown for the other steps (from the server or an earlier submit) are kept.
+   */
+  function next() {
+    if (settling || pending || step >= LAST_STEP) return;
+    const shown = clientErrors ?? state.fields ?? {};
+    const found = errorsOf(check(), step, true);
+    const others = errorsOf(shown, step, false);
+    const field = firstErrorField(found);
+    if (field) {
+      setTouched((prev) => new Set([...prev].filter((f) => FIELD_STEP[f] !== step)));
+      setClientErrors({ ...others, ...found });
+      focusField(field);
+      return;
+    }
+    if (clientErrors || state.fields) setClientErrors(others);
+    show((step + 1) as OrderStep);
+  }
+
+  /** Phones' Back button: the previous step, every answer kept. */
+  function back() {
+    if (step > 0 && !settling) show((step - 1) as OrderStep);
+  }
+
+  /** Phones, steps 1–2: Enter in a field goes to the next step instead of sending the form. */
+  function onKeyDown(event: React.KeyboardEvent<HTMLFormElement>) {
+    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    const target = event.target;
+    if (!(target instanceof HTMLInputElement) || target.type === "checkbox") return;
+    if (step >= LAST_STEP || !isStepped()) return;
+    event.preventDefault();
+    next();
+  }
+
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (pending || settling) return;
+    // Phones send only from step 3 (its own Order button, or Enter there). Steps 1–2 have no submit button on screen.
+    if (step < LAST_STEP && isStepped()) return;
+    const formData = new FormData(event.currentTarget);
+    setTouched(new Set());
+
+    const found = check();
     if (Object.keys(found).length > 0) {
       setClientErrors(found);
-      focusField(firstErrorField(found));
+      reveal(firstErrorField(found));
       return;
     }
     setClientErrors(null);
@@ -202,6 +378,7 @@ export function OrderForm({
       const referrer = externalReferrer();
       if (referrer) formData.set("ref", referrer);
     }
+    sent.current = true;
     startTransition(() => formAction(formData));
   }
 
@@ -214,10 +391,15 @@ export function OrderForm({
   const start = dateLabel(startDate);
 
   const summaryLine = `${program.name} · ${variant.kcal} ${t.kcal} · ${duration.days} ${daysWord(duration.days)}`;
+  const stepLabel = (s: OrderStep) => t.step.replace("{n}", String(s + 1)).replace("{total}", String(ORDER_STEPS));
 
   return (
+    // method="post": a tap before the script has loaded must never send the fields as a GET query string (name and
+    // phone in the address bar, logs and referrers). After hydration onSubmit always prevents the native submit.
     <form
+      method="post"
       onSubmit={onSubmit}
+      onKeyDown={onKeyDown}
       noValidate
       className="container-page grid gap-8 pt-8 md:grid-cols-[minmax(0,1fr)_20rem] md:pb-16 md:pt-12 lg:gap-12"
     >
@@ -233,372 +415,396 @@ export function OrderForm({
         </label>
       </div>
 
-      <div className="grid min-w-0 gap-12">
-        {/* 01 · Plan */}
-        <Section number="01" title={t.sections.plan}>
-          <fieldset
-            id={fieldId("plan")}
-            tabIndex={-1}
-            aria-invalid={invalid("plan") || undefined}
-            aria-describedby={describedBy("plan")}
-            className="outline-none"
-          >
-            <legend className="label text-muted">{t.program}</legend>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              {programs.map((p) => (
-                <Choice
-                  key={p.slug}
-                  name="program"
-                  value={p.slug}
-                  checked={p.slug === program.slug}
-                  onChange={() => {
-                    setProgramSlug(p.slug);
-                    setVariantId(p.variants[0].id);
-                    touch("plan");
-                  }}
-                >
-                  <span className="block h-1 w-8 rounded-full" style={{ background: p.tagColor }} aria-hidden />
-                  <span className="mt-3 block font-serif text-2xl leading-none">{p.name}</span>
-                  <span className="mt-1.5 block text-sm opacity-75">{p.tagline}</span>
-                </Choice>
-              ))}
-            </div>
-
-            <p className="label mt-6 text-muted" id="order-level-label">
-              {t.level}
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-labelledby="order-level-label">
-              {program.variants.map((v) => (
-                <Choice
-                  key={v.id}
-                  name="variant_id"
-                  value={v.id}
-                  checked={v.id === variant.id}
-                  onChange={() => {
-                    setVariantId(v.id);
-                    touch("plan");
-                  }}
-                  compact
-                >
-                  <span className="block font-semibold tabular-nums">
-                    {v.kcal} {t.kcal}
-                  </span>
-                  <span className="block text-xs opacity-70">
-                    {v.meals} {t.meals}
-                  </span>
-                </Choice>
-              ))}
-            </div>
-            <FieldError id={fieldId("plan")} text={errorText("plan")} />
-          </fieldset>
-
-          <fieldset
-            id={fieldId("duration")}
-            tabIndex={-1}
-            aria-invalid={invalid("duration") || undefined}
-            aria-describedby={describedBy("duration", "order-days-note")}
-            className="outline-none"
-          >
-            <legend className="label text-muted">{t.duration}</legend>
-            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {durations.map((d) => (
-                <Choice
-                  key={d.days}
-                  name="days"
-                  value={String(d.days)}
-                  checked={d.days === duration.days}
-                  onChange={() => {
-                    setDays(d.days);
-                    touch("duration");
-                  }}
-                >
-                  {d.is_trial && <span className="label block text-gold">{t.trial}</span>}
-                  <span className="block font-serif text-2xl leading-tight tabular-nums">
-                    {d.days} <span className="font-sans text-base">{daysWord(d.days)}</span>
-                  </span>
-                  <span className="mt-1 block text-xs tabular-nums opacity-75">
-                    {formatSum(pricePerDay(variant.price, d.markup_pct))} {t.perDay}
-                  </span>
-                </Choice>
-              ))}
-            </div>
-            <p id="order-days-note" className="mt-2 text-sm text-muted">
-              {t.daysNote}
-            </p>
-            <FieldError id={fieldId("duration")} text={errorText("duration")} />
-          </fieldset>
-
-          <fieldset>
-            <legend className="label text-muted">{t.schedule}</legend>
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              {(
-                [
-                  ["everyday", false, t.everyDay, t.everyDayHint],
-                  ["weekdays", true, t.weekdays, t.weekdaysHint],
-                ] as const
-              ).map(([value, isWeekdays, title, hint]) => (
-                <Choice
-                  key={value}
-                  name="schedule"
-                  value={value}
-                  checked={weekdaysOnly === isWeekdays}
-                  onChange={() => {
-                    setWeekdaysOnly(isWeekdays);
-                    // A weekend start date moves to the next Monday.
-                    setStartDate((current) => {
-                      const next = firstDeliveryDate(current, isWeekdays);
-                      return next <= range.latest ? next : current;
-                    });
-                  }}
-                >
-                  <span className="block font-semibold">{title}</span>
-                  <span className="block text-sm opacity-70">{hint}</span>
-                </Choice>
-              ))}
-            </div>
-          </fieldset>
-
-          <fieldset
-            id={fieldId("start")}
-            tabIndex={-1}
-            aria-invalid={invalid("start") || undefined}
-            aria-describedby={describedBy("start", "order-start-hint")}
-            className="min-w-0 outline-none"
-          >
-            <legend className="label text-muted">{t.start}</legend>
-            <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-2">
-              {dates.map((iso) => {
-                const label = dateLabel(iso);
-                const disabled = weekdaysOnly && isWeekend(iso);
-                return (
-                  <Choice
-                    key={iso}
-                    name="start_date"
-                    value={iso}
-                    checked={iso === startDate}
-                    disabled={disabled}
-                    onChange={() => {
-                      setStartDate(iso);
-                      touch("start");
-                    }}
-                    compact
-                    className="w-16 shrink-0 text-center"
-                  >
-                    <span className="block text-xs opacity-70">{label.day}</span>
-                    <span className="block text-sm font-semibold tabular-nums">{label.date}</span>
-                  </Choice>
-                );
-              })}
-            </div>
-            <p id="order-start-hint" className="mt-1 text-sm text-muted">
-              {t.startHint.replace("{hour}", String(cutoffHour))}
-            </p>
-            <FieldError id={fieldId("start")} text={errorText("start")} />
-          </fieldset>
-        </Section>
-
-        {/* 02 · Delivery */}
-        <Section number="02" title={t.sections.delivery}>
-          <div>
-            <label htmlFor={fieldId("address")} className="label text-muted">
-              {t.address}
-            </label>
-            <textarea
-              id={fieldId("address")}
-              name="address"
-              required
-              rows={3}
-              maxLength={LIMITS.address.max}
-              autoComplete="street-address"
-              value={address}
-              onChange={(e) => {
-                setAddress(e.target.value);
-                touch("address");
-              }}
-              aria-invalid={invalid("address") || undefined}
-              aria-describedby={describedBy("address", "order-address-hint")}
-              className="field mt-2 resize-y"
-            />
-            <p id="order-address-hint" className="mt-1.5 text-sm text-muted">
-              {t.addressHint}
-            </p>
-            <FieldError id={fieldId("address")} text={errorText("address")} />
-          </div>
-
-          <fieldset
-            id={fieldId("window")}
-            tabIndex={-1}
-            aria-invalid={invalid("window") || undefined}
-            aria-describedby={describedBy("window")}
-            className="outline-none"
-          >
-            <legend className="label text-muted">{t.window}</legend>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {windows.map((w) => (
-                <Choice
-                  key={w}
-                  name="window"
-                  value={w}
-                  checked={w === deliveryWindow}
-                  onChange={() => {
-                    setDeliveryWindow(w);
-                    touch("window");
-                  }}
-                  compact
-                >
-                  <span className="block font-semibold tabular-nums">{w}</span>
-                </Choice>
-              ))}
-            </div>
-            <FieldError id={fieldId("window")} text={errorText("window")} />
-          </fieldset>
-
-          <div>
-            <label htmlFor={fieldId("comment")} className="label text-muted">
-              {t.comment} <span className="normal-case tracking-normal">· {t.optional}</span>
-            </label>
-            <input
-              id={fieldId("comment")}
-              name="comment"
-              maxLength={LIMITS.comment}
-              value={comment}
-              onChange={(e) => {
-                setComment(e.target.value);
-                touch("comment");
-              }}
-              placeholder={t.commentPlaceholder}
-              aria-invalid={invalid("comment") || undefined}
-              aria-describedby={describedBy("comment")}
-              className="field mt-2"
-            />
-            <FieldError id={fieldId("comment")} text={errorText("comment")} />
-          </div>
-        </Section>
-
-        {/* 03 · Contact */}
-        <Section number="03" title={t.sections.contact}>
-          <div className="grid gap-6 sm:grid-cols-2">
-            <div>
-              <label htmlFor={fieldId("name")} className="label text-muted">
-                {t.name}
-              </label>
-              <input
-                id={fieldId("name")}
-                name="name"
-                required
-                maxLength={LIMITS.name.max}
-                autoComplete="name"
-                value={name}
-                onChange={(e) => {
-                  setName(e.target.value);
-                  touch("name");
-                }}
-                aria-invalid={invalid("name") || undefined}
-                aria-describedby={describedBy("name")}
-                className="field mt-2"
-              />
-              <FieldError id={fieldId("name")} text={errorText("name")} />
-            </div>
-
-            <div>
-              <label htmlFor={fieldId("phone")} className="label text-muted">
-                {t.phone}
-              </label>
-              <div
-                className={`field mt-2 flex items-center gap-2 !p-0 focus-within:border-forest ${
-                  invalid("phone") ? "!border-danger" : ""
-                }`}
+      {/* scroll-mt: a step change scrolls the step header to just under the sticky 56 px header. */}
+      <div ref={columnRef} className="grid min-w-0 scroll-mt-16 gap-6 md:gap-12">
+        {/* Phones only: where you are, and the way back. From md every section shows and there are no steps. */}
+        <div className="md:hidden">
+          <StepProgress current={step} total={ORDER_STEPS} label={stepLabel(step)}>
+            {step > 0 && (
+              <button
+                type="button"
+                onClick={back}
+                disabled={settling}
+                className="press -mr-2 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm font-semibold text-forest"
               >
-                <span className="pl-3 font-semibold text-forest tabular-nums" aria-hidden>
-                  +998
-                </span>
-                <input
-                  id={fieldId("phone")}
-                  name="phone"
-                  type="tel"
-                  inputMode="numeric"
-                  autoComplete="tel-national"
+                <span aria-hidden>←</span>
+                {t.back}
+              </button>
+            )}
+          </StepProgress>
+        </div>
+
+        {/* A step change (phones) cross-fades the sections: the old one leaves in 160 ms, the new one fades in and
+            rises 12 px (globals.css, .order-step). Only for that transition type; nothing animates from md. */}
+        <ViewTransition name="order-steps" update={{ "order-step": "order-step", default: "none" }} default="none">
+          <div className="grid min-w-0 gap-12">
+            {/* 01 · Plan */}
+            <Section step={0} current={step} number="01" title={t.sections.plan} stepLabel={stepLabel(0)}>
+              <fieldset
+                id={fieldId("plan")}
+                tabIndex={-1}
+                aria-invalid={invalid("plan") || undefined}
+                aria-describedby={describedBy("plan")}
+                className="outline-none"
+              >
+                <legend className="label text-muted">{t.program}</legend>
+                <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                  {programs.map((p) => (
+                    <Choice
+                      key={p.slug}
+                      name="program"
+                      value={p.slug}
+                      checked={p.slug === program.slug}
+                      onChange={() => {
+                        setProgramSlug(p.slug);
+                        setVariantId(p.variants[0].id);
+                        touch("plan");
+                      }}
+                    >
+                      <span className="block h-1 w-8 rounded-full" style={{ background: p.tagColor }} aria-hidden />
+                      <span className="mt-3 block font-serif text-2xl leading-none">{p.name}</span>
+                      <span className="mt-1.5 block text-sm opacity-75">{p.tagline}</span>
+                    </Choice>
+                  ))}
+                </div>
+
+                <p className="label mt-6 text-muted" id="order-level-label">
+                  {t.level}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2" role="radiogroup" aria-labelledby="order-level-label">
+                  {program.variants.map((v) => (
+                    <Choice
+                      key={v.id}
+                      name="variant_id"
+                      value={v.id}
+                      checked={v.id === variant.id}
+                      onChange={() => {
+                        setVariantId(v.id);
+                        touch("plan");
+                      }}
+                      compact
+                    >
+                      <span className="block font-semibold tabular-nums">
+                        {v.kcal} {t.kcal}
+                      </span>
+                      <span className="block text-xs opacity-70">
+                        {v.meals} {t.meals}
+                      </span>
+                    </Choice>
+                  ))}
+                </div>
+                <FieldError id={fieldId("plan")} text={errorText("plan")} />
+              </fieldset>
+
+              <fieldset
+                id={fieldId("duration")}
+                tabIndex={-1}
+                aria-invalid={invalid("duration") || undefined}
+                aria-describedby={describedBy("duration", "order-days-note")}
+                className="outline-none"
+              >
+                <legend className="label text-muted">{t.duration}</legend>
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {durations.map((d) => (
+                    <Choice
+                      key={d.days}
+                      name="days"
+                      value={String(d.days)}
+                      checked={d.days === duration.days}
+                      onChange={() => {
+                        setDays(d.days);
+                        touch("duration");
+                      }}
+                    >
+                      {d.is_trial && <span className="label block text-gold">{t.trial}</span>}
+                      <span className="block font-serif text-2xl leading-tight tabular-nums">
+                        {d.days} <span className="font-sans text-base">{daysWord(d.days)}</span>
+                      </span>
+                      <span className="mt-1 block text-xs tabular-nums opacity-75">
+                        {formatSum(pricePerDay(variant.price, d.markup_pct))} {t.perDay}
+                      </span>
+                    </Choice>
+                  ))}
+                </div>
+                <p id="order-days-note" className="mt-2 text-sm text-muted">
+                  {t.daysNote}
+                </p>
+                <FieldError id={fieldId("duration")} text={errorText("duration")} />
+              </fieldset>
+
+              <fieldset>
+                <legend className="label text-muted">{t.schedule}</legend>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  {(
+                    [
+                      ["everyday", false, t.everyDay, t.everyDayHint],
+                      ["weekdays", true, t.weekdays, t.weekdaysHint],
+                    ] as const
+                  ).map(([value, isWeekdays, title, hint]) => (
+                    <Choice
+                      key={value}
+                      name="schedule"
+                      value={value}
+                      checked={weekdaysOnly === isWeekdays}
+                      onChange={() => {
+                        setWeekdaysOnly(isWeekdays);
+                        // A weekend start date moves to the next Monday.
+                        setStartDate((current) => {
+                          const next = firstDeliveryDate(current, isWeekdays);
+                          return next <= range.latest ? next : current;
+                        });
+                      }}
+                    >
+                      <span className="block font-semibold">{title}</span>
+                      <span className="block text-sm opacity-70">{hint}</span>
+                    </Choice>
+                  ))}
+                </div>
+              </fieldset>
+
+              <fieldset
+                id={fieldId("start")}
+                tabIndex={-1}
+                aria-invalid={invalid("start") || undefined}
+                aria-describedby={describedBy("start", "order-start-hint")}
+                className="min-w-0 outline-none"
+              >
+                <legend className="label text-muted">{t.start}</legend>
+                <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-2">
+                  {dates.map((iso) => {
+                    const label = dateLabel(iso);
+                    const disabled = weekdaysOnly && isWeekend(iso);
+                    return (
+                      <Choice
+                        key={iso}
+                        name="start_date"
+                        value={iso}
+                        checked={iso === startDate}
+                        disabled={disabled}
+                        onChange={() => {
+                          setStartDate(iso);
+                          touch("start");
+                        }}
+                        compact
+                        className="w-16 shrink-0 text-center"
+                      >
+                        <span className="block text-xs opacity-70">{label.day}</span>
+                        <span className="block text-sm font-semibold tabular-nums">{label.date}</span>
+                      </Choice>
+                    );
+                  })}
+                </div>
+                <p id="order-start-hint" className="mt-1 text-sm text-muted">
+                  {t.startHint.replace("{hour}", String(cutoffHour))}
+                </p>
+                <FieldError id={fieldId("start")} text={errorText("start")} />
+              </fieldset>
+            </Section>
+
+            {/* 02 · Delivery */}
+            <Section step={1} current={step} number="02" title={t.sections.delivery} stepLabel={stepLabel(1)}>
+              <div>
+                <label htmlFor={fieldId("address")} className="label text-muted">
+                  {t.address}
+                </label>
+                <textarea
+                  id={fieldId("address")}
+                  name="address"
                   required
-                  value={phone}
+                  rows={3}
+                  maxLength={LIMITS.address.max}
+                  autoComplete="street-address"
+                  value={address}
                   onChange={(e) => {
-                    setPhone(phoneDigits(e.target.value));
-                    touch("phone");
+                    setAddress(e.target.value);
+                    touch("address");
                   }}
-                  placeholder="901234567"
-                  aria-invalid={invalid("phone") || undefined}
-                  aria-describedby={describedBy("phone", "order-phone-hint")}
-                  className="w-full min-w-0 rounded-r-[0.6rem] bg-transparent py-[0.6rem] pr-3 tabular-nums outline-none"
+                  aria-invalid={invalid("address") || undefined}
+                  aria-describedby={describedBy("address", "order-address-hint")}
+                  className="field mt-2 resize-y"
                 />
+                <p id="order-address-hint" className="mt-1.5 text-sm text-muted">
+                  {t.addressHint}
+                </p>
+                <FieldError id={fieldId("address")} text={errorText("address")} />
               </div>
-              <p id="order-phone-hint" className="mt-1.5 text-sm text-muted">
-                {t.phoneHint}
-              </p>
-              <FieldError id={fieldId("phone")} text={errorText("phone")} />
-            </div>
-          </div>
 
-          <div>
-            <label htmlFor={fieldId("exclusions")} className="label text-muted">
-              {t.exclusions} <span className="normal-case tracking-normal">· {t.optional}</span>
-            </label>
-            <input
-              id={fieldId("exclusions")}
-              name="exclusions"
-              maxLength={LIMITS.exclusions}
-              value={exclusions}
-              onChange={(e) => {
-                setExclusions(e.target.value);
-                touch("exclusions");
-              }}
-              placeholder={t.exclusionsPlaceholder}
-              aria-invalid={invalid("exclusions") || undefined}
-              aria-describedby={describedBy("exclusions")}
-              className="field mt-2"
-            />
-            <FieldError id={fieldId("exclusions")} text={errorText("exclusions")} />
-          </div>
+              <fieldset
+                id={fieldId("window")}
+                tabIndex={-1}
+                aria-invalid={invalid("window") || undefined}
+                aria-describedby={describedBy("window")}
+                className="outline-none"
+              >
+                <legend className="label text-muted">{t.window}</legend>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {windows.map((w) => (
+                    <Choice
+                      key={w}
+                      name="window"
+                      value={w}
+                      checked={w === deliveryWindow}
+                      onChange={() => {
+                        setDeliveryWindow(w);
+                        touch("window");
+                      }}
+                      compact
+                    >
+                      <span className="block font-semibold tabular-nums">{w}</span>
+                    </Choice>
+                  ))}
+                </div>
+                <FieldError id={fieldId("window")} text={errorText("window")} />
+              </fieldset>
 
-          <div>
-            <div className="flex items-start gap-3">
-              <input
-                id={fieldId("consent")}
-                name="consent"
-                type="checkbox"
-                required
-                checked={consent}
-                onChange={(e) => {
-                  setConsent(e.target.checked);
-                  touch("consent");
-                }}
-                aria-invalid={invalid("consent") || undefined}
-                aria-describedby={describedBy("consent")}
-                className="mt-0.5 h-5 w-5 shrink-0 accent-forest"
-              />
-              <label htmlFor={fieldId("consent")} className="text-sm leading-relaxed text-graphite">
-                {t.consentBefore}
-                <Link href={`/${locale}/privacy`} target="_blank" className="font-semibold text-forest underline">
-                  {t.consentLink}
-                </Link>
-                {t.consentAfter}
-              </label>
-            </div>
-            <FieldError id={fieldId("consent")} text={errorText("consent")} />
-          </div>
-        </Section>
+              <div>
+                <label htmlFor={fieldId("comment")} className="label text-muted">
+                  {t.comment} <span className="normal-case tracking-normal">· {t.optional}</span>
+                </label>
+                <input
+                  id={fieldId("comment")}
+                  name="comment"
+                  maxLength={LIMITS.comment}
+                  value={comment}
+                  onChange={(e) => {
+                    setComment(e.target.value);
+                    touch("comment");
+                  }}
+                  placeholder={t.commentPlaceholder}
+                  aria-invalid={invalid("comment") || undefined}
+                  aria-describedby={describedBy("comment")}
+                  className="field mt-2"
+                />
+                <FieldError id={fieldId("comment")} text={errorText("comment")} />
+              </div>
+            </Section>
 
-        {generalError && (
-          <div
-            ref={alertRef}
-            tabIndex={-1}
-            role="alert"
-            className="rounded-2xl border border-danger/30 bg-danger/10 p-5 outline-none"
-          >
-            <p className="text-graphite">{generalError}</p>
-            <a href={telegramUrl} className="btn btn-forest mt-4 !px-5 !py-2.5 !text-sm" rel="noopener">
-              {t.telegram}
-            </a>
+            {/* 03 · Contact */}
+            <Section step={2} current={step} number="03" title={t.sections.contact} stepLabel={stepLabel(2)}>
+              <div className="grid gap-6 sm:grid-cols-2">
+                <div>
+                  <label htmlFor={fieldId("name")} className="label text-muted">
+                    {t.name}
+                  </label>
+                  <input
+                    id={fieldId("name")}
+                    name="name"
+                    required
+                    maxLength={LIMITS.name.max}
+                    autoComplete="name"
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      touch("name");
+                    }}
+                    aria-invalid={invalid("name") || undefined}
+                    aria-describedby={describedBy("name")}
+                    className="field mt-2"
+                  />
+                  <FieldError id={fieldId("name")} text={errorText("name")} />
+                </div>
+
+                <div>
+                  <label htmlFor={fieldId("phone")} className="label text-muted">
+                    {t.phone}
+                  </label>
+                  <div
+                    className={`field mt-2 flex items-center gap-2 !p-0 focus-within:border-forest ${
+                      invalid("phone") ? "!border-danger" : ""
+                    }`}
+                  >
+                    <span className="pl-3 font-semibold text-forest tabular-nums" aria-hidden>
+                      +998
+                    </span>
+                    <input
+                      id={fieldId("phone")}
+                      name="phone"
+                      type="tel"
+                      inputMode="numeric"
+                      autoComplete="tel-national"
+                      required
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(phoneDigits(e.target.value));
+                        touch("phone");
+                      }}
+                      placeholder="901234567"
+                      aria-invalid={invalid("phone") || undefined}
+                      aria-describedby={describedBy("phone", "order-phone-hint")}
+                      className="w-full min-w-0 rounded-r-[0.6rem] bg-transparent py-[0.6rem] pr-3 tabular-nums outline-none"
+                    />
+                  </div>
+                  <p id="order-phone-hint" className="mt-1.5 text-sm text-muted">
+                    {t.phoneHint}
+                  </p>
+                  <FieldError id={fieldId("phone")} text={errorText("phone")} />
+                </div>
+              </div>
+
+              <div>
+                <label htmlFor={fieldId("exclusions")} className="label text-muted">
+                  {t.exclusions} <span className="normal-case tracking-normal">· {t.optional}</span>
+                </label>
+                <input
+                  id={fieldId("exclusions")}
+                  name="exclusions"
+                  maxLength={LIMITS.exclusions}
+                  value={exclusions}
+                  onChange={(e) => {
+                    setExclusions(e.target.value);
+                    touch("exclusions");
+                  }}
+                  placeholder={t.exclusionsPlaceholder}
+                  aria-invalid={invalid("exclusions") || undefined}
+                  aria-describedby={describedBy("exclusions")}
+                  className="field mt-2"
+                />
+                <FieldError id={fieldId("exclusions")} text={errorText("exclusions")} />
+              </div>
+
+              <div>
+                <div className="flex items-start gap-3">
+                  <input
+                    id={fieldId("consent")}
+                    name="consent"
+                    type="checkbox"
+                    required
+                    checked={consent}
+                    onChange={(e) => {
+                      setConsent(e.target.checked);
+                      touch("consent");
+                    }}
+                    aria-invalid={invalid("consent") || undefined}
+                    aria-describedby={describedBy("consent")}
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-forest"
+                  />
+                  <label htmlFor={fieldId("consent")} className="text-sm leading-relaxed text-graphite">
+                    {t.consentBefore}
+                    <Link href={`/${locale}/privacy`} target="_blank" className="font-semibold text-forest underline">
+                      {t.consentLink}
+                    </Link>
+                    {t.consentAfter}
+                  </label>
+                </div>
+                <FieldError id={fieldId("consent")} text={errorText("consent")} />
+              </div>
+            </Section>
+
+            {generalError && (
+              <div
+                ref={alertRef}
+                tabIndex={-1}
+                role="alert"
+                className="rounded-2xl border border-danger/30 bg-danger/10 p-5 outline-none"
+              >
+                <p className="text-graphite">{generalError}</p>
+                <a href={telegramUrl} className="btn btn-forest mt-4 !px-5 !py-2.5 !text-sm" rel="noopener">
+                  {t.telegram}
+                </a>
+              </div>
+            )}
           </div>
-        )}
+        </ViewTransition>
       </div>
 
       {/* Summary: side card from md, sticky bottom bar on phones */}
@@ -620,8 +826,12 @@ export function OrderForm({
             <span className="text-sm text-ivory/70">{t.total}</span>
             <span className="font-serif text-3xl tabular-nums">{money(total)}</span>
           </div>
-          <button type="submit" disabled={pending} className="btn btn-gold mt-5 w-full disabled:opacity-60">
-            {pending ? t.pending : t.submit}
+          <button
+            type="submit"
+            disabled={pending}
+            className={`btn btn-gold relative mt-5 w-full ${pending ? "opacity-60" : ""}`}
+          >
+            <ButtonLabel label={t.submit} pending={pending} pendingLabel={t.pending} />
           </button>
           <p className="mt-4 text-xs leading-relaxed text-ivory/60">{t.payNote}</p>
         </div>
@@ -634,9 +844,29 @@ export function OrderForm({
             <p className="truncate text-xs text-muted">{summaryLine}</p>
             <p className="font-serif text-xl text-forest tabular-nums">{money(total)}</p>
           </div>
-          <button type="submit" disabled={pending} className="btn btn-forest shrink-0 !px-5 disabled:opacity-60">
-            {pending ? t.pending : t.submit}
-          </button>
+          {/* Two different buttons (keys), so React never turns the Next under a finger into the Order button:
+              Next (type="button") on steps 1–2, the submit button only on step 3. Both rest for SETTLE_MS after a
+              step change. */}
+          {step < LAST_STEP ? (
+            <button
+              key="next"
+              type="button"
+              onClick={next}
+              disabled={settling}
+              className="btn btn-forest shrink-0 !px-5"
+            >
+              {t.next}
+            </button>
+          ) : (
+            <button
+              key="submit"
+              type="submit"
+              disabled={pending || settling}
+              className={`btn btn-forest relative shrink-0 !px-5 ${pending ? "opacity-60" : ""}`}
+            >
+              <ButtonLabel label={t.submit} pending={pending} pendingLabel={t.pending} />
+            </button>
+          )}
         </div>
         <p className="mt-2 text-[11px] leading-snug text-muted">{t.payNote}</p>
       </div>
@@ -644,15 +874,59 @@ export function OrderForm({
   );
 }
 
-function Section({ number, title, children }: { number: string; title: string; children: ReactNode }) {
+/**
+ * One of the form's three sections. On phones only the current step's section shows (the others are
+ * display: none, still rendered and still submitted); from md all three always show.
+ * The heading takes focus after a step change; on phones its name starts with "Step 2 of 3:".
+ */
+function Section({
+  step,
+  current,
+  number,
+  title,
+  stepLabel,
+  children,
+}: {
+  step: OrderStep;
+  current: OrderStep;
+  number: string;
+  title: string;
+  stepLabel: string;
+  children: ReactNode;
+}) {
   return (
-    <section className="grid gap-8 border-t border-gold pt-5">
-      <h2 className="flex items-baseline gap-3 font-serif text-3xl text-forest">
-        <span className="text-gold">{number}</span>
+    <section className={`grid gap-8 border-t border-gold pt-5 ${step === current ? "" : "max-md:hidden"}`}>
+      <h2
+        id={stepHeadingId(step)}
+        tabIndex={-1}
+        className="flex items-baseline gap-3 font-serif text-3xl text-forest focus:outline-none"
+      >
+        <span className="sr-only md:hidden">{stepLabel}: </span>
+        <span className="text-gold" aria-hidden>
+          {number}
+        </span>
         {title}
       </h2>
       {children}
     </section>
+  );
+}
+
+/** The button's words; while sending, a spinner takes their place and the button keeps its width. */
+function ButtonLabel({ label, pending, pendingLabel }: { label: string; pending: boolean; pendingLabel: string }) {
+  return (
+    <>
+      <span className={pending ? "invisible" : undefined}>{label}</span>
+      {pending && (
+        <span className="absolute inset-0 flex items-center justify-center">
+          <svg viewBox="0 0 24 24" fill="none" className="size-5 animate-spin" aria-hidden>
+            <circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2.5" />
+            <path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+          <span className="sr-only">{pendingLabel}</span>
+        </span>
+      )}
+    </>
   );
 }
 
@@ -710,7 +984,7 @@ function SummaryRow({ term, value }: { term: string; value: string }) {
 function FieldError({ id, text }: { id: string; text: string | null }) {
   if (!text) return null;
   return (
-    <p id={`${id}-error`} className="mt-2 text-sm font-semibold text-danger">
+    <p id={`${id}-error`} className="mt-2 text-sm font-semibold text-danger motion-safe:animate-fade">
       {text}
     </p>
   );
