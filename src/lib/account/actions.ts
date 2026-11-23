@@ -6,6 +6,7 @@ import { getDictionary } from "@/i18n";
 import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
 import { site } from "@/lib/site";
 import { createSessionClient } from "@/lib/supabase/server";
+import { TURNSTILE_FIELD } from "@/lib/turnstile/shared";
 import { getCustomer } from "./auth";
 import { authMethods, isAccountEnabled, isOAuthMethod, safeNext } from "./methods";
 import { syncProfile } from "./profile";
@@ -58,19 +59,29 @@ export type EmailCodeState = {
 };
 
 /** Step 1 of the email sign-in: send a 6-digit code (the Supabase email template prints {{ .Token }}). */
-export async function requestEmailCode(_prev: EmailCodeState, form: FormData): Promise<EmailCodeState> {
+export async function requestEmailCode(prev: EmailCodeState, form: FormData): Promise<EmailCodeState> {
   const locale = localeFrom(form.get("locale"));
   const t = getDictionary(locale).account;
   const email = text(form, "email").toLowerCase();
   if (!isAccountEnabled || !authMethods.includes("email")) return { step: "email", email, error: t.errors.failed };
   if (!EMAIL_RE.test(email) || email.length > 254) return { step: "email", email, error: t.errors.email };
 
+  // Turnstile token from the form, checked by Supabase itself once its CAPTCHA protection is on (ignored until
+  // then). Not checked here as well: a token can be redeemed only once. The code check (verifyOtp) and the
+  // Google/Telegram redirects take no token: Supabase does not ask for one there.
+  const captchaToken = text(form, TURNSTILE_FIELD);
   const supabase = await createSessionClient();
-  const { error } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: true, ...(captchaToken ? { captchaToken } : {}) },
+  });
   if (error) {
+    // "Send again" posts from the code step: an error there keeps the customer on it.
+    const stay = { step: prev.step, email, sentAt: prev.step === "code" ? prev.sentAt : undefined };
+    if (error.code === "captcha_failed") return { ...stay, error: t.errors.captcha };
     const limited = error.status === 429 || error.code === "over_email_send_rate_limit";
     if (!limited) console.error("account: email code send failed", error.code, error.message);
-    return { step: "email", email, error: limited ? t.errors.rateLimited : t.errors.failed };
+    return { ...stay, error: limited ? t.errors.rateLimited : t.errors.failed };
   }
   return { step: "code", email, sentAt: Date.now() };
 }

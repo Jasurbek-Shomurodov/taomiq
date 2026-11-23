@@ -2,6 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useActionState } from "react";
+import { Turnstile } from "@/components/Turnstile";
 import { getAdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { signIn, type FormState } from "@/lib/admin/actions";
@@ -30,6 +31,9 @@ export function LoginForm({ locale }: { locale: Locale }) {
         {t.password}
         <input name="password" type="password" required autoComplete="current-password" className="field font-normal" />
       </label>
+
+      {/* Bot check: invisible unless Cloudflare asks for a click; each answer from the server starts a fresh one. */}
+      <Turnstile action="admin-login" locale={locale} resetKey={state} />
 
       <Suspense>
         <NotStaffNotice text={t.notStaff} />

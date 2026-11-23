@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
+import { Turnstile } from "@/components/Turnstile";
 import type { Dictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 import { requestEmailCode, startOAuth, verifyEmailCode, type EmailCodeState } from "@/lib/account/actions";
@@ -122,6 +123,7 @@ function EmailCodeForm({ locale, next, t }: { locale: Locale; next: string; t: T
             className="field mt-2"
           />
         </div>
+        <Turnstile action="email-code" locale={locale} resetKey={state} />
         {alert}
         <button type="submit" name="intent" value="send" disabled={pending} className="btn btn-gold min-h-12 w-full disabled:opacity-60">
           {pending ? t.sending : t.sendCode}
@@ -140,6 +142,8 @@ function EmailCodeForm({ locale, next, t }: { locale: Locale; next: string; t: T
         {t.codeSent.replace("{email}", state.email ?? "")}
       </p>
       <CodeInput label={t.code} />
+      {/* For "send again" only: checking the code needs no bot check. */}
+      <Turnstile action="email-code" locale={locale} resetKey={state} />
       {alert}
       <button type="submit" name="intent" value="verify" disabled={pending} className="btn btn-gold min-h-12 w-full disabled:opacity-60">
         {pending ? t.verifying : t.verify}

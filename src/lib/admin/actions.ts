@@ -9,6 +9,7 @@ import { CATALOG_TAG } from "@/lib/data/catalog";
 import { CYCLE_DAYS, SLOTS, type Slot } from "@/lib/data/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
+import { TURNSTILE_FIELD } from "@/lib/turnstile/shared";
 import { requireOwner, requireStaff } from "./auth";
 import { ADMIN_LOCALE_COOKIE, ADMIN_LOCALE_COOKIE_OPTIONS, cookieLocale } from "./locale";
 import { STAFF_NOTE_MAX, canMove, isOrderStatus } from "./orders";
@@ -24,11 +25,15 @@ export async function signIn(_prev: FormState, form: FormData): Promise<FormStat
   const t = getAdminDictionary(await cookieLocale());
   if (!isSupabaseConfigured) return { error: t.login.notConfigured };
   const supabase = await createSessionClient();
+  const captchaToken = text(form, TURNSTILE_FIELD);
   const { data, error } = await supabase.auth.signInWithPassword({
     email: text(form, "email"),
     password: String(form.get("password") ?? ""),
+    // Turnstile token from the form, checked by Supabase itself once its CAPTCHA protection is on (ignored
+    // until then). Not checked here as well: a token can be redeemed only once.
+    options: captchaToken ? { captchaToken } : undefined,
   });
-  if (error) return { error: t.login.wrongCredentials };
+  if (error) return { error: error.code === "captcha_failed" ? t.login.captcha : t.login.wrongCredentials };
 
   // The saved language wins over the login page's: remember it on this device for the next login page.
   const { data: staff } = await supabase.from("staff").select("locale").eq("user_id", data.user.id).maybeSingle();

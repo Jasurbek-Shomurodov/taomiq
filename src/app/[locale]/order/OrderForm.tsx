@@ -14,6 +14,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Turnstile } from "@/components/Turnstile";
 import type { Dictionary } from "@/i18n";
 import { formatSum, plural, type Locale } from "@/i18n/config";
 import { pricePerDay, type Duration } from "@/lib/data/types";
@@ -789,6 +790,9 @@ function OrderFormBody({
                 <FieldError id={fieldId("consent")} text={errorText("consent")} />
               </div>
             </Section>
+
+            {/* Bot check: invisible unless Cloudflare asks for a click; a new server answer starts a fresh one. */}
+            <Turnstile action="order" locale={locale} resetKey={state} />
 
             {generalError && (
               <div

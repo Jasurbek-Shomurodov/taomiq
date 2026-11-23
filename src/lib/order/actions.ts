@@ -7,6 +7,8 @@ import { isLocale } from "@/i18n/config";
 import { getCustomerId } from "@/lib/account/auth";
 import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog";
 import { createSecretClient, isOrderingConfigured, supabaseSecretKey } from "@/lib/supabase/secret";
+import { TURNSTILE_FIELD } from "@/lib/turnstile/shared";
+import { verifyTurnstile } from "@/lib/turnstile/verify";
 import {
   SOURCE_KEYS,
   SOURCE_VALUE_MAX,
@@ -19,7 +21,8 @@ import {
 } from "./rules";
 import { scheduleOrderAlert } from "./telegram";
 
-export type OrderGeneralError = "failed" | "rate_limited";
+/** captcha: the bot check (Turnstile) did not pass; the widget resets and the customer presses the button again. */
+export type OrderGeneralError = "failed" | "rate_limited" | "captcha";
 
 export type OrderState = {
   fields?: FieldErrors;
@@ -46,10 +49,15 @@ const DB_ERRORS: Record<string, OrderState> = {
   rate_limited: { error: "rate_limited" },
 };
 
-/** SHA-256 of the first X-Forwarded-For address, salted with the secret key. The raw IP is never stored. */
-async function clientIpHash(): Promise<string> {
+/** The first X-Forwarded-For address (on Vercel, the visitor's), or "" when there is none. */
+async function clientIp(): Promise<string> {
   const forwarded = (await headers()).get("x-forwarded-for") ?? "";
-  const ip = forwarded.split(",")[0]?.trim();
+  return forwarded.split(",")[0]?.trim() ?? "";
+}
+
+/** SHA-256 of the client IP, salted with the secret key. The raw IP is never stored. */
+async function clientIpHash(): Promise<string> {
+  const ip = await clientIp();
   if (!ip) return "";
   return createHash("sha256").update(`${ip}|${supabaseSecretKey}`).digest("hex");
 }
@@ -98,6 +106,12 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
 
     if (!isOrderingConfigured) return { demo: true };
     if (!UUID_RE.test(input.variantId)) return { fields: { plan: "invalid" } };
+
+    // Bot check (Turnstile), the last step before the database. Passes when the keys are not set. If Cloudflare
+    // cannot be reached the order goes through: the honeypot and the database rate limit still stand, and no
+    // customer is turned away for Cloudflare's outage. A missing or refused token is a state the form recovers from.
+    const human = await verifyTurnstile(text(form, TURNSTILE_FIELD), (await clientIp()) || undefined, "order");
+    if (!human.ok && human.reason !== "unavailable") return { error: "captcha" };
 
     const source: Record<string, string> = {};
     for (const key of SOURCE_KEYS) {

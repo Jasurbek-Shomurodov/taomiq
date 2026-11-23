@@ -31,6 +31,7 @@ const uz: AdminDictionary = {
     notStaff: "Bu hisobda panelga kirish huquqi yoʻq. Egasiga murojaat qiling.",
     notConfigured: "Maʼlumotlar bazasi hali ulanmagan.",
     wrongCredentials: "Pochta yoki parol notoʻgʻri.",
+    captcha: "Robot emasligingizni tekshirib boʻlmadi. Bir-ikki soniya kutib, qayta urinib koʻring.",
   },
   setup: {
     title: "Sozlash",

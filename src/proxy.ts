@@ -1,5 +1,8 @@
+import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
+import { isAccountEnabled } from "@/lib/account/methods";
+import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
 /** A request for a file (a dot extension at the end), not a page. */
 const FILE_PATH = /\.[a-zA-Z0-9]+$/;
@@ -39,12 +42,42 @@ function preferredLocale(acceptLanguage: string): Locale {
 }
 
 /**
+ * /[locale]/account and /[locale]/login (pages and their server actions): refresh the customer's Supabase
+ * session before the page renders. A Server Component cannot store a refreshed token, so without this an
+ * expired access token is refreshed on every visit and never saved, and the single-use refresh token can then
+ * sign a returning customer out. The refreshed cookies go both to the page (request) and to the browser
+ * (response), with Supabase's no-store headers so a CDN never caches a response that carries a session.
+ */
+async function refreshSession(request: NextRequest): Promise<NextResponse> {
+  let response = NextResponse.next({ request });
+  const supabase = createServerClient(supabaseUrl, supabaseKey, {
+    cookies: {
+      getAll: () => request.cookies.getAll(),
+      setAll: (toSet, headers) => {
+        for (const { name, value } of toSet) request.cookies.set(name, value);
+        response = NextResponse.next({ request });
+        for (const { name, value, options } of toSet) response.cookies.set(name, value, options);
+        for (const [key, value] of Object.entries(headers)) response.headers.set(key, value);
+      },
+    },
+  });
+  try {
+    // Refreshes an expired session (writing the cookies above) and checks the token; the result is not used
+    // here: the pages and actions decide access themselves (getCustomer, requireCustomer).
+    await supabase.auth.getClaims();
+  } catch (error) {
+    console.error("proxy: session refresh failed", error instanceof Error ? error.message : error);
+  }
+  return response;
+}
+
+/**
  * Two sites, one app:
  *  - taomiq.uz        → /[locale]/…  (client site, uz + uzc + ru)
  *  - admin.taomiq.uz  → /admin/…     (back office)
  * In development use http://localhost:5555 and http://admin.localhost:5555.
  */
-export function proxy(request: NextRequest) {
+export function proxy(request: NextRequest): NextResponse | Promise<NextResponse> {
   const host = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
   const isAdminHost = host.startsWith("admin.");
@@ -70,8 +103,12 @@ export function proxy(request: NextRequest) {
     return new NextResponse(null, { status: 404 });
   }
 
-  const first = pathname.split("/")[1] ?? "";
-  if (isLocale(first)) return NextResponse.next();
+  const [, first = "", section] = pathname.split("/");
+  if (isLocale(first)) {
+    // Only the customer's own pages touch the session; every other page stays cookie-free and static.
+    if (isAccountEnabled && (section === "account" || section === "login")) return refreshSession(request);
+    return NextResponse.next();
+  }
 
   // The sign-in callback (src/app/auth/callback) has no locale segment: Telegram and Google return
   // there. Skipped only here, on the public host; the admin host rewrites it under /admin above.
