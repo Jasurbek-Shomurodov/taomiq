@@ -31,8 +31,8 @@ Until the keys are set, the client site shows demonstration data from `src/lib/d
 a "database not connected" page.
 
 1. Create a Supabase project in **Frankfurt (eu-central-1)**.
-2. Run `supabase/migrations/0001_catalog.sql` (SQL editor or CLI). It creates the tables, security rules,
-   the photo bucket and the three launch programs.
+2. Run the files in `supabase/migrations` in order (SQL editor or CLI). They create the tables, security rules,
+   the photo bucket and the three launch programs. (Already applied to the `taomiq` project.)
 3. Copy `.env.example` to `.env.local` and fill in the project URL and publishable key.
 4. Create the cook's login in Supabase → Authentication → Users, then give it staff access:
    ```sql
