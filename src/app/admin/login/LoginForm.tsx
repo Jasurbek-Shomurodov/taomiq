@@ -17,7 +17,7 @@ function NotStaffNotice({ text }: { text: string }) {
   );
 }
 
-export function LoginForm({ locale }: { locale: Locale }) {
+export function LoginForm({ locale, turnstileKey }: { locale: Locale; turnstileKey: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(signIn, {});
   const t = getAdminDictionary(locale).login;
 
@@ -33,7 +33,7 @@ export function LoginForm({ locale }: { locale: Locale }) {
       </label>
 
       {/* Bot check: invisible unless Cloudflare asks for a click; each answer from the server starts a fresh one. */}
-      <Turnstile action="admin-login" locale={locale} resetKey={state} />
+      <Turnstile siteKey={turnstileKey} action="admin-login" locale={locale} resetKey={state} />
 
       <Suspense>
         <NotStaffNotice text={t.notStaff} />

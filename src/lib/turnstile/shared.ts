@@ -1,10 +1,8 @@
 /**
  * Cloudflare Turnstile, shared by the widget (src/components/Turnstile.tsx) and the server check
- * (./verify.ts). Both keys unset → no widget and every check passes (demo mode, the e2e build).
+ * (./verify.ts). Whether the check is on, and the site key the widget uses, are decided on the server
+ * (./config.ts): both keys unset, or only one set → no widget and every check passes (demo mode, the e2e build).
  */
-
-/** Public site key. Read literally so Next inlines it into client bundles. */
-export const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "";
 
 /** The hidden input Turnstile adds inside the widget's container; a form posts the token under this name. */
 export const TURNSTILE_FIELD = "cf-turnstile-response";

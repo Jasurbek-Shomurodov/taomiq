@@ -12,7 +12,9 @@ import { expect, test } from "./fixtures";
 const widget = (page: Page) =>
   page.locator(`input[name="${TURNSTILE_FIELD}"], script[src*="challenges.cloudflare.com"], iframe[src*="challenges.cloudflare.com"]`);
 
-test("bot check off: the order form has no widget and still answers a valid order", async ({ page }) => {
+test("bot check off: the order form has no widget and still answers a valid order", async ({ page, isMobile }) => {
+  // Phones get the stepped form (smoke.spec.ts); the fixture still fails it if any page loads the widget.
+  test.skip(isMobile, "phones get the stepped form, covered in smoke.spec.ts");
   const t = uz.order;
   await page.goto("/uz/order");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();

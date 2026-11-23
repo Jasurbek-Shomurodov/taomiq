@@ -7,6 +7,7 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { getCustomer } from "@/lib/account/auth";
 import { authMethods, isAccountEnabled, safeNext } from "@/lib/account/methods";
 import { pageMetadata } from "@/lib/seo";
+import { turnstileWidgetKey } from "@/lib/turnstile/config";
 import { LoginForm } from "./LoginForm";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/login">): Promise<Metadata> {
@@ -70,7 +71,7 @@ async function LoginLoader({
   const code = ERRORS.find((e) => e === pick("error"));
   const error = code === "cancelled" ? t.account.errors.cancelled : code === "rate_limited" ? t.account.errors.rateLimited : code ? t.account.errors.failed : undefined;
 
-  return <LoginForm locale={locale} next={next} methods={authMethods} t={t.account} error={error} />;
+  return <LoginForm locale={locale} next={next} methods={authMethods} t={t.account} error={error} turnstileKey={turnstileWidgetKey} />;
 }
 
 function LoginSkeleton() {

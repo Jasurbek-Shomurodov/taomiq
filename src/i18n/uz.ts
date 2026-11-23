@@ -226,7 +226,7 @@ const uz: Dictionary = {
       failed: "Buyurtmani yuborib boʻlmadi. Qaytadan urinib koʻring yoki Telegramda yozing — buyurtmani qoʻlda rasmiylashtiramiz.",
       rate_limited: "Bu raqamdan bir nechta yangi buyurtma bor. Tez orada siz bilan bogʻlanamiz; biror narsani oʻzgartirish kerak boʻlsa, Telegramda yozing.",
       demo: "Onlayn buyurtma tez orada ochiladi. Hozircha Telegramda yozing — buyurtmani qoʻlda rasmiylashtiramiz.",
-      captcha: "Robot emasligingizni tekshirib boʻlmadi. Bir-ikki soniya kutib, tugmani yana bosing; tekshiruv chiqsa, belgilang. Boʻlmasa, Telegramda yozing.",
+      captcha: "Robot emasligingizni tekshirib boʻlmadi. Internetni tekshiring, bir-ikki soniya kutib, tugmani yana bosing; tekshiruv chiqsa, belgilang. Boʻlmasa, Telegramda yozing.",
     },
     telegram: "Telegramda yozish",
     success: {
@@ -586,7 +586,7 @@ const uz: Dictionary = {
       rateLimited: "Urinishlar juda koʻp. Bir necha daqiqa kutib, qayta urinib koʻring.",
       failed: "Kirib boʻlmadi. Qayta urinib koʻring yoki boshqa usulni tanlang.",
       cancelled: "Kirish bekor qilindi. Kirish usulini qaytadan tanlang.",
-      captcha: "Robot emasligingizni tekshirib boʻlmadi. Bir-ikki soniya kutib, qayta urinib koʻring; tekshiruv chiqsa, belgilang.",
+      captcha: "Robot emasligingizni tekshirib boʻlmadi. Internetni tekshiring, bir-ikki soniya kutib, qayta urinib koʻring; tekshiruv chiqsa, belgilang. Yoki boshqa usul bilan kiring.",
     },
     title: "Shaxsiy kabinet",
     lead: "Profilingiz, buyurtmalaringiz va kirish usullari.",

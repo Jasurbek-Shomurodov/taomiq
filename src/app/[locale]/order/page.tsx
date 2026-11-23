@@ -11,6 +11,7 @@ import { getCustomer } from "@/lib/account/auth";
 import { SOURCE_KEYS, SOURCE_VALUE_MAX, phoneDigits, startDateRange } from "@/lib/order/rules";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
+import { turnstileWidgetKey } from "@/lib/turnstile/config";
 import { OrderForm, type OrderProgram } from "./OrderForm";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/order">): Promise<Metadata> {
@@ -118,6 +119,7 @@ async function OrderLoader({
       telegramUrl={site.telegram}
       initialName={profile?.name ?? ""}
       initialPhone={profile?.phone ? phoneDigits(profile.phone) : ""}
+      turnstileKey={turnstileWidgetKey}
     />
   );
 }

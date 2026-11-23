@@ -22,6 +22,7 @@ export function LoginForm({
   methods,
   t,
   error,
+  turnstileKey,
 }: {
   locale: Locale;
   next: string;
@@ -29,6 +30,8 @@ export function LoginForm({
   t: T;
   /** One sentence from /login?error=… (provider cancelled or failed, rate limited). */
   error?: string;
+  /** Turnstile site key, "" when the bot check is off (src/lib/turnstile/config.ts). */
+  turnstileKey: string;
 }) {
   const oauth = methods.filter((m): m is OAuthMethod => m !== "email");
   const email = methods.includes("email");
@@ -60,7 +63,7 @@ export function LoginForm({
               <span className="h-px flex-1 bg-line" />
             </div>
           )}
-          <EmailCodeForm locale={locale} next={next} t={t} />
+          <EmailCodeForm locale={locale} next={next} t={t} turnstileKey={turnstileKey} />
         </>
       )}
     </div>
@@ -86,7 +89,7 @@ function ProviderButton({ method, label, pendingLabel }: { method: OAuthMethod; 
  * and "change email". The two server actions are wrapped in one client action so the step and the
  * address live in a single state.
  */
-function EmailCodeForm({ locale, next, t }: { locale: Locale; next: string; t: T }) {
+function EmailCodeForm({ locale, next, t, turnstileKey }: { locale: Locale; next: string; t: T; turnstileKey: string }) {
   const [state, dispatch, pending] = useActionState<EmailCodeState, FormData>(
     async (prev, form) => {
       const intent = form.get("intent");
@@ -123,7 +126,7 @@ function EmailCodeForm({ locale, next, t }: { locale: Locale; next: string; t: T
             className="field mt-2"
           />
         </div>
-        <Turnstile action="email-code" locale={locale} resetKey={state} />
+        <Turnstile siteKey={turnstileKey} action="email-code" locale={locale} resetKey={state} />
         {alert}
         <button type="submit" name="intent" value="send" disabled={pending} className="btn btn-gold min-h-12 w-full disabled:opacity-60">
           {pending ? t.sending : t.sendCode}
@@ -143,7 +146,7 @@ function EmailCodeForm({ locale, next, t }: { locale: Locale; next: string; t: T
       </p>
       <CodeInput label={t.code} />
       {/* For "send again" only: checking the code needs no bot check. */}
-      <Turnstile action="email-code" locale={locale} resetKey={state} />
+      <Turnstile siteKey={turnstileKey} action="email-code" locale={locale} resetKey={state} />
       {alert}
       <button type="submit" name="intent" value="verify" disabled={pending} className="btn btn-gold min-h-12 w-full disabled:opacity-60">
         {pending ? t.verifying : t.verify}

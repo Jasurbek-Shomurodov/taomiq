@@ -62,6 +62,8 @@ type Props = {
   /** Pre-filled from the signed-in customer's profile; empty when signed out. Phone: the 9 digits after +998. */
   initialName?: string;
   initialPhone?: string;
+  /** Turnstile site key, "" when the bot check is off (src/lib/turnstile/config.ts). */
+  turnstileKey: string;
 };
 
 /** How many start dates are offered as chips. */
@@ -155,6 +157,7 @@ function OrderFormBody({
   telegramUrl,
   initialName = "",
   initialPhone = "",
+  turnstileKey,
   onPlaced,
 }: Props & { onPlaced: () => void }) {
   const [state, formAction, pending] = useActionState<OrderState, FormData>(submitOrder, {});
@@ -792,7 +795,7 @@ function OrderFormBody({
             </Section>
 
             {/* Bot check: invisible unless Cloudflare asks for a click; a new server answer starts a fresh one. */}
-            <Turnstile action="order" locale={locale} resetKey={state} />
+            <Turnstile siteKey={turnstileKey} action="order" locale={locale} resetKey={state} />
 
             {generalError && (
               <div

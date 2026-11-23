@@ -4,6 +4,9 @@ import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
 import { isAccountEnabled } from "@/lib/account/methods";
 import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
 
+/** How long the proxy waits for Supabase to refresh a customer's session before letting the page render anyway. */
+const SESSION_REFRESH_TIMEOUT_MS = 3000;
+
 /** A request for a file (a dot extension at the end), not a page. */
 const FILE_PATH = /\.[a-zA-Z0-9]+$/;
 
@@ -50,10 +53,14 @@ function preferredLocale(acceptLanguage: string): Locale {
  */
 async function refreshSession(request: NextRequest): Promise<NextResponse> {
   let response = NextResponse.next({ request });
+  // Set once the proxy has answered (also on a timeout): a refresh that finishes later must not change the
+  // request or response that are already on their way.
+  let done = false;
   const supabase = createServerClient(supabaseUrl, supabaseKey, {
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (toSet, headers) => {
+        if (done) return;
         for (const { name, value } of toSet) request.cookies.set(name, value);
         response = NextResponse.next({ request });
         for (const { name, value, options } of toSet) response.cookies.set(name, value, options);
@@ -61,12 +68,23 @@ async function refreshSession(request: NextRequest): Promise<NextResponse> {
       },
     },
   });
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     // Refreshes an expired session (writing the cookies above) and checks the token; the result is not used
-    // here: the pages and actions decide access themselves (getCustomer, requireCustomer).
-    await supabase.auth.getClaims();
+    // here: the pages and actions decide access themselves (getCustomer, requireCustomer). Raced against a time
+    // limit so an Auth outage cannot hang /login and /account: on a timeout the page renders with the cookies
+    // as they came and handles the session itself.
+    const timedOut = new Promise<"timeout">((resolve) => {
+      timer = setTimeout(() => resolve("timeout"), SESSION_REFRESH_TIMEOUT_MS);
+    });
+    if ((await Promise.race([supabase.auth.getClaims(), timedOut])) === "timeout") {
+      console.error("proxy: session refresh timed out");
+    }
   } catch (error) {
     console.error("proxy: session refresh failed", error instanceof Error ? error.message : error);
+  } finally {
+    clearTimeout(timer);
+    done = true;
   }
   return response;
 }

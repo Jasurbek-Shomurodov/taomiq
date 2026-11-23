@@ -4,6 +4,7 @@ import { Lockup } from "@/components/Logo";
 import { getAdminDictionary } from "@/i18n/admin";
 import { htmlLang } from "@/i18n/config";
 import { cookieLocale } from "@/lib/admin/locale";
+import { turnstileWidgetKey } from "@/lib/turnstile/config";
 import { LanguageSwitch } from "../LanguageSwitch";
 import { LoginForm } from "./LoginForm";
 
@@ -24,7 +25,7 @@ async function Login() {
         <Lockup onDark={false} width={132} />
         <p className="label mt-4 text-muted">{t.login.panel}</p>
       </div>
-      <LoginForm locale={locale} />
+      <LoginForm locale={locale} turnstileKey={turnstileWidgetKey} />
     </div>
   );
 }
