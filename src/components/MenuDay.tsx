@@ -2,13 +2,23 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n";
+import { ALLERGENS } from "@/lib/data/allergens";
+import { LIGHT_MAX_KCAL, dishBadges } from "@/lib/data/badges";
 import { localized } from "@/lib/data/localized";
 import { portionNutrition, sumNutrition, type MenuEntry } from "@/lib/data/types";
+import { DishButton, DishSheet, type DishDetail, type DishSheetLabels } from "./DishSheet";
 import { InViewGrow } from "./InViewGrow";
-import { Monogram } from "./Logo";
+import { DishBadges, DishChips, DishPlaceholder, type ChipLabels } from "./dish-parts";
 import { DISH_BODY, DISH_CARD, DISH_IMAGE, DISH_LIST } from "./menu-styles";
 
-/** One day's meals with weights, kcal and Б/Ж/У, plus the day total. */
+/** The card opens its sheet: the button's ::after covers it (relative), it reacts to a press and shows the focus ring. */
+const DISH_CARD_ACTION =
+  "press relative cursor-pointer hover:border-forest/40 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold";
+
+/**
+ * One day's meals as cards (kcal, Б/Ж/У and weight chips, data badges), plus the day total. All dish text is in
+ * the server-rendered card; a tap on a card opens its detail sheet (DishSheet).
+ */
 export function MenuDay({
   entries,
   targetKcal,
@@ -30,6 +40,41 @@ export function MenuDay({
       </p>
     );
   }
+
+  const badgeText = {
+    highProtein: t.menu.badges.highProtein,
+    light: t.menu.badges.light.replace("{kcal}", String(LIGHT_MAX_KCAL)),
+  };
+  const details: DishDetail[] = entries.map((entry) => {
+    const n = portionNutrition(entry.dish, entry.weight_g);
+    return {
+      name: localized(entry.dish, "name", locale),
+      slot: t.slots[entry.slot],
+      photoUrl: entry.dish.photo_url,
+      ingredients: localized(entry.dish, "ingredients", locale),
+      // An unknown code is shown as stored rather than hidden: an allergen must never disappear.
+      allergens: entry.dish.allergens.map((code) => ALLERGENS.find((a) => a.code === code)?.[locale] ?? code),
+      badges: dishBadges(n).map((badge) => badgeText[badge]),
+      weight: entry.weight_g,
+      ...n,
+    };
+  });
+  const chipLabels: ChipLabels = {
+    kcal: t.programs.kcal,
+    weight: t.menu.weight,
+    protein: t.menu.protein,
+    fat: t.menu.fat,
+    carbs: t.menu.carbs,
+    proteinFull: t.menu.proteinFull,
+    fatFull: t.menu.fatFull,
+    carbsFull: t.menu.carbsFull,
+  };
+  const sheetLabels: DishSheetLabels = {
+    ...chipLabels,
+    close: t.nav.close,
+    ingredients: t.menu.ingredients,
+    allergens: t.menu.allergens,
+  };
 
   const total = sumNutrition(entries);
   // Share of the day's energy from each macro (4 / 9 / 4 kcal per gram).
@@ -60,50 +105,58 @@ export function MenuDay({
 
   return (
     <div>
-      <ul className={`stagger ${DISH_LIST}`}>
-        {entries.map((entry, index) => {
-          const n = portionNutrition(entry.dish, entry.weight_g);
-          const name = localized(entry.dish, "name", locale);
-          const ingredients = localized(entry.dish, "ingredients", locale);
-          const eager = eagerFirstImage && index === 0;
-          return (
-            <li key={entry.id} className={DISH_CARD}>
-              <div className={DISH_IMAGE}>
-                {entry.dish.photo_url ? (
-                  <Image
-                    src={entry.dish.photo_url}
-                    alt={name}
-                    fill
-                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 112px"
-                    loading={eager ? "eager" : undefined}
-                    fetchPriority={eager ? "high" : undefined}
-                    className="object-cover"
-                  />
-                ) : (
-                  <DishPlaceholder />
-                )}
-                <span className="label absolute left-3 top-3 hidden rounded-full bg-forest px-3 py-1.5 text-ivory sm:inline-block">
-                  {t.slots[entry.slot]}
-                </span>
-              </div>
-              <div className={DISH_BODY}>
-                <p className="label text-muted sm:hidden">{t.slots[entry.slot]}</p>
-                <h3 className="mt-1 font-serif text-lg leading-snug text-forest sm:mt-0 sm:text-xl">{name}</h3>
-                {ingredients && <p className="mt-1.5 text-sm text-muted">{ingredients}</p>}
-                <p className="mt-auto pt-3 text-sm tabular-nums text-graphite sm:pt-4">
-                  <span className="font-semibold">{n.kcal} {t.programs.kcal}</span>
-                  <span className="text-muted">
-                    {" · "}{entry.weight_g} {t.menu.weight}
-                    {" · "}{t.menu.protein} {n.protein}
-                    {" · "}{t.menu.fat} {n.fat}
-                    {" · "}{t.menu.carbs} {n.carbs}
+      <DishSheet dishes={details} labels={sheetLabels}>
+        <ul className={`stagger ${DISH_LIST}`}>
+          {entries.map((entry, index) => {
+            const dish = details[index];
+            const eager = eagerFirstImage && index === 0;
+            return (
+              <li key={entry.id} className={`${DISH_CARD} ${DISH_CARD_ACTION}`}>
+                <div className={DISH_IMAGE}>
+                  {dish.photoUrl ? (
+                    <Image
+                      src={dish.photoUrl}
+                      alt={dish.name}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 112px"
+                      loading={eager ? "eager" : undefined}
+                      fetchPriority={eager ? "high" : undefined}
+                      className="object-cover"
+                    />
+                  ) : (
+                    <DishPlaceholder />
+                  )}
+                  <span className="label absolute left-3 top-3 hidden rounded-full bg-forest px-3 py-1.5 text-ivory sm:inline-block">
+                    {dish.slot}
                   </span>
-                </p>
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+                </div>
+                <div className={DISH_BODY}>
+                  {/* Phones: the slot, then the badges, on one line. From sm the slot sits on the photo. */}
+                  <div
+                    className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${dish.badges.length > 0 ? "sm:mb-2" : "sm:hidden"}`}
+                  >
+                    <p className="label text-muted sm:hidden">{dish.slot}</p>
+                    <DishBadges badges={dish.badges} />
+                  </div>
+                  <h3 className="mt-1 font-serif text-lg leading-snug text-forest sm:mt-0 sm:text-xl">
+                    <DishButton index={index}>{dish.name}</DishButton>
+                  </h3>
+                  {dish.ingredients && <p className="mt-1.5 line-clamp-2 text-sm text-muted">{dish.ingredients}</p>}
+                  <DishChips
+                    kcal={dish.kcal}
+                    protein={dish.protein}
+                    fat={dish.fat}
+                    carbs={dish.carbs}
+                    weight={dish.weight}
+                    labels={chipLabels}
+                    className="mt-auto pt-3 sm:pt-4"
+                  />
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </DishSheet>
 
       <InViewGrow>
         <dl className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-forest-soft text-ivory sm:grid-cols-4">
@@ -122,18 +175,6 @@ export function MenuDay({
           ))}
         </dl>
       </InViewGrow>
-    </div>
-  );
-}
-
-/** No photo yet: a calm brand mark instead of a broken or empty frame. */
-function DishPlaceholder() {
-  return (
-    <div
-      className="flex h-full items-center justify-center bg-[radial-gradient(circle_at_30%_25%,var(--color-ivory)_0%,var(--color-ivory-deep)_70%)]"
-      aria-hidden
-    >
-      <Monogram size={80} onDark={false} className="size-12 opacity-50 sm:size-20" />
     </div>
   );
 }

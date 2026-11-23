@@ -114,6 +114,26 @@ test("menu: choosing another day changes the dishes", async ({ page }) => {
   await expect(dishes.first()).toBeVisible();
 });
 
+test("menu: a dish card opens its detail sheet, which closes back to the card", async ({ page }) => {
+  await page.goto("/uz/menu?day=1");
+  const main = page.getByRole("main");
+  const name = (await main.getByRole("heading", { level: 3 }).first().textContent())!.trim();
+  const card = main.getByRole("button", { name, exact: true });
+
+  await card.click();
+  const sheet = page.getByRole("dialog", { name });
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByRole("heading", { level: 2, name })).toBeVisible();
+  await expect(sheet.getByText(uz.menu.ingredients, { exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+  await expect(card).toBeFocused();
+
+  await card.click();
+  await sheet.getByRole("button", { name: uz.nav.close }).click();
+  await expect(sheet).toBeHidden();
+});
+
 test("program page shows its calorie levels and prices", async ({ page }) => {
   const program = demoPrograms[0];
   await page.goto(`/uz/programs/${program.slug}`);
@@ -188,6 +208,45 @@ test("calculator gives a daily norm and a matching program", async ({ page }) =>
     "href",
     `/ru/order?program=${plan!.program.slug}&kcal=${plan!.variant.kcal}`,
   );
+});
+
+test("quiz: three questions lead to a program and a pre-filled order link; Back returns a step", async ({ page }) => {
+  const t = ru.quiz;
+  const c = ru.calculator;
+  await page.goto("/ru/quiz");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(t.title);
+
+  const next = page.getByRole("button", { name: t.next });
+  await expect(next).toBeDisabled();
+  await choose(page, c.goals.lose.title);
+  await next.click();
+  await expect(page.getByRole("heading", { level: 2, name: t.activity })).toBeVisible();
+  await expect(page).toHaveURL(/#step-2$/);
+
+  await choose(page, c.activities.light.title);
+  await next.click();
+  await expect(page.getByRole("heading", { level: 2, name: t.body })).toBeVisible();
+  await choose(page, c.female);
+  await page.getByLabel(c.age, { exact: true }).fill("35");
+  await page.getByLabel(c.height, { exact: true }).fill("160");
+  await page.getByLabel(c.weight, { exact: true }).fill("75");
+  await page.getByRole("button", { name: t.showResult }).click();
+
+  const result = calculate({ sex: "female", age: 35, height: 160, weight: 75, activity: "light", goal: "lose" });
+  const plan = recommend(demoPrograms, result.kcal, "lose");
+  expect(plan).not.toBeNull();
+  const summary = page.locator('[aria-live="polite"]');
+  await expect(summary).toContainText(`${c.resultLabel}: ${formatSum(result.kcal)} ${c.kcal}.`);
+  await expect(summary).toContainText(`${c.planLabel}: ${plan!.program.name} ${plan!.variant.kcal}.`);
+  await expect(page.getByRole("link", { name: c.order })).toHaveAttribute(
+    "href",
+    `/ru/order?program=${plan!.program.slug}&kcal=${plan!.variant.kcal}`,
+  );
+
+  // The browser's Back goes to the last question, with the answers kept.
+  await page.goBack();
+  await expect(page.getByRole("heading", { level: 2, name: t.body })).toBeVisible();
+  await expect(page.getByLabel(c.age, { exact: true })).toHaveValue("35");
 });
 
 for (const locale of locales) {
@@ -302,7 +361,7 @@ test("robots.txt and sitemap.xml are served on the public host", async ({ reques
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
   const urls = await sitemap.text();
-  for (const path of ["/uz/menu", "/uz/faq", "/uz/prices", "/uz/goals/weight-loss", "/uz/calculator/protein"]) {
+  for (const path of ["/uz/menu", "/uz/faq", "/uz/prices", "/uz/goals/weight-loss", "/uz/calculator/protein", "/uz/quiz"]) {
     expect(urls).toContain(path);
   }
 });

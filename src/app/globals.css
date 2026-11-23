@@ -128,6 +128,11 @@ body {
   outline: 2px solid var(--color-gold);
   outline-offset: 2px;
 }
+/* Headings focused by script to orient keyboard and screen-reader users (the quiz's next question) are not
+   controls: no ring. */
+h2[tabindex="-1"]:focus-visible {
+  outline: none;
+}
 
 @layer components {
   /* Wide-tracked uppercase label used for data lines: "BALANCE / 1800" */
@@ -420,6 +425,20 @@ details.faq > summary::-webkit-details-marker {
   animation: var(--duration-base) var(--ease-out-calm) both fade;
 }
 
+/* Program finder (quiz/Quiz.tsx): the old question leaves fast (160 ms), the next fades in and rises 12 px (240 ms). */
+::view-transition-group(.quiz-step) {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-out-calm);
+}
+::view-transition-old(.quiz-step) {
+  animation: var(--duration-fast) var(--ease-exit) both fade reverse;
+}
+::view-transition-new(.quiz-step) {
+  animation:
+    var(--duration-base) var(--ease-out-calm) both fade,
+    var(--duration-base) var(--ease-out-calm) both lift;
+}
+
 /* Menu Suspense reveal: the skeleton leaves fast, then the menu fades in and lifts 12 px. */
 ::view-transition-old(.menu-skeleton-out) {
   animation: var(--duration-fast) var(--ease-exit) both fade reverse;
@@ -447,8 +466,10 @@ details.faq > summary::-webkit-details-marker {
 
 /* Bottom sheet on a native modal <dialog>: rises in 400 ms, leaves in 160 ms; the backdrop fades in
    240 ms. Closed, it is display: none like any dialog, so the off-screen start is never a resting state.
-   Without @starting-style it simply appears. */
-.nav-sheet {
+   Without @starting-style it simply appears. The dish sheet (components/DishSheet.tsx) is the same sheet on
+   phones and a centred modal from md (below). */
+.nav-sheet,
+.dish-sheet {
   position: fixed;
   inset: auto 0 0;
   margin: 0;
@@ -463,34 +484,63 @@ details.faq > summary::-webkit-details-marker {
   translate: 0 100%;
   transition:
     translate var(--duration-fast) var(--ease-exit),
+    opacity var(--duration-fast) var(--ease-exit),
     overlay var(--duration-fast) allow-discrete,
     display var(--duration-fast) allow-discrete;
 }
-.nav-sheet[open] {
+.nav-sheet[open],
+.dish-sheet[open] {
   translate: 0 0;
   transition-duration: var(--duration-slow);
   transition-timing-function: var(--ease-out-calm);
 }
 @starting-style {
-  .nav-sheet[open] {
+  .nav-sheet[open],
+  .dish-sheet[open] {
     translate: 0 100%;
   }
 }
-.nav-sheet::backdrop {
+.nav-sheet::backdrop,
+.dish-sheet::backdrop {
   background-color: rgb(18 46 40 / 0);
   transition:
     background-color var(--duration-fast) var(--ease-exit),
     overlay var(--duration-fast) allow-discrete,
     display var(--duration-fast) allow-discrete;
 }
-.nav-sheet[open]::backdrop {
+.nav-sheet[open]::backdrop,
+.dish-sheet[open]::backdrop {
   background-color: rgb(18 46 40 / 0.6);
   transition-duration: var(--duration-base);
   transition-timing-function: var(--ease-out-calm);
 }
 @starting-style {
-  .nav-sheet[open]::backdrop {
+  .nav-sheet[open]::backdrop,
+  .dish-sheet[open]::backdrop {
     background-color: rgb(18 46 40 / 0);
+  }
+}
+/* From md the dish sheet is a centred modal: it fades in and rises 12 px (400 ms), fades out in 160 ms.
+   Opacity 0 here is only the closed (display: none) and entry state, never one that is seen at rest. */
+@media (min-width: 48rem) {
+  .dish-sheet {
+    inset: 0;
+    margin: auto;
+    width: min(40rem, calc(100% - 3rem));
+    height: fit-content;
+    max-height: min(85dvh, 56rem);
+    border-radius: 1.5rem;
+    translate: 0 var(--distance-sm);
+    opacity: 0;
+  }
+  .dish-sheet[open] {
+    opacity: 1;
+  }
+  @starting-style {
+    .dish-sheet[open] {
+      translate: 0 var(--distance-sm);
+      opacity: 0;
+    }
   }
 }
 /* Closed for a page change (MobileNav.tsx, closeForNavigation): gone at once, the page transition plays alone. */
@@ -500,13 +550,16 @@ details.faq > summary::-webkit-details-marker {
 }
 @media (prefers-reduced-motion: reduce) {
   /* ::backdrop is not matched by the global * rule. */
-  .nav-sheet::backdrop {
+  .nav-sheet::backdrop,
+  .dish-sheet::backdrop {
     transition-duration: 0.01ms !important;
   }
 }
-/* The page behind the open sheet does not scroll. */
-html:has(.nav-sheet[open]) {
+/* The page behind an open sheet does not scroll. The gutter stays, so a classic scrollbar's width does
+   not jump the page sideways when it goes. */
+html:has(.nav-sheet[open], .dish-sheet[open]) {
   overflow: hidden;
+  scrollbar-gutter: stable;
 }
 
 /* The bar's in-flow box after the footer: as tall as the bar (12 px + 48 px button + bottom padding

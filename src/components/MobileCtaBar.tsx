@@ -6,10 +6,11 @@ import { formatSum, type Locale } from "@/i18n/config";
 import { GOAL_PROGRAM, isGoalPage } from "@/lib/goal-pages";
 
 /**
- * Pages without the bar: the order flow, the calculator's own result bar (.calc-bar), and the other
- * calculators under /calculator/…, whose next step sits under their result.
+ * Pages without the bar: the order flow, the calculator's own result bar (.calc-bar), the other
+ * calculators under /calculator/…, whose next step sits under their result, and the program finder (/quiz),
+ * which pins its own Continue button.
  */
-const OWN_ACTION = /^\/[^/]+\/(order|calculator)(\/|$)/;
+const OWN_ACTION = /^\/[^/]+\/(order|calculator|quiz)(\/|$)/;
 const PROGRAM_PAGE = /^\/[^/]+\/programs\/([^/]+)\/?$/;
 const GOAL_PAGE = /^\/[^/]+\/goals\/([^/]+)\/?$/;
 

@@ -65,6 +65,15 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                 {t.hero.secondary}
               </Link>
             </div>
+            <p className="mt-4 text-sm text-ivory/70">
+              {t.quiz.teaser}{" "}
+              <Link
+                href={`/${locale}/quiz`}
+                className="inline-flex min-h-11 items-center font-semibold text-gold underline-offset-4 hover:underline sm:min-h-0"
+              >
+                {t.quiz.teaserLink}&nbsp;<span aria-hidden>→</span>
+              </Link>
+            </p>
             {minPrice !== null && (
               <p className="mt-6 text-sm text-ivory/70">
                 {t.hero.from} <span className="font-semibold text-ivory">{formatSum(minPrice)}</span> {t.hero.perDay}

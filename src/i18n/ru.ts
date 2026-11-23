@@ -98,6 +98,8 @@ const ru = {
     full: "Всё меню на 30 дней",
     prevDay: "Предыдущий день",
     nextDay: "Следующий день",
+    /** Dish badges, from the portion's own numbers (src/lib/data/badges.ts). {kcal}: the threshold. */
+    badges: { highProtein: "Много белка", light: "До {kcal} ккал" },
   },
   slots: {
     breakfast: "Завтрак",
@@ -404,6 +406,31 @@ const ru = {
         "Это вся жидкость за день: вода, чай, супы и другие напитки. В жару и при болезни нужно больше; при заболеваниях почек или сердца норму определяет врач.",
       ],
     },
+  },
+  /** /quiz: the program finder. Goal, activity, sex and the number fields come from `calculator`. */
+  quiz: {
+    metaTitle: "Подбор рациона: какая программа питания вам подходит",
+    metaDescription:
+      "Ответьте на три вопроса — о цели, активности и о себе — и узнайте, какая программа TAOMIQ вам подходит, с какой калорийностью и по какой цене в день.",
+    title: "Подбор рациона: какая программа питания вам подходит",
+    lead: "Три коротких вопроса — и вы увидите подходящую программу, калорийность и цену за день.",
+    /** Links in the menu sheet, footer and goal pages; the breadcrumb. */
+    short: "Подбор рациона",
+    /** Home hero: the question, then the link. */
+    teaser: "Не знаете, какая программа подойдёт?",
+    teaserLink: "Пройдите тест за 1 минуту",
+    step: "Шаг {n} из {total}",
+    goal: "Какая у вас цель?",
+    activity: "Насколько вы активны?",
+    body: "Расскажите о себе",
+    bodyHint: "Пол, возраст, рост и вес нужны, чтобы оценить вашу дневную норму калорий.",
+    next: "Продолжить",
+    showResult: "Показать результат",
+    back: "Назад",
+    resultTitle: "Ваш результат",
+    kcalLabel: "Ваша норма в день",
+    restart: "Пройти заново",
+    note: "Это ориентировочный расчёт для выбора рациона, а не медицинская рекомендация.",
   },
   /** /goals/[goal]: landing pages by goal (src/lib/goal-pages.ts). */
   goals: {

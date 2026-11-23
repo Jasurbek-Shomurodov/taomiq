@@ -55,7 +55,12 @@ export function MenuSkeleton({ t }: { t: Dictionary }) {
                 <span className={`${block} mt-2 h-5 w-4/5 animate-pulse sm:mt-1`} />
                 <span className={`${block} mt-3 h-3.5 w-full animate-pulse`} />
                 <span className={`${block} mt-2 h-3.5 w-2/3 animate-pulse`} />
-                <span className={`${block} mt-auto h-4 w-3/5 animate-pulse`} />
+                {/* The chips row: kcal, Б, Ж, У and weight (two rows on phones, as in the card). */}
+                <span className="mt-auto flex flex-wrap gap-1 pt-3 sm:pt-4">
+                  {["w-16", "w-10", "w-10", "w-10", "w-12"].map((width, chip) => (
+                    <span key={chip} className={`h-6 ${width} animate-pulse rounded-full bg-ivory-deep`} />
+                  ))}
+                </span>
               </div>
             </li>
           ))}

@@ -82,6 +82,7 @@ export default async function GoalPage({ params }: PageProps<"/[locale]/goals/[g
     })),
     { href: `/${locale}#programs`, label: t.goals.allPrograms },
     { href: `/${locale}/menu`, label: t.nav.menu },
+    { href: `/${locale}/quiz`, label: t.quiz.short },
     { href: `/${locale}/calculator`, label: t.nav.calculator },
     { href: `/${locale}/prices`, label: t.nav.prices },
     { href: `/${locale}/delivery`, label: t.nav.delivery },

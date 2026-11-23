@@ -39,9 +39,10 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
           <Link href={`/${locale}/order`} className="btn btn-gold hidden !px-5 !py-2.5 !text-sm sm:inline-flex">
             {t.nav.cta}
           </Link>
+          {/* The sheet adds the program finder after the calculator; the desktop row stays at five links. */}
           <MobileNav
             locale={locale}
-            links={links}
+            links={[...links.slice(0, 3), { href: `/${locale}/quiz`, label: t.quiz.short }, ...links.slice(3)]}
             telegramUrl={site.telegram}
             labels={{ sections: t.nav.sections, close: t.nav.close }}
           />
@@ -93,6 +94,7 @@ export function Footer({
           <Link href={`/${locale}/menu`} className="hover:text-ivory">{t.nav.menu}</Link>
           <Link href={`/${locale}/prices`} className="hover:text-ivory">{t.nav.prices}</Link>
           <Link href={`/${locale}/calculator`} className="hover:text-ivory">{t.nav.calculator}</Link>
+          <Link href={`/${locale}/quiz`} className="hover:text-ivory">{t.quiz.short}</Link>
           <Link href={`/${locale}/delivery`} className="hover:text-ivory">{t.nav.delivery}</Link>
           <Link href={`/${locale}#how`} className="hover:text-ivory">{t.nav.how}</Link>
           <Link href={`/${locale}/faq`} className="hover:text-ivory">{t.nav.faq}</Link>

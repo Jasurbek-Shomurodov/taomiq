@@ -70,6 +70,7 @@ export async function GET() {
     `- Home: ${everyLocale("")}`,
     `- 30-day menu: ${everyLocale("/menu")}`,
     `- All prices (every program, calorie level and order length): ${everyLocale("/prices")}`,
+    `- Program finder (three questions: goal, activity, sex, age, height and weight; recommends a program, calorie level and price per day): ${everyLocale("/quiz")}`,
     `- Calorie and macro calculator (daily calories, TDEE): ${everyLocale("/calculator")}`,
     `- Protein calculator (grams per day by weight, activity and goal): ${everyLocale("/calculator/protein")}`,
     `- BMI calculator (WHO categories): ${everyLocale("/calculator/bmi")}`,
