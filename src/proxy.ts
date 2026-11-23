@@ -18,8 +18,15 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(url);
   }
 
-  // The back office is never reachable from the public host.
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    // Local shortcut: localhost:5555/admin → admin.localhost:5555 (admin links are host-relative).
+    if (process.env.NODE_ENV === "development") {
+      const url = request.nextUrl.clone();
+      url.hostname = `admin.${url.hostname}`;
+      url.pathname = pathname.slice("/admin".length) || "/";
+      return NextResponse.redirect(url);
+    }
+    // In production the back office is never reachable from the public host.
     return new NextResponse(null, { status: 404 });
   }
 
