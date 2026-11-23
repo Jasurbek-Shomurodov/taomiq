@@ -11,6 +11,9 @@ const ru = {
   common: {
     save: "Сохранить",
     saving: "Сохраняем…",
+    deleting: "Удаляем…",
+    /** The dismiss button of a confirmation dialog. */
+    cancel: "Отмена",
     saved: "Сохранено.",
     saveFailed: (message: string) => `Не удалось сохранить: ${message}`,
     failed: (message: string) => `Ошибка: ${message}`,
@@ -97,7 +100,9 @@ const ru = {
     allergens: "Аллергены",
     verified: "Техкарта проверена — цифры можно показывать клиентам",
     active: "Активно — блюдо видно на сайте",
-    deleteConfirm: (name: string) => `Удалить блюдо «${name}»? Это нельзя отменить.`,
+    deleteTitle: (name: string) => `Удалить блюдо «${name}»?`,
+    deleteText: "Это нельзя отменить.",
+    deleteButton: "Удалить",
     delete: "Удалить блюдо",
     // Server action messages
     namesRequired: "Укажите название на русском и узбекском (латиницей).",
@@ -108,7 +113,10 @@ const ru = {
   },
   cyrillic: {
     fill: "Заполнить из латиницы",
-    replaceConfirm: "Заменить текст в кириллице переводом из латиницы?",
+    replaceTitle: "Заменить текст в кириллице переводом из латиницы?",
+    replaceText: "Правки, внесённые в кириллицу вручную, пропадут.",
+    replace: "Заменить",
+    keep: "Оставить как есть",
     emptyHint: "Пусто — сайт покажет латиницу, переведённую автоматически.",
   },
   menu: {
@@ -143,8 +151,9 @@ const ru = {
     allDays: (days: number) => `Все ${days} дней`,
     copyWhatDay: (day: number) => `день ${day}`,
     copyWhatAll: (days: number) => `все ${days} дней`,
-    copyConfirm: (what: string, from: string, to: string) =>
-      `Скопировать ${what} из «${from}» в «${to}»?\nТекущие блюда на эти дни будут заменены.`,
+    copyAskTitle: (what: string, from: string, to: string) => `Скопировать ${what} из «${from}» в «${to}»?`,
+    copyAskText: "Текущие блюда на эти дни будут заменены.",
+    copyButton: "Скопировать",
     // Server action messages
     invalidDay: "Неверный день.",
     weightEach: "У каждого блюда должен быть вес в граммах.",
@@ -257,7 +266,9 @@ const ru = {
     status: "Статус",
     closed: "Заказ закрыт, статус больше не меняется.",
     cancel: "Отменить заказ",
-    cancelConfirm: "Отменить заказ? Вернуть его в работу будет нельзя.",
+    cancelTitle: "Отменить заказ?",
+    cancelText: "Вернуть его в работу будет нельзя.",
+    cancelKeep: "Не отменять",
     note: "Заметка для команды",
     notePlaceholder: "Договорились о времени, способ оплаты, особенности адреса…",
     noteHidden: "Клиент эту заметку не видит.",

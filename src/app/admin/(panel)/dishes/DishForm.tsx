@@ -8,6 +8,7 @@ import { ALLERGENS } from "@/lib/data/allergens";
 import { localized } from "@/lib/data/localized";
 import type { Dish } from "@/lib/data/types";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
+import { ConfirmDialog } from "@/app/admin/ConfirmDialog";
 import { CyrillicField } from "../CyrillicField";
 
 /** Downscale a photo in the browser so uploads stay small on a phone connection. */
@@ -198,17 +199,20 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
       </form>
 
       {dish && (
-        <form
-          action={deleteAction}
-          onSubmit={(event) => {
-            if (!confirm(t.dish.deleteConfirm(localized(dish, "name", locale)))) event.preventDefault();
-          }}
-          className="mt-4"
-        >
+        <form action={deleteAction} className="mt-4">
           <input type="hidden" name="id" value={dish.id} />
-          <button type="submit" disabled={deleting} className="cursor-pointer text-sm text-danger hover:underline">
-            {t.dish.delete}
-          </button>
+          <ConfirmDialog
+            trigger={t.dish.delete}
+            triggerClassName="cursor-pointer text-sm text-danger hover:underline"
+            disabled={deleting}
+            title={t.dish.deleteTitle(localized(dish, "name", locale))}
+            description={t.dish.deleteText}
+            confirmLabel={t.dish.deleteButton}
+            pendingLabel={t.common.deleting}
+            cancelLabel={t.common.cancel}
+            destructive
+            pending={deleting}
+          />
           {deleteState.error && <p role="alert" className="mt-2 text-sm text-danger">{deleteState.error}</p>}
         </form>
       )}

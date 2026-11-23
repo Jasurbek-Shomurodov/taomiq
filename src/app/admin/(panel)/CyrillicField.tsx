@@ -1,7 +1,8 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { AdminDictionary } from "@/i18n/admin";
+import { ConfirmDialog } from "@/app/admin/ConfirmDialog";
 import { translit } from "@/lib/translit";
 
 /**
@@ -28,27 +29,41 @@ export function CyrillicField({
   t: AdminDictionary["cyrillic"];
 }) {
   const id = useId();
+  const rootRef = useRef<HTMLDivElement>(null);
   const [value, setValue] = useState(defaultValue);
 
-  function fill(event: React.MouseEvent<HTMLButtonElement>) {
-    const latin = event.currentTarget.form?.elements.namedItem(latinName);
-    if (!(latin instanceof HTMLInputElement || latin instanceof HTMLTextAreaElement)) return;
-    const converted = translit(latin.value.trim());
-    if (value.trim() && value !== converted && !window.confirm(t.replaceConfirm)) return;
-    setValue(converted);
+  /** The Latin field's current value, converted; null when the form has no such field. */
+  function converted(): string | null {
+    const latin = rootRef.current?.closest("form")?.elements.namedItem(latinName);
+    if (!(latin instanceof HTMLInputElement || latin instanceof HTMLTextAreaElement)) return null;
+    return translit(latin.value.trim());
+  }
+
+  // Ask only when filling would overwrite different, non-empty Cyrillic text.
+  function wouldOverwrite() {
+    const next = converted();
+    return next !== null && value.trim() !== "" && value !== next;
+  }
+
+  function fill() {
+    const next = converted();
+    if (next !== null) setValue(next);
   }
 
   return (
-    <div className="grid content-start gap-1.5 text-sm font-semibold text-forest">
+    <div ref={rootRef} className="grid content-start gap-1.5 text-sm font-semibold text-forest">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <label htmlFor={id}>{label}</label>
-        <button
-          type="button"
-          onClick={fill}
-          className="cursor-pointer text-xs font-semibold text-forest underline underline-offset-4 hover:text-graphite"
-        >
-          {t.fill}
-        </button>
+        <ConfirmDialog
+          trigger={t.fill}
+          triggerClassName="cursor-pointer text-xs font-semibold text-forest underline underline-offset-4 hover:text-graphite"
+          title={t.replaceTitle}
+          description={t.replaceText}
+          confirmLabel={t.replace}
+          cancelLabel={t.keep}
+          shouldAsk={wouldOverwrite}
+          onConfirm={fill}
+        />
       </div>
       {rows ? (
         <textarea

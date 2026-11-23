@@ -25,6 +25,30 @@
   --animate-fade: fade var(--duration-base) var(--ease-out-calm) both;
 }
 
+/* shadcn/ui semantic colours for the admin's primitives (src/components/ui), mapped onto the brand tokens.
+   New names only, so nothing on the public site changes. Deliberately left out: `muted` (it already is the brand's
+   text colour, used as text-muted across the site), a radius scale (--radius-* would redefine Tailwind's rounded-*
+   steps the site uses), a dark theme, and shadcn's base-layer rules for * and body (set for the brand below). */
+@theme {
+  --color-background: var(--color-ivory);
+  --color-foreground: var(--color-graphite);
+  --color-card: #fff;
+  --color-card-foreground: var(--color-graphite);
+  --color-popover: #fff;
+  --color-popover-foreground: var(--color-graphite);
+  --color-primary: var(--color-forest);
+  --color-primary-foreground: var(--color-ivory);
+  --color-secondary: var(--color-ivory-deep);
+  --color-secondary-foreground: var(--color-forest);
+  --color-accent: var(--color-ivory-deep);
+  --color-accent-foreground: var(--color-forest);
+  --color-muted-foreground: var(--color-muted);
+  --color-destructive: var(--color-danger);
+  --color-border: var(--color-line);
+  --color-input: var(--color-line);
+  --color-ring: var(--color-gold);
+}
+
 /* Motion durations and travel distances. Not Tailwind namespaces (duration-* utilities read
    --transition-duration-*), so they are plain custom properties, always emitted. */
 :root {

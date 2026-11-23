@@ -5,6 +5,7 @@ import { getAdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { saveOrderNote, setOrderStatus, type FormState } from "@/lib/admin/actions";
 import { NEXT_STATUS, STAFF_NOTE_MAX, canCancel, hasNextStatus, type OrderStatus } from "@/lib/admin/orders";
+import { ConfirmDialog } from "@/app/admin/ConfirmDialog";
 
 function Result({ state }: { state: FormState }) {
   if (state.ok) return <p role="status" className="text-sm text-forest">{state.ok}</p>;
@@ -40,16 +41,18 @@ export function StatusControls({ id, status, locale }: { id: string; status: Ord
               <input type="hidden" name="id" value={id} />
               <input type="hidden" name="from" value={status} />
               <input type="hidden" name="to" value="cancelled" />
-              <button
-                type="submit"
+              <ConfirmDialog
+                trigger={t.order.cancel}
+                triggerClassName="btn btn-outline w-full !py-2.5 text-danger disabled:opacity-60"
                 disabled={pending}
-                onClick={(event) => {
-                  if (!window.confirm(t.order.cancelConfirm)) event.preventDefault();
-                }}
-                className="btn btn-outline w-full !py-2.5 text-danger disabled:opacity-60"
-              >
-                {t.order.cancel}
-              </button>
+                title={t.order.cancelTitle}
+                description={t.order.cancelText}
+                confirmLabel={t.order.cancel}
+                pendingLabel={t.common.saving}
+                cancelLabel={t.order.cancelKeep}
+                destructive
+                pending={pending}
+              />
             </form>
           )}
         </div>

@@ -6,6 +6,7 @@ import { getAdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { copyMenuFromVariant, saveMenuDay, type FormState, type MenuRow } from "@/lib/admin/actions";
 import { CYCLE_DAYS, SLOTS, type Slot } from "@/lib/data/types";
+import { ConfirmDialog } from "@/app/admin/ConfirmDialog";
 
 type DishOption = { id: string; name: string; weight: number; kcal: number; protein: number; fat: number; carbs: number };
 type Row = { dish_id: string; weight: string };
@@ -91,11 +92,10 @@ export function DayEditor({
     });
   }
 
+  const copySourceLabel = otherVariants.find((v) => v.id === copySource)?.label;
+
   function copy(scope: "day" | "all") {
-    const source = otherVariants.find((v) => v.id === copySource);
-    if (!source) return;
-    const what = scope === "day" ? m.copyWhatDay(day) : m.copyWhatAll(CYCLE_DAYS);
-    if (!confirm(m.copyConfirm(what, source.label, variantLabel))) return;
+    if (!copySourceLabel) return;
     startTransition(async () => {
       const outcome = await copyMenuFromVariant(variantId, copySource, scope === "day" ? day : null);
       setResult(outcome);
@@ -212,12 +212,26 @@ export function DayEditor({
                 </option>
               ))}
             </select>
-            <button type="button" onClick={() => copy("day")} disabled={pending} className="btn btn-outline !py-2 text-forest">
-              {m.onlyDay(day)}
-            </button>
-            <button type="button" onClick={() => copy("all")} disabled={pending} className="btn btn-outline !py-2 text-forest">
-              {m.allDays(CYCLE_DAYS)}
-            </button>
+            {(
+              [
+                ["day", m.onlyDay(day), m.copyWhatDay(day)],
+                ["all", m.allDays(CYCLE_DAYS), m.copyWhatAll(CYCLE_DAYS)],
+              ] as const
+            ).map(([scope, label, what]) => (
+              <ConfirmDialog
+                key={scope}
+                trigger={label}
+                triggerClassName="btn btn-outline !py-2 text-forest"
+                disabled={pending || !copySourceLabel}
+                title={m.copyAskTitle(what, copySourceLabel ?? "", variantLabel)}
+                description={m.copyAskText}
+                confirmLabel={m.copyButton}
+                pendingLabel={t.common.saving}
+                cancelLabel={t.common.cancel}
+                pending={pending}
+                onConfirm={() => copy(scope)}
+              />
+            ))}
           </div>
         </div>
       )}
