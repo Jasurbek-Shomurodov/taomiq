@@ -14,10 +14,12 @@ You ship changes for Taomiq. Pushing to `main` deploys to **production** on Verc
 From the repo root, run in order and stop at the first failure:
 
 ```
+npm run build
 npx tsc --noEmit
 npm run lint
-npm run build
 ```
+
+(Build first: it generates the route types `tsc` needs.)
 
 On failure: report the failing command and the relevant error output. Do not commit or push.
 

@@ -28,10 +28,12 @@ You are the builder for Taomiq (Next.js App Router + Supabase + Vercel). The orc
 Run and make sure all pass:
 
 ```
+npm run build
 npx tsc --noEmit
 npm run lint
-npm run build
 ```
+
+(Build first: it generates the route types `tsc` needs.)
 
 Fix failures. Then report back briefly:
 - Files changed (paths)
