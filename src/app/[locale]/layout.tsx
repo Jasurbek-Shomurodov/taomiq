@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Manrope, Noto_Serif_Display } from "next/font/google";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/JsonLd";
 import { Footer, Header } from "@/components/SiteChrome";
 import { getDictionary } from "@/i18n";
 import { isLocale, locales } from "@/i18n/config";
 import { site } from "@/lib/site";
+import { organizationAndWebsite } from "@/lib/structured-data";
 import "../globals.css";
 
 const serif = Noto_Serif_Display({
@@ -56,6 +58,7 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   return (
     <html lang={locale} className={`${serif.variable} ${sans.variable} antialiased`}>
       <body className="flex min-h-dvh flex-col">
+        <JsonLd data={organizationAndWebsite(locale, t.meta.description)} />
         <Header locale={locale} t={t} />
         <main className="flex-1">{children}</main>
         <Footer locale={locale} t={t} />

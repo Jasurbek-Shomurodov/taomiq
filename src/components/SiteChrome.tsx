@@ -9,7 +9,8 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   const links = [
     { href: `/${locale}#programs`, label: t.nav.programs },
     { href: `/${locale}/menu`, label: t.nav.menu },
-    { href: `/${locale}#how`, label: t.nav.how },
+    { href: `/${locale}/calculator`, label: t.nav.calculator },
+    { href: `/${locale}/delivery`, label: t.nav.delivery },
     { href: `/${locale}#faq`, label: t.nav.faq },
   ];
 
@@ -20,7 +21,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
           <Logo onDark />
         </Link>
 
-        <nav className="hidden items-center gap-7 text-sm text-ivory/80 md:flex">
+        <nav className="hidden items-center gap-7 text-sm text-ivory/80 lg:flex">
           {links.map((link) => (
             <Link key={link.href} href={link.href} className="transition-colors hover:text-ivory">
               {link.label}
@@ -36,8 +37,8 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
         </div>
       </div>
 
-      {/* Mobile: section links in one scrollable row */}
-      <nav className="container-page flex gap-5 overflow-x-auto pb-3 text-sm text-ivory/80 md:hidden">
+      {/* Phones and tablets: section links in one scrollable row */}
+      <nav className="container-page flex gap-5 overflow-x-auto pb-3 text-sm text-ivory/80 lg:hidden">
         {links.map((link) => (
           <Link key={link.href} href={link.href} className="whitespace-nowrap">
             {link.label}
@@ -60,6 +61,9 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
         <nav className="flex flex-col gap-2 text-sm">
           <Link href={`/${locale}#programs`} className="hover:text-ivory">{t.nav.programs}</Link>
           <Link href={`/${locale}/menu`} className="hover:text-ivory">{t.nav.menu}</Link>
+          <Link href={`/${locale}/calculator`} className="hover:text-ivory">{t.nav.calculator}</Link>
+          <Link href={`/${locale}/delivery`} className="hover:text-ivory">{t.nav.delivery}</Link>
+          <Link href={`/${locale}#how`} className="hover:text-ivory">{t.nav.how}</Link>
           <Link href={`/${locale}#faq`} className="hover:text-ivory">{t.nav.faq}</Link>
         </nav>
         <div className="flex flex-col gap-2 text-sm">

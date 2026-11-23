@@ -5,7 +5,7 @@ import { defaultLocale, isLocale, locales } from "@/i18n/config";
  * Two sites, one app:
  *  - taomiq.uz        → /[locale]/…  (client site, uz + ru)
  *  - admin.taomiq.uz  → /admin/…     (back office)
- * In development use http://localhost:3000 and http://admin.localhost:3000.
+ * In development use http://localhost:5555 and http://admin.localhost:5555.
  * Until the taomiq.uz domain is connected, the admin is also served at taomiq-admin.vercel.app.
  */
 const EXTRA_ADMIN_HOSTS = ["taomiq-admin.vercel.app"];

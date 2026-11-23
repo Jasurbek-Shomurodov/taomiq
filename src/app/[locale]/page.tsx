@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/JsonLd";
 import { Monogram } from "@/components/Logo";
 import { MenuDay } from "@/components/MenuDay";
 import { getDictionary } from "@/i18n";
 import { formatSum, isLocale } from "@/i18n/config";
 import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
 import { site } from "@/lib/site";
+import { faqPage } from "@/lib/structured-data";
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;
@@ -167,6 +169,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
 
       {/* FAQ */}
       <section id="faq" className="container-page scroll-mt-28 py-16 md:py-20">
+        <JsonLd data={faqPage(t.faq.items, locale)} />
         <h2 className="font-serif text-4xl text-forest md:text-5xl">{t.faq.title}</h2>
         <div className="mt-8 max-w-3xl divide-y divide-line border-y border-line">
           {t.faq.items.map((item) => (

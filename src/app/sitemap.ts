@@ -5,7 +5,14 @@ import { site } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const programs = await getPrograms();
-  const paths = ["", "/menu", ...programs.map((p) => `/programs/${p.slug}`), "/privacy"];
+  const paths = [
+    "",
+    "/menu",
+    ...programs.map((p) => `/programs/${p.slug}`),
+    "/calculator",
+    "/delivery",
+    "/privacy",
+  ];
 
   return paths.flatMap((path) =>
     locales.map((locale) => ({

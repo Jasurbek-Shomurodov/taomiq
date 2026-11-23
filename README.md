@@ -8,14 +8,14 @@ One Next.js app serves two sites:
 
 | Site | Production | Development | Code |
 |---|---|---|---|
-| Client site (Uzbek + Russian) | `taomiq.uz` | `http://localhost:3000` | `src/app/[locale]` |
-| Admin (Russian) | `admin.taomiq.uz` | `http://admin.localhost:3000` | `src/app/admin` |
+| Client site (Uzbek + Russian) | `taomiq.uz` | `http://localhost:5555` | `src/app/[locale]` |
+| Admin (Russian) | `admin.taomiq.uz` | `http://admin.localhost:5555` | `src/app/admin` |
 
 `src/proxy.ts` routes by hostname; the admin is not reachable from the public host.
 
 ```bash
 npm install
-npm run dev
+npm run dev -- -p 5555
 ```
 
 ### What works today

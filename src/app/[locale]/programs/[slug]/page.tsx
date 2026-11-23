@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/JsonLd";
 import { MenuDay } from "@/components/MenuDay";
 import { getDictionary } from "@/i18n";
 import { formatSum, isLocale, locales } from "@/i18n/config";
 import { getDurations, getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data/catalog";
 import { pricePerDay } from "@/lib/data/types";
+import { programProduct } from "@/lib/structured-data";
 
 export async function generateStaticParams() {
   const programs = await getPrograms();
@@ -41,6 +43,7 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
 
   return (
     <>
+      <JsonLd data={programProduct(program, durations, locale, t.programs.kcal)} />
       <section className="bg-forest text-ivory">
         <div className="container-page py-14 md:py-20">
           <span className="block h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
