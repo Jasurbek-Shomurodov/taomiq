@@ -18,7 +18,7 @@ export function LocaleSwitch({ current }: { current: Locale }) {
           href={`/${locale}${rest ? `/${rest}` : ""}`}
           hrefLang={locale}
           aria-current={locale === current ? "true" : undefined}
-          className={`rounded-full px-2.5 py-1 transition-colors ${
+          className={`press inline-flex min-h-10 min-w-10 items-center justify-center rounded-full px-3 ${
             locale === current ? "bg-ivory/15 text-ivory" : "text-ivory/60 hover:text-ivory"
           }`}
         >

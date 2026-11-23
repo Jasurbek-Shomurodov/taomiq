@@ -16,10 +16,77 @@
 
   --font-serif: var(--font-noto-serif-display), "Noto Serif Display", Georgia, serif;
   --font-sans: var(--font-manrope), "Manrope", system-ui, sans-serif;
+
+  /* Motion: calm, no overshoot. Generates ease-* and animate-* utilities. */
+  --ease-out-calm: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out-calm: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --animate-rise: rise var(--duration-slow) var(--ease-out-calm) both;
+  --animate-fade: fade var(--duration-base) var(--ease-out-calm) both;
 }
 
-html {
-  scroll-behavior: smooth;
+/* Motion durations and travel distances. Not Tailwind namespaces (duration-* utilities read
+   --transition-duration-*), so they are plain custom properties, always emitted. */
+:root {
+  --duration-instant: 100ms; /* press */
+  --duration-fast: 160ms; /* hover, colour, exit */
+  --duration-base: 240ms; /* enter, chips, errors */
+  --duration-slow: 400ms; /* sheet, shared morph, reveal */
+  --duration-slower: 700ms; /* count-up, macro bars */
+  --distance-xs: 4px;
+  --distance-sm: 12px;
+  --distance-md: 24px;
+
+  /* Lets height transition to and from `auto` (FAQ). Ignored where unsupported. */
+  interpolate-size: allow-keywords;
+}
+
+/* Keyframes only describe where an entrance starts. They are applied solely under
+   prefers-reduced-motion: no-preference, so nothing is ever hidden at rest. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    translate: 0 var(--rise-distance, var(--distance-sm));
+  }
+}
+@keyframes lift {
+  from {
+    translate: 0 var(--rise-distance, var(--distance-sm));
+  }
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* The one reduced-motion switch: every animation and transition ends at once. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    transition-delay: 0ms !important;
+  }
+  /* Separate rules: an unknown pseudo-element would invalidate a whole selector list. */
+  ::details-content {
+    transition-duration: 0.01ms !important;
+  }
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+  }
 }
 
 body {
@@ -51,7 +118,9 @@ body {
     width: 100%;
     max-width: 72rem;
     margin-inline: auto;
-    padding-inline: 1.25rem;
+    /* viewport-fit=cover: keep content clear of the notch in landscape. */
+    padding-left: max(1.25rem, env(safe-area-inset-left));
+    padding-right: max(1.25rem, env(safe-area-inset-right));
   }
 
   .btn {
@@ -63,8 +132,8 @@ body {
     padding: 0.85rem 1.6rem;
     font-weight: 600;
     font-size: 0.95rem;
-    transition: background-color 0.15s, color 0.15s, border-color 0.15s;
     cursor: pointer;
+    /* Transition and press feedback: see "Press feedback" below. */
   }
   .btn-gold {
     background: var(--color-gold);
@@ -93,10 +162,95 @@ body {
     border-radius: 0.6rem;
     background: #fff;
     padding: 0.6rem 0.75rem;
-    font-size: 0.95rem;
+    /* 16px: iOS Safari zooms the page when a smaller input takes focus. */
+    font-size: 1rem;
   }
   .field:focus {
     border-color: var(--color-forest);
     outline: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------------------
+   Motion utilities. Unlayered on purpose: they must win over Tailwind's transition-colors
+   utility on chips and radio cards, so the colour list is repeated here.
+   --------------------------------------------------------------------------------------- */
+
+/* Press feedback: buttons, chips (.press) and radio cards (visually hidden radio + span). */
+.btn,
+.press,
+label > input[type="radio"].sr-only + span {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition-property: color, background-color, border-color, outline-color, opacity, scale;
+  transition-duration: var(--duration-fast);
+  transition-timing-function: var(--ease-out-calm);
+}
+.btn:active:not(:disabled, [aria-disabled="true"]),
+.press:active,
+label:active > input[type="radio"].sr-only:not(:disabled) + span {
+  scale: 0.97;
+  transition-duration: var(--duration-instant);
+}
+
+/* FAQ: the answer opens and closes in 240 ms. Without ::details-content this rule is dropped
+   and the answer snaps open as before; without interpolate-size it snaps too. */
+details.faq::details-content {
+  block-size: 0;
+  overflow-y: clip;
+  transition:
+    block-size var(--duration-base) var(--ease-out-calm),
+    content-visibility var(--duration-base) allow-discrete;
+}
+details.faq[open]::details-content {
+  block-size: auto;
+}
+details.faq > summary {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+details.faq > summary::-webkit-details-marker {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Hero entrance: children rise 12 px in turn, 60 ms apart. The h1 is the LCP element,
+     so it only moves (lift) and never fades. */
+  .hero-enter > * {
+    animation: var(--animate-rise);
+  }
+  .hero-enter > h1 {
+    animation-name: lift;
+  }
+  .hero-enter > :nth-child(2) {
+    animation-delay: 60ms;
+  }
+  .hero-enter > :nth-child(3) {
+    animation-delay: 120ms;
+  }
+  .hero-enter > :nth-child(4) {
+    animation-delay: 180ms;
+  }
+  .hero-enter > :nth-child(5) {
+    animation-delay: 240ms;
+  }
+}
+
+/* Scroll reveal: fade + 24 px rise while the element enters the viewport. Browsers without
+   scroll-driven animations, and anyone asking for reduced motion, see it static. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes reveal {
+      from {
+        opacity: 0;
+        translate: 0 var(--distance-md);
+      }
+    }
+    .reveal {
+      /* Linear: the reader's scroll already supplies the easing. */
+      animation: reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 35%;
+    }
   }
 }

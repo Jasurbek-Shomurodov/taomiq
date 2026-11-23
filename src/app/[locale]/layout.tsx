@@ -26,7 +26,9 @@ export function generateStaticParams() {
   return locales.map((locale) => ({ locale }));
 }
 
-export const viewport: Viewport = { themeColor: "#183C34" };
+// viewport-fit=cover lets the page use the full screen on notched phones; .container-page
+// pads by the safe-area insets so nothing sits under the notch.
+export const viewport: Viewport = { themeColor: "#183C34", viewportFit: "cover" };
 
 export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Promise<Metadata> {
   const { locale } = await params;

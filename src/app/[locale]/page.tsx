@@ -45,7 +45,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       {/* Hero */}
       <section className="bg-forest text-ivory">
         <div className="container-page grid gap-10 py-16 md:grid-cols-[1.3fr_1fr] md:items-center md:py-24">
-          <div>
+          <div className="hero-enter">
             <p className="label text-gold">{t.hero.eyebrow}</p>
             <h1 className="mt-5 font-serif text-5xl leading-[1.05] sm:text-6xl md:text-7xl">
               {t.hero.title}
@@ -53,9 +53,11 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               <span className="text-gold">{t.hero.titleAccent}</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-ivory/80">{t.hero.lead}</p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <Link href={`/${locale}/order`} className="btn btn-gold">{t.hero.cta}</Link>
-              <Link href={`/${locale}/menu`} className="btn btn-outline text-ivory">{t.hero.secondary}</Link>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <Link href={`/${locale}/order`} className="btn btn-gold w-full sm:w-auto">{t.hero.cta}</Link>
+              <Link href={`/${locale}/menu`} className="btn btn-outline w-full text-ivory sm:w-auto">
+                {t.hero.secondary}
+              </Link>
             </div>
             {Number.isFinite(minPrice) && (
               <p className="mt-6 text-sm text-ivory/70">
@@ -85,10 +87,10 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
 
       {/* How it works */}
       <section id="how" className="container-page scroll-mt-28 py-16 md:py-20">
-        <h2 className="font-serif text-4xl text-forest md:text-5xl">{t.how.title}</h2>
+        <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.how.title}</h2>
         <ol className="mt-10 grid gap-8 md:grid-cols-3">
           {t.how.steps.map((step, index) => (
-            <li key={step.title} className="border-t border-gold pt-5">
+            <li key={step.title} className="reveal border-t border-gold pt-5">
               <p className="font-serif text-3xl text-gold">0{index + 1}</p>
               <h3 className="mt-2 text-lg font-semibold text-forest">{step.title}</h3>
               <p className="mt-2 leading-relaxed text-muted">{step.text}</p>
@@ -100,14 +102,14 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       {/* Programs */}
       <section id="programs" className="scroll-mt-28 bg-ivory-deep py-16 md:py-20">
         <div className="container-page">
-          <h2 className="font-serif text-4xl text-forest md:text-5xl">{t.programs.title}</h2>
+          <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.programs.title}</h2>
           <p className="mt-3 max-w-2xl text-muted">{t.programs.lead}</p>
 
           <ul className="mt-10 grid gap-5 md:grid-cols-3">
             {programs.map((program) => {
               const from = Math.min(...program.variants.map((v) => v.price_per_day));
               return (
-                <li key={program.id} className="flex flex-col rounded-3xl bg-forest p-7 text-ivory">
+                <li key={program.id} className="reveal flex flex-col rounded-3xl bg-forest p-7 text-ivory">
                   <span className="h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
                   <p className="label mt-5 text-ivory/60">TAOMIQ</p>
                   <h3 className="font-serif text-4xl">{program.name}</h3>
@@ -156,7 +158,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               <p className="label text-muted">
                 TAOMIQ {featured.name} / {featuredVariant.kcal}
               </p>
-              <h2 className="mt-2 font-serif text-4xl text-forest md:text-5xl">{t.menu.today}</h2>
+              <h2 className="reveal mt-2 font-serif text-4xl text-forest md:text-5xl">{t.menu.today}</h2>
             </div>
             <Link href={`/${locale}/menu`} className="btn btn-outline text-forest">{t.menu.full}</Link>
           </div>
@@ -170,10 +172,10 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       {/* Included */}
       <section className="bg-forest py-16 text-ivory md:py-20">
         <div className="container-page grid gap-10 md:grid-cols-2 md:items-center">
-          <h2 className="font-serif text-4xl md:text-5xl">{t.included.title}</h2>
+          <h2 className="reveal font-serif text-4xl md:text-5xl">{t.included.title}</h2>
           <ul className="grid gap-4">
             {t.included.items.map((item) => (
-              <li key={item} className="flex gap-4 border-b border-ivory/15 pb-4">
+              <li key={item} className="reveal flex gap-4 border-b border-ivory/15 pb-4">
                 <span className="mt-2.5 h-px w-6 shrink-0 bg-gold" aria-hidden />
                 <span className="text-lg text-ivory/90">{item}</span>
               </li>
@@ -185,15 +187,21 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       {/* FAQ */}
       <section id="faq" className="container-page scroll-mt-28 py-16 md:py-20">
         <JsonLd data={faqPage(t.faq.items, locale)} />
-        <h2 className="font-serif text-4xl text-forest md:text-5xl">{t.faq.title}</h2>
+        <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.faq.title}</h2>
         <div className="mt-8 max-w-3xl divide-y divide-line border-y border-line">
           {t.faq.items.map((item) => (
-            <details key={item.q} className="group py-5">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-lg font-semibold text-forest">
+            <details key={item.q} className="faq group">
+              {/* Padding lives on the summary so the whole 56 px+ row is the tap target. */}
+              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-5 text-lg font-semibold text-forest">
                 {item.q}
-                <span className="text-gold transition-transform group-open:rotate-45" aria-hidden>+</span>
+                <span
+                  className="text-gold transition-transform duration-(--duration-base) ease-out-calm group-open:rotate-45"
+                  aria-hidden
+                >
+                  +
+                </span>
               </summary>
-              <p className="mt-3 leading-relaxed text-muted">{item.a}</p>
+              <p className="pb-5 leading-relaxed text-muted">{item.a}</p>
             </details>
           ))}
         </div>
@@ -202,7 +210,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       {/* Final call to action */}
       <section className="bg-ivory-deep py-16 md:py-20">
         <div className="container-page text-center">
-          <h2 className="font-serif text-4xl text-forest md:text-5xl">{t.cta.title}</h2>
+          <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.cta.title}</h2>
           <p className="mx-auto mt-4 max-w-xl text-muted">{t.cta.text}</p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href={`/${locale}/order`} className="btn btn-forest">{t.cta.button}</Link>

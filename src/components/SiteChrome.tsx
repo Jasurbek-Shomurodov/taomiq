@@ -23,7 +23,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
 
         <nav className="hidden items-center gap-7 text-sm text-ivory/80 lg:flex">
           {links.map((link) => (
-            <Link key={link.href} href={link.href} className="transition-colors hover:text-ivory">
+            <Link key={link.href} href={link.href} className="inline-flex min-h-11 items-center transition-colors hover:text-ivory">
               {link.label}
             </Link>
           ))}
@@ -38,9 +38,9 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
       </div>
 
       {/* Phones and tablets: section links in one scrollable row */}
-      <nav className="container-page flex gap-5 overflow-x-auto pb-3 text-sm text-ivory/80 lg:hidden">
+      <nav className="container-page flex gap-5 overflow-x-auto pb-1 text-sm text-ivory/80 lg:hidden">
         {links.map((link) => (
-          <Link key={link.href} href={link.href} className="whitespace-nowrap">
+          <Link key={link.href} href={link.href} className="inline-flex min-h-10 items-center whitespace-nowrap">
             {link.label}
           </Link>
         ))}

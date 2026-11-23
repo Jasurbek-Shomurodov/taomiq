@@ -79,7 +79,7 @@ async function MenuBrowser({
   };
 
   const chip = (active: boolean) =>
-    `rounded-full border px-4 py-2 text-sm font-semibold transition-colors ${
+    `press rounded-full border px-4 py-2 text-sm font-semibold ${
       active ? "border-forest bg-forest text-ivory" : "border-line bg-white text-forest hover:border-forest"
     }`;
 
