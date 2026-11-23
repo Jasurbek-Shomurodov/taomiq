@@ -73,6 +73,19 @@ If the pull fails (offline, not logged in, or Development is missing the Supabas
 `.env.local` untouched, so local work never breaks. When a Supabase key is rotated, update it in Vercel
 (Production and Development), redeploy, and pull.
 
+### Tests
+
+`npm run test:e2e` runs the Playwright smoke suite (`e2e/`) on a phone and a desktop viewport in Chromium. It is
+the fourth step of the gate, after lint. First time on a machine: `npx playwright install chromium`.
+
+- It builds and starts its own production copy of the app on port 5599 (`scripts/e2e-server.mjs`), in `.next-e2e`,
+  so the `.next` folder of `npm run dev` and `npm run build` is not touched.
+- It always runs in **demo mode**: the Supabase and Telegram variables are forced empty, which wins over
+  `.env.local`. The first test checks that the admin shows "База данных не подключена" and stops the run otherwise;
+  the browser also refuses any request to `*.supabase.co` or `api.telegram.org`.
+- The port must be free (it never reuses a running server). Another port: `E2E_PORT=5600 npm run test:e2e`.
+- After a failure: `npx playwright show-report` (traces of failed tests are kept in `test-results/`).
+
 ## Documents
 
 | # | Document | Contents |

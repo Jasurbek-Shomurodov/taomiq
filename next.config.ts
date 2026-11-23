@@ -4,7 +4,16 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
   : undefined;
 
+// The Playwright smoke suite (scripts/e2e-server.mjs) builds and serves the app from its own folder, so
+// `npm run test:e2e` never touches the .next folder of `npm run dev` and `npm run build`. Its tsconfig extends the
+// main one, which stops Next from adding the folder's type paths to tsconfig.json. Types are checked by the
+// gate's own build and tsc steps, so this build skips them.
+const e2eBuild = process.env.TAOMIQ_E2E_BUILD === "1";
+
 const nextConfig: NextConfig = {
+  ...(e2eBuild
+    ? { distDir: ".next-e2e", typescript: { tsconfigPath: "tsconfig.e2e.json", ignoreBuildErrors: true } }
+    : {}),
   cacheComponents: true,
   partialPrefetching: true,
   images: {

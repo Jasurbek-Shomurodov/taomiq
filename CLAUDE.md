@@ -44,7 +44,7 @@ Don't run the full pipeline for something a few tool calls settle.
 ## 3. Hard rules (all agents)
 
 - Pushing to `main` deploys to **production** on Vercel. Nothing ships unless the gate passes:
-  `npm run build` → `npx tsc --noEmit` → `npm run lint` (build first: it generates the route types `tsc` needs).
+  `npm run build` → `npx tsc --noEmit` → `npm run lint` → `npm run test:e2e` (build first: it generates the route types `tsc` needs; the smoke suite builds its own demo-mode copy in `.next-e2e`).
 - Migrations live in `supabase/migrations/NNNN_snake_name.sql` (next number in sequence). They are written by `builder` and applied only by `shipper`.
 - **Migration policy (shipper):**
   - Non-destructive (new tables/columns/indexes/policies/functions, additive changes): test on a Supabase **branch** first, check advisors, then apply to production automatically.

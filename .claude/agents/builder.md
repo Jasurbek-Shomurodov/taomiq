@@ -31,9 +31,10 @@ Run and make sure all pass:
 npm run build
 npx tsc --noEmit
 npm run lint
+npm run test:e2e
 ```
 
-(Build first: it generates the route types `tsc` needs.)
+(Build first: it generates the route types `tsc` needs. `test:e2e` is the Playwright smoke suite: it builds its own demo-mode copy of the app in `.next-e2e` and never reaches the real database or Telegram. On a new machine run `npx playwright install chromium` once.)
 
 Fix failures. Then report back briefly:
 - Files changed (paths)

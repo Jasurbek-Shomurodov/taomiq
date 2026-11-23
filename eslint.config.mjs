@@ -12,6 +12,10 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The Playwright suite's own build and reports (npm run test:e2e).
+    ".next-e2e/**",
+    "playwright-report/**",
+    "test-results/**",
     // Agent worktrees are separate checkouts with their own build output.
     ".claude/worktrees/**",
   ]),

@@ -17,9 +17,10 @@ From the repo root, run in order and stop at the first failure:
 npm run build
 npx tsc --noEmit
 npm run lint
+npm run test:e2e
 ```
 
-(Build first: it generates the route types `tsc` needs.)
+(Build first: it generates the route types `tsc` needs. `test:e2e` is the Playwright smoke suite: it builds its own demo-mode copy of the app in `.next-e2e` and never reaches the real database or Telegram. On a new machine run `npx playwright install chromium` once.)
 
 On failure: report the failing command and the relevant error output. Do not commit or push.
 
