@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Dictionary } from "@/i18n";
 import { formatSum, type Locale } from "@/i18n/config";
 import {
@@ -17,6 +17,7 @@ import {
   type NumericField,
   type Sex,
 } from "@/lib/calculator";
+import { useCountUp } from "@/lib/use-count-up";
 
 export type CalculatorProgram = {
   slug: string;
@@ -55,6 +56,40 @@ export function Calculator({ locale, t, programs, telegramUrl }: Props) {
       : null;
   const plan = result && goal ? recommend(programs, result.kcal, goal) : null;
 
+  // The big number counts from the previous result to the new one; screen readers get the final
+  // value only, from the live region below.
+  const shownKcal = useCountUp(result?.kcal ?? null);
+
+  // Phones: the mini result bar shows while the result card is still further down the page, and
+  // hides once the card is on screen or scrolled past (it never sits over the footer).
+  const card = useRef<HTMLDivElement>(null);
+  const [cardBelow, setCardBelow] = useState(false);
+  useEffect(() => {
+    const el = card.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => {
+      if (entry) setCardBelow(!entry.isIntersecting && entry.boundingClientRect.top > 0);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+  const barShown = result !== null && cardBelow;
+
+  const macros = result
+    ? ([
+        [t.protein, result.protein, (result.protein * 4) / result.kcal],
+        [t.fat, result.fat, (result.fat * 9) / result.kcal],
+        [t.carbs, result.carbs, (result.carbs * 4) / result.kcal],
+      ] as const)
+    : [];
+  const announcement = result
+    ? [
+        `${t.resultLabel}: ${formatSum(result.kcal)} ${t.kcal}.`,
+        macros.map(([term, grams]) => `${term} ${grams} ${t.grams}`).join(", ") + ".",
+        plan ? `${t.planLabel}: ${plan.program.name} ${plan.variant.kcal}.` : t.noPlan,
+      ].join(" ")
+    : "";
+
   const labels: Record<NumericField, { label: string; unit: string }> = {
     age: { label: t.age, unit: t.ageUnit },
     height: { label: t.height, unit: t.heightUnit },
@@ -63,7 +98,12 @@ export function Calculator({ locale, t, programs, telegramUrl }: Props) {
 
   return (
     <section className="container-page grid gap-10 py-10 md:grid-cols-[minmax(0,1fr)_22rem] md:py-14 lg:gap-14">
-      <form className="grid min-w-0 gap-10" onSubmit={(e) => e.preventDefault()} noValidate>
+      {/* While the mini bar can show, the form keeps room below its last control for it. */}
+      <form
+        className={`grid min-w-0 gap-10 ${result ? "max-md:pb-[calc(5rem+env(safe-area-inset-bottom))]" : ""}`}
+        onSubmit={(e) => e.preventDefault()}
+        noValidate
+      >
         <fieldset>
           <legend className="label text-muted">{t.sex}</legend>
           <div className="mt-3 grid grid-cols-2 gap-3 sm:max-w-sm">
@@ -157,30 +197,33 @@ export function Calculator({ locale, t, programs, telegramUrl }: Props) {
       </form>
 
       <aside>
-        <div className="rounded-3xl bg-forest p-6 text-ivory md:sticky md:top-24" aria-live="polite">
+        <p className="sr-only" aria-live="polite" aria-atomic="true">
+          {announcement}
+        </p>
+        <div ref={card} className="rounded-3xl bg-forest p-6 text-ivory md:sticky md:top-24">
           {!result ? (
             <>
               <p className="label text-gold">{t.resultLabel}</p>
               <p className="mt-4 leading-relaxed text-ivory/75">{t.resultEmpty}</p>
             </>
           ) : (
-            <>
+            <div className="motion-safe:animate-rise">
               <p className="label text-gold">{t.resultLabel}</p>
-              <p className="mt-3 font-serif text-5xl tabular-nums">
-                {formatSum(result.kcal)} <span className="font-sans text-lg text-ivory/70">{t.kcal}</span>
+              <p className="mt-3 font-serif text-5xl tabular-nums" aria-hidden>
+                {formatSum(shownKcal)} <span className="font-sans text-lg text-ivory/70">{t.kcal}</span>
               </p>
-              <dl className="mt-5 grid grid-cols-3 gap-3 border-t border-ivory/15 pt-4">
-                {(
-                  [
-                    [t.protein, result.protein],
-                    [t.fat, result.fat],
-                    [t.carbs, result.carbs],
-                  ] as const
-                ).map(([term, grams]) => (
+              <dl className="mt-5 grid grid-cols-3 gap-3 border-t border-ivory/15 pt-4" aria-hidden>
+                {macros.map(([term, grams, ratio]) => (
                   <div key={term}>
                     <dt className="text-xs text-ivory/60">{term}</dt>
                     <dd className="mt-1 text-lg font-semibold tabular-nums">
                       {grams} <span className="text-sm font-normal text-ivory/70">{t.grams}</span>
+                    </dd>
+                    <dd className="mt-2 h-1 overflow-hidden rounded-full bg-ivory/15">
+                      <span
+                        className="grow-x grow-live block h-full rounded-full bg-gold"
+                        style={{ "--bar": Math.min(ratio, 1).toFixed(3) } as CSSProperties}
+                      />
                     </dd>
                   </div>
                 ))}
@@ -230,10 +273,46 @@ export function Calculator({ locale, t, programs, telegramUrl }: Props) {
                   </>
                 )}
               </div>
-            </>
+            </div>
           )}
         </div>
       </aside>
+
+      {/* Phones: mini result bar with the order button, once a result exists. */}
+      {result && (
+        <div
+          className={`calc-bar fixed inset-x-0 bottom-0 z-30 border-t border-ivory/10 bg-forest text-ivory transition-[translate] duration-[var(--duration-base)] ease-out-calm starting:translate-y-full md:hidden ${
+            barShown ? "" : "translate-y-full"
+          }`}
+          data-shown={barShown || undefined}
+          inert={!barShown}
+        >
+          <div className="container-page flex items-center justify-between gap-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
+            <div className="min-w-0">
+              <p className="font-serif text-xl leading-tight tabular-nums">
+                ≈ {formatSum(result.kcal)} <span className="font-sans text-sm text-ivory/70">{t.kcal}</span>
+              </p>
+              {plan && (
+                <p className="label mt-0.5 truncate text-gold">
+                  {plan.program.name} / {plan.variant.kcal}
+                </p>
+              )}
+            </div>
+            {plan ? (
+              <Link
+                href={`/${locale}/order?program=${plan.program.slug}&kcal=${plan.variant.kcal}`}
+                className="btn btn-gold min-h-12 shrink-0 !px-5"
+              >
+                {t.orderShort}
+              </Link>
+            ) : (
+              <a href={telegramUrl} className="btn btn-gold min-h-12 shrink-0 !px-5" rel="noopener">
+                {t.telegram}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 }
