@@ -3,7 +3,9 @@ import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n";
 import type { Program } from "@/lib/data/types";
 import { GOAL_PAGES } from "@/lib/goal-pages";
+import { isAccountEnabled } from "@/lib/account/methods";
 import { site } from "@/lib/site";
+import { AccountLink } from "./AccountLink";
 import { Lockup } from "./Logo";
 import { LocaleSwitch } from "./LocaleSwitch";
 import { MobileNav } from "./MobileNav";
@@ -16,6 +18,8 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
     { href: `/${locale}/delivery`, label: t.nav.delivery },
     { href: `/${locale}/faq`, label: t.nav.faq },
   ];
+
+  const accountLabels = { login: t.account.login, account: t.account.account };
 
   // .site-header: named in view transitions, so it stays still while the page changes (globals.css).
   return (
@@ -36,6 +40,14 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
 
         <div className="flex items-center gap-1 sm:gap-3">
           <LocaleSwitch current={locale} />
+          {/* Sign-in: only when NEXT_PUBLIC_AUTH_METHODS switches it on. Phones and tablets: in the MobileNav sheet. */}
+          {isAccountEnabled && (
+            <AccountLink
+              locale={locale}
+              labels={accountLabels}
+              className="hidden min-h-11 items-center gap-2 text-sm text-ivory/80 transition-colors hover:text-ivory lg:inline-flex"
+            />
+          )}
           <Link href={`/${locale}/order`} className="btn btn-gold hidden !px-5 !py-2.5 !text-sm sm:inline-flex">
             {t.nav.cta}
           </Link>
@@ -45,6 +57,15 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
             links={[...links.slice(0, 3), { href: `/${locale}/quiz`, label: t.quiz.short }, ...links.slice(3)]}
             telegramUrl={site.telegram}
             labels={{ sections: t.nav.sections, close: t.nav.close }}
+            account={
+              isAccountEnabled ? (
+                <AccountLink
+                  locale={locale}
+                  labels={accountLabels}
+                  className="inline-flex min-h-11 items-center gap-2 text-sm text-ivory/80 hover:text-ivory"
+                />
+              ) : null
+            }
           />
         </div>
       </div>

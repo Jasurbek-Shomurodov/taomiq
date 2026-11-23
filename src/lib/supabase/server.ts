@@ -3,7 +3,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { supabaseKey, supabaseUrl } from "./env";
 
-/** Session-aware client for the back office. Reads and refreshes the auth cookies. */
+/** Session-aware client for the back office and customer accounts. Reads and refreshes the auth cookies. */
 export async function createSessionClient() {
   const cookieStore = await cookies();
   return createServerClient(supabaseUrl, supabaseKey, {

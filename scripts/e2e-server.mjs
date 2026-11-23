@@ -23,6 +23,8 @@ const DEMO_ENV = {
   SUPABASE_SECRET_KEY: "",
   TELEGRAM_BOT_TOKEN: "",
   TELEGRAM_STAFF_CHAT_ID: "",
+  // Customer sign-in off: no login link, /login and /account are 404 (also implied by the empty Supabase keys).
+  NEXT_PUBLIC_AUTH_METHODS: "",
 };
 
 const env = {

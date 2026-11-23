@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useId, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import type { Locale } from "@/i18n/config";
 import { LocaleSwitch } from "./LocaleSwitch";
 
@@ -20,11 +20,14 @@ export function MobileNav({
   links,
   telegramUrl,
   labels,
+  account,
 }: {
   locale: Locale;
   links: NavLink[];
   telegramUrl: string;
   labels: { sections: string; close: string };
+  /** The sign-in / account link (AccountLink), when sign-in is switched on. */
+  account?: ReactNode;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
@@ -106,9 +109,12 @@ export function MobileNav({
           </nav>
 
           <div className="mx-5 mt-2 flex items-center justify-between gap-4 border-t border-ivory/10 pt-4">
-            <a href={telegramUrl} rel="noopener" className="inline-flex min-h-11 items-center text-sm text-ivory/80 hover:text-ivory">
-              Telegram
-            </a>
+            <div className="flex items-center gap-5">
+              {account}
+              <a href={telegramUrl} rel="noopener" className="inline-flex min-h-11 items-center text-sm text-ivory/80 hover:text-ivory">
+                Telegram
+              </a>
+            </div>
             <LocaleSwitch current={locale} />
           </div>
         </div>

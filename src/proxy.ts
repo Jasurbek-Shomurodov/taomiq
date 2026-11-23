@@ -73,6 +73,10 @@ export function proxy(request: NextRequest) {
   const first = pathname.split("/")[1] ?? "";
   if (isLocale(first)) return NextResponse.next();
 
+  // The sign-in callback (src/app/auth/callback) has no locale segment: Telegram and Google return
+  // there. Skipped only here, on the public host; the admin host rewrites it under /admin above.
+  if (first === "auth") return NextResponse.next();
+
   // No locale in the path: pick one from the browser, default to Uzbek (Latin).
   const preferred = preferredLocale(request.headers.get("accept-language") ?? "");
 
