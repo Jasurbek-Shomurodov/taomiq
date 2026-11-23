@@ -45,6 +45,31 @@ a "database not connected" page.
 Add both domains (`taomiq.uz`, `admin.taomiq.uz`) to one Vercel project, set the same environment variables,
 and pin the function region to Frankfurt (`fra1`).
 
+### Environment variables: one source
+
+Vercel is the single place variables are kept. `.env.local` is a copy of the **Development** set and is
+refreshed automatically before every `npm run dev` (`scripts/env-pull.mjs`); run `npm run env:pull` to refresh by hand.
+Never edit `.env.local` directly — change the value in Vercel and pull.
+
+One-time setup on a new machine:
+
+```bash
+npm i -g vercel
+vercel login
+vercel link --yes --project taomiq --scope hoggish
+```
+
+| Variable | Production | Development |
+|---|---|---|
+| `NEXT_PUBLIC_SITE_URL` | `https://taomiq.uz` | `http://localhost:5555` |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase → Settings → API keys | same values |
+| `SUPABASE_SECRET_KEY` | Supabase secret key | same value (not marked Sensitive, or it cannot be pulled) |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_STAFF_CHAT_ID` | order alerts | same values, or leave unset to keep local orders silent |
+
+If the pull fails (offline, not logged in, or Development is missing the Supabase keys) the script leaves
+`.env.local` untouched, so local work never breaks. When a Supabase key is rotated, update it in Vercel
+(Production and Development), redeploy, and pull.
+
 ## Documents
 
 | # | Document | Contents |
