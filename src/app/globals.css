@@ -254,3 +254,124 @@ details.faq > summary::-webkit-details-marker {
     }
   }
 }
+
+/* ---------------------------------------------------------------------------------------
+   Menu: day picker, dish list, day totals.
+   --------------------------------------------------------------------------------------- */
+
+/* Phones: the day row fades out at both edges so it reads as "scroll me". From md it is a
+   two-row grid and nothing is clipped. */
+.day-scroller {
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 1.25rem, #000 calc(100% - 1.25rem), transparent);
+  mask-image: linear-gradient(to right, transparent, #000 1.25rem, #000 calc(100% - 1.25rem), transparent);
+}
+@media (min-width: 48rem) {
+  .day-scroller {
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* Dish cards rise in one after another, 40 ms apart, at most six steps. The first card carries
+   the first dish photo (possible LCP), so it only moves and never fades. */
+@media (prefers-reduced-motion: no-preference) {
+  .stagger > * {
+    animation: var(--animate-rise);
+  }
+  .stagger > :first-child {
+    animation-name: lift;
+  }
+  .stagger > :nth-child(2) {
+    animation-delay: 40ms;
+  }
+  .stagger > :nth-child(3) {
+    animation-delay: 80ms;
+  }
+  .stagger > :nth-child(4) {
+    animation-delay: 120ms;
+  }
+  .stagger > :nth-child(5) {
+    animation-delay: 160ms;
+  }
+  .stagger > :nth-child(n + 6) {
+    animation-delay: 200ms;
+  }
+}
+
+/* Bars (day totals, calculator macros): length is --bar (0…1), drawn with scale so only transform
+   animates. InViewGrow arms them at zero and lets them grow once in view; without it they are
+   simply full length. */
+.grow-x {
+  scale: var(--bar, 1) 1;
+  transform-origin: left center;
+}
+[data-grow="armed"] .grow-x {
+  scale: 0 1;
+}
+[data-grow="in"] .grow-x {
+  transition: scale var(--duration-slower) var(--ease-out-calm);
+}
+
+/* ---------------------------------------------------------------------------------------
+   View transitions (React <ViewTransition>). Every one is ≤ 400 ms; the reduced-motion block
+   above zeroes them.
+   --------------------------------------------------------------------------------------- */
+
+/* Clicks during a transition reach the live page instead of the snapshot overlay. */
+::view-transition {
+  pointer-events: none;
+}
+
+/* Day picker: the gold indicator glides from the old day to the new one. Only the new snapshot is
+   drawn (both are the same gold disc), and multiply keeps the day numbers readable underneath. */
+::view-transition-group(.day-glide) {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-out-calm);
+  mix-blend-mode: multiply;
+}
+::view-transition-old(.day-glide) {
+  display: none;
+}
+::view-transition-new(.day-glide) {
+  animation: none;
+}
+
+/* Day content: same place, different content. Old day leaves fast, new day fades in (240 ms). */
+::view-transition-group(.day-fade) {
+  animation-duration: var(--duration-base);
+  animation-timing-function: var(--ease-out-calm);
+}
+::view-transition-old(.day-fade) {
+  animation: var(--duration-fast) var(--ease-exit) both fade reverse;
+}
+::view-transition-new(.day-fade) {
+  animation: var(--duration-base) var(--ease-out-calm) both fade;
+}
+
+/* Menu Suspense reveal: the skeleton leaves fast, then the menu fades in and lifts 12 px. */
+::view-transition-old(.menu-skeleton-out) {
+  animation: var(--duration-fast) var(--ease-exit) both fade reverse;
+}
+::view-transition-new(.menu-content-in) {
+  animation:
+    var(--duration-base) var(--ease-out-calm) var(--duration-fast) both fade,
+    var(--duration-slow) var(--ease-out-calm) both lift;
+}
+
+/* Calculator macro bars: grow from zero when the result first appears, then glide (700 ms) to each
+   new value. Without @starting-style they appear at length and still glide on change. */
+.grow-live {
+  transition: scale var(--duration-slower) var(--ease-out-calm);
+}
+@starting-style {
+  .grow-live {
+    scale: 0 1;
+  }
+}
+
+/* While the calculator's mini bar is up on a phone, keyboard focus never lands underneath it. */
+@media (max-width: 47.999rem) {
+  html:has(.calc-bar[data-shown]) {
+    scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+}

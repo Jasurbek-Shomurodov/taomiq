@@ -71,6 +71,8 @@ const uz: Dictionary = {
     allergens: "Allergenlar",
     demoNote: "Namunaviy menyu koʻrsatilgan. Yakuniy taomlar va koʻrsatkichlar texnologik kartalar tekshirilgach chiqadi.",
     full: "30 kunlik toʻliq menyu",
+    prevDay: "Oldingi kun",
+    nextDay: "Keyingi kun",
   },
   slots: {
     breakfast: "Nonushta",
@@ -278,6 +280,7 @@ const uz: Dictionary = {
     from: "kuniga",
     perDay: "soʻmdan",
     order: "Shu ratsionga buyurtma berish",
+    orderShort: "Buyurtma berish",
     menu: "Menyuni koʻrish",
     noPlan: "Ratsion tanlashga Telegramda yordam beramiz.",
     telegram: "Telegramda yozish",

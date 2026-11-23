@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, ViewTransition } from "react";
+import { DayPicker } from "@/components/DayPicker";
 import { MenuDay } from "@/components/MenuDay";
+import { MenuSkeleton } from "@/components/MenuSkeleton";
+import { CHIP } from "@/components/menu-styles";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
@@ -32,9 +35,19 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/[lo
       </section>
 
       <section className="container-page py-10 md:py-14">
-        {/* The selection comes from the URL, so this part renders per request. */}
-        <Suspense fallback={<div className="h-96 animate-pulse rounded-2xl bg-ivory-deep" />}>
-          <MenuBrowser locale={locale} t={t} searchParams={searchParams} />
+        {/* The selection comes from the URL, so this part renders per request. The skeleton leaves
+            quickly and the menu rises in after it (Suspense reveal). Later day changes keep the
+            revealed menu on screen until the next day is ready, so the skeleton shows only once. */}
+        <Suspense
+          fallback={
+            <ViewTransition exit="menu-skeleton-out" default="none">
+              <MenuSkeleton t={t} />
+            </ViewTransition>
+          }
+        >
+          <ViewTransition enter="menu-content-in" default="none">
+            <MenuBrowser locale={locale} t={t} searchParams={searchParams} />
+          </ViewTransition>
         </Suspense>
       </section>
     </>
@@ -79,9 +92,15 @@ async function MenuBrowser({
   };
 
   const chip = (active: boolean) =>
-    `press rounded-full border px-4 py-2 text-sm font-semibold ${
-      active ? "border-forest bg-forest text-ivory" : "border-line bg-white text-forest hover:border-forest"
-    }`;
+    `press ${CHIP} ${active ? "border-forest bg-forest text-ivory" : "border-line bg-white text-forest hover:border-forest"}`;
+
+  // The cycle repeats, so the day before day 1 is day 30.
+  const prevDay = day === 1 ? CYCLE_DAYS : day - 1;
+  const nextDay = day === CYCLE_DAYS ? 1 : day + 1;
+  const dayHref = `/${locale}/menu?${new URLSearchParams({
+    program: program.slug,
+    ...(variant ? { kcal: String(variant.kcal) } : {}),
+  })}&day=`;
 
   return (
     <div>
@@ -108,29 +127,44 @@ async function MenuBrowser({
         </div>
       </div>
 
-      <p className="label mt-8 text-muted">{t.menu.day}</p>
-      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-2">
-        {Array.from({ length: CYCLE_DAYS }, (_, i) => i + 1).map((d) => (
-          <Link
-            key={d}
-            href={href({ day: d })}
-            scroll={false}
-            aria-current={d === day ? "true" : undefined}
-            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full border text-sm tabular-nums transition-colors ${
-              d === day ? "border-gold bg-gold font-semibold text-forest" : "border-line bg-white text-forest hover:border-forest"
-            }`}
-          >
-            {d}
-          </Link>
-        ))}
+      {/* Anchor for the previous / next buttons: they bring the reader back to the top of the day. */}
+      <div id="menu-day" className="scroll-mt-32 lg:scroll-mt-24">
+        <p id="menu-day-label" className="label mt-8 text-muted">
+          {t.menu.day}
+        </p>
+        <div className="mt-2">
+          <DayPicker days={CYCLE_DAYS} active={day} hrefPrefix={dayHref} labelledBy="menu-day-label" />
+        </div>
       </div>
 
       {variant && (
         <div className="mt-8">
-          <p className="label mb-4 text-muted">
-            TAOMIQ {program.name} / {variant.kcal} · {t.menu.day} {day}
-          </p>
-          <MenuDay entries={entries} targetKcal={variant.kcal} locale={locale} t={t} />
+          {/* Same place, different content: the old day fades out and the new one in. */}
+          <ViewTransition key={`${variant.id}-${day}`} name="menu-day-content" share="day-fade" default="none">
+            <div>
+              <p className="label mb-4 text-muted">
+                TAOMIQ {program.name} / {variant.kcal} · {t.menu.day} {day}
+              </p>
+              <MenuDay entries={entries} targetKcal={variant.kcal} locale={locale} t={t} eagerFirstImage />
+            </div>
+          </ViewTransition>
+
+          <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:justify-between">
+            <Link
+              href={`${dayHref}${prevDay}#menu-day`}
+              aria-label={`${t.menu.prevDay}: ${t.menu.day} ${prevDay}`}
+              className="btn btn-outline min-h-12 text-forest"
+            >
+              <span aria-hidden>←</span> {t.menu.day} {prevDay}
+            </Link>
+            <Link
+              href={`${dayHref}${nextDay}#menu-day`}
+              aria-label={`${t.menu.nextDay}: ${t.menu.day} ${nextDay}`}
+              className="btn btn-outline min-h-12 text-forest"
+            >
+              {t.menu.day} {nextDay} <span aria-hidden>→</span>
+            </Link>
+          </div>
         </div>
       )}
       {isDemoCatalog && <p className="mt-4 text-sm text-muted">{t.menu.demoNote}</p>}

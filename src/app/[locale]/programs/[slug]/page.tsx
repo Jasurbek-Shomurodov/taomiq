@@ -61,7 +61,48 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
       {/* Prices by calorie level and duration */}
       <section className="container-page py-14 md:py-16">
         <h2 className="font-serif text-4xl text-forest">{t.durations.title}</h2>
-        <div className="mt-6 overflow-x-auto rounded-2xl border border-line bg-white">
+
+        {/* Phones: one card per calorie level, durations as a list, a full-width order button. */}
+        <ul className="mt-6 grid gap-4 md:hidden">
+          {program.variants.map((variant) => (
+            <li key={variant.id} className="rounded-2xl border border-line bg-white p-5">
+              <h3 className="font-serif text-3xl text-forest tabular-nums">
+                {variant.kcal} <span className="text-base text-muted">{t.programs.kcal}</span>
+              </h3>
+              <p className="mt-1 text-xs text-muted">
+                {variant.meals_per_day} {t.programs.mealsPerDay}
+              </p>
+              <dl className="mt-4 divide-y divide-line border-y border-line tabular-nums">
+                {durations.map((d) => {
+                  const perDay = pricePerDay(variant.price_per_day, d.markup_pct);
+                  return (
+                    <div key={d.days} className="flex items-baseline justify-between gap-4 py-3">
+                      <dt className="text-sm text-graphite">
+                        {d.is_trial ? `${t.durations.trial} · ` : ""}
+                        {d.days} {t.durations.days}
+                      </dt>
+                      <dd className="text-right">
+                        <span className="font-semibold text-graphite">{formatSum(perDay)}</span>
+                        <span className="block text-xs text-muted">
+                          {t.durations.perDay} · {formatSum(perDay * d.days)} {t.durations.total}
+                        </span>
+                      </dd>
+                    </div>
+                  );
+                })}
+              </dl>
+              <Link
+                href={`/${locale}/order?program=${program.slug}&kcal=${variant.kcal}`}
+                className="btn btn-gold mt-5 min-h-12 w-full"
+              >
+                {t.nav.cta}
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        {/* From md: the full table. */}
+        <div className="mt-6 hidden overflow-x-auto rounded-2xl border border-line bg-white md:block">
           <table className="w-full min-w-[34rem] text-left tabular-nums">
             <thead>
               <tr className="border-b border-line">
