@@ -41,6 +41,9 @@ type Props = {
   initialVariant: string;
   source: Record<string, string>;
   telegramUrl: string;
+  /** Pre-filled from the signed-in customer's profile; empty when signed out. Phone: the 9 digits after +998. */
+  initialName?: string;
+  initialPhone?: string;
 };
 
 /** How many start dates are offered as chips. */
@@ -78,6 +81,8 @@ export function OrderForm({
   initialVariant,
   source,
   telegramUrl,
+  initialName = "",
+  initialPhone = "",
 }: Props) {
   const [state, formAction, pending] = useActionState<OrderState, FormData>(submitOrder, {});
 
@@ -94,8 +99,8 @@ export function OrderForm({
   const [address, setAddress] = useState("");
   const [deliveryWindow, setDeliveryWindow] = useState(windows[1] ?? windows[0] ?? "");
   const [comment, setComment] = useState("");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(initialName);
+  const [phone, setPhone] = useState(initialPhone);
   const [exclusions, setExclusions] = useState("");
   const [consent, setConsent] = useState(false);
 

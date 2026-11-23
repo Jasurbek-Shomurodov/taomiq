@@ -71,7 +71,7 @@ export async function syncProfile(userId: string, locale: Locale): Promise<void>
 
   const { data: existing, error: readError } = await admin
     .from("profiles")
-    .select("name")
+    .select("name, phone, phone_verified")
     .eq("id", userId)
     .maybeSingle();
   if (readError) {
@@ -106,5 +106,27 @@ export async function syncProfile(userId: string, locale: Locale): Promise<void>
   const { error } = existing
     ? await admin.from("profiles").update(update).eq("id", userId)
     : await admin.from("profiles").insert({ id: userId, name: "", ...update });
-  if (error) console.error("account: profile sync failed", error.code, error.message);
+  if (error) {
+    console.error("account: profile sync failed", error.code, error.message);
+    return;
+  }
+
+  // Only the number Telegram verified on this very sign-in. A number verified long ago may have been
+  // reassigned by the carrier since, and would pull its new owner's orders onto this account.
+  if (update.phone_verified && update.phone) await linkOrdersByPhone(admin, userId, update.phone);
+}
+
+/**
+ * Orders placed without signing in, with the customer's Telegram-verified number, are moved onto the
+ * account. Only orders that belong to no account yet; never by an unverified number or by name. The
+ * caller passes only a phone_verified number. Failures are logged and never block the sign-in.
+ */
+async function linkOrdersByPhone(
+  admin: ReturnType<typeof createSecretClient>,
+  userId: string,
+  phone: string,
+): Promise<void> {
+  if (!UZ_PHONE.test(phone)) return;
+  const { error } = await admin.from("orders").update({ user_id: userId }).eq("phone", phone).is("user_id", null);
+  if (error) console.error("account: order linking failed", error.code, error.message);
 }

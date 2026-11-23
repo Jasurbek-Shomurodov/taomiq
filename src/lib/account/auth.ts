@@ -56,6 +56,25 @@ export const getCustomer = cache(async (): Promise<Customer | null> => {
   return { id: user.id, email: user.email ?? "", methods, profile: profile ?? null };
 });
 
+/**
+ * Only the signed-in customer's id (verified with the auth server), or null. For the order action: it
+ * never throws, so a broken session or an unreachable auth server never stops an order (it is then
+ * simply saved without an account). Without auth cookies there is no network call.
+ */
+export async function getCustomerId(): Promise<string | null> {
+  if (!isAccountEnabled) return null;
+  try {
+    const supabase = await createSessionClient();
+    // An order must never wait on a slow auth service: after 2.5 s it is saved without an account.
+    const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500));
+    const result = await Promise.race([supabase.auth.getUser(), timeout]);
+    return result?.data.user?.id ?? null;
+  } catch (error) {
+    console.error("account: session check failed", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
 /** The signed-in customer, or a redirect to the login page that comes back to `next` afterwards. */
 export async function requireCustomer(locale: Locale, next = `/${locale}/account`): Promise<Customer> {
   const customer = await getCustomer();

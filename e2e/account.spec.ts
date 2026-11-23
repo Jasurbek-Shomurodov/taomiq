@@ -1,5 +1,6 @@
 import { getDictionary } from "../src/i18n";
 import { locales } from "../src/i18n/config";
+import { ORDER_STATUSES } from "../src/lib/admin/orders";
 import { expect, test } from "./fixtures";
 
 /**
@@ -23,6 +24,22 @@ for (const locale of locales) {
     await expect(banner.getByRole("link", { name: t.account.login, exact: true })).toHaveCount(0);
   });
 }
+
+test("every order status has a customer-facing label in every language", () => {
+  for (const locale of locales) {
+    const statuses = getDictionary(locale).account.statuses;
+    for (const status of ORDER_STATUSES) {
+      expect(statuses[status]?.trim(), `${locale}: ${status}`).toBeTruthy();
+    }
+    expect(Object.keys(statuses).sort(), locale).toEqual([...ORDER_STATUSES].sort());
+  }
+});
+
+test("signed out, the order form starts with empty name and phone (no profile pre-fill)", async ({ page }) => {
+  await page.goto("/uz/order");
+  await expect(page.locator('input[name="name"]')).toHaveValue("");
+  await expect(page.locator('input[name="phone"]')).toHaveValue("");
+});
 
 test("the sign-in callback has no locale redirect and goes home while sign-in is off", async ({ request }) => {
   const response = await request.get("/auth/callback?code=x&locale=ru&next=/ru/menu", { maxRedirects: 0 });

@@ -7,7 +7,8 @@ import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
-import { SOURCE_KEYS, SOURCE_VALUE_MAX, startDateRange } from "@/lib/order/rules";
+import { getCustomer } from "@/lib/account/auth";
+import { SOURCE_KEYS, SOURCE_VALUE_MAX, phoneDigits, startDateRange } from "@/lib/order/rules";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { OrderForm, type OrderProgram } from "./OrderForm";
@@ -58,6 +59,13 @@ async function OrderLoader({
     return Array.isArray(value) ? value[0] : value;
   };
 
+  // Signed in: name and phone come pre-filled from the profile. Signed out (no auth cookies) this makes no
+  // network call; a failed session check just leaves the fields empty.
+  const customerPromise = getCustomer().catch((error: unknown) => {
+    console.error("order page: session check failed", error instanceof Error ? error.message : error);
+    return null;
+  });
+
   let catalog;
   try {
     catalog = await Promise.all([getPrograms(), getDurations(), getOrderSettings()]);
@@ -92,6 +100,7 @@ async function OrderLoader({
   }
 
   const { earliest, latest } = startDateRange(new Date(), settings.cutoffHour);
+  const profile = (await customerPromise)?.profile;
 
   return (
     <OrderForm
@@ -107,6 +116,8 @@ async function OrderLoader({
       initialVariant={variant.id}
       source={source}
       telegramUrl={site.telegram}
+      initialName={profile?.name ?? ""}
+      initialPhone={profile?.phone ? phoneDigits(profile.phone) : ""}
     />
   );
 }

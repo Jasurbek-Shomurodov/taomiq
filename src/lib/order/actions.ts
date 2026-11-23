@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { isLocale } from "@/i18n/config";
+import { getCustomerId } from "@/lib/account/auth";
 import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog";
 import { createSecretClient, isOrderingConfigured, supabaseSecretKey } from "@/lib/supabase/secret";
 import {
@@ -118,6 +119,8 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
       p_locale: locale,
       p_source: source,
       p_ip_hash: await clientIpHash(),
+      // The signed-in customer, from the session on the server (never from the form); null when signed out.
+      p_user_id: await getCustomerId(),
     });
 
     if (error) {

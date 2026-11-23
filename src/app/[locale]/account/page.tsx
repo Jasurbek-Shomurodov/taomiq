@@ -4,9 +4,11 @@ import { notFound } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { PageTransition } from "@/components/PageTransition";
 import { getDictionary, type Dictionary } from "@/i18n";
-import { isLocale, type Locale } from "@/i18n/config";
+import { formatSum, isLocale, plural, type Locale } from "@/i18n/config";
 import { requireCustomer } from "@/lib/account/auth";
 import { isAccountEnabled } from "@/lib/account/methods";
+import { listMyOrders, type CustomerOrder } from "@/lib/account/orders";
+import { STATUS_TONES } from "@/lib/admin/orders";
 import { pageMetadata } from "@/lib/seo";
 import { NameForm, SignOutButton } from "./AccountForms";
 
@@ -17,7 +19,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/account"
   return pageMetadata({ locale, path: "/account", title: t.account.title, description: t.account.lead, index: false });
 }
 
-/** The customer's own page: profile, sign-in methods, sign out. Orders arrive in slice 2 of the plan. */
+/** The customer's own page: profile, sign-in methods, their orders, sign out. */
 export default async function AccountPage({ params }: PageProps<"/[locale]/account">) {
   const { locale } = await params;
   if (!isLocale(locale) || !isAccountEnabled) notFound();
@@ -82,12 +84,99 @@ async function AccountContent({ locale, t }: { locale: Locale; t: Dictionary }) 
         </dl>
       </section>
 
+      <section aria-labelledby="my-orders" className="rounded-3xl bg-white p-6 md:p-8">
+        <h2 id="my-orders" className="font-serif text-2xl text-forest md:text-3xl">
+          {a.myOrders}
+        </h2>
+        <Suspense fallback={<OrdersSkeleton />}>
+          <MyOrders locale={locale} t={t} />
+        </Suspense>
+      </section>
+
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <Link href={`/${locale}/order`} className="btn btn-gold min-h-12">
           {a.orderCta}
         </Link>
         <SignOutButton locale={locale} t={a} />
       </div>
+    </div>
+  );
+}
+
+/** The customer's own orders, newest first. A failed read shows one sentence instead of breaking the page. */
+async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
+  const a = t.account;
+  const o = t.order;
+
+  let orders: CustomerOrder[];
+  try {
+    orders = await listMyOrders();
+  } catch (error) {
+    console.error("account: orders read failed", error instanceof Error ? error.message : error);
+    return (
+      <p role="alert" className="mt-4 rounded-2xl bg-danger/10 p-4 text-danger">
+        {a.ordersFailed}
+      </p>
+    );
+  }
+
+  if (orders.length === 0) {
+    return (
+      <div className="mt-4">
+        <p className="text-muted">{a.ordersEmpty}</p>
+        <Link href={`/${locale}/order`} className="btn btn-gold mt-5 min-h-12">
+          {a.orderCta}
+        </Link>
+        <p className="mt-5 text-sm text-muted">{a.ordersNote}</p>
+      </div>
+    );
+  }
+
+  const date = (iso: string) =>
+    `${Number(iso.slice(8, 10))} ${o.monthNames[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
+
+  return (
+    <>
+      <ul className="mt-5 grid gap-3">
+        {orders.map((order) => (
+          <li key={order.number} className="rounded-2xl border border-line p-4 md:p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="font-semibold text-forest tabular-nums">
+                {a.orderNumber.replace("{n}", String(order.number))}
+              </p>
+              <span className={`rounded-full px-3 py-1 text-sm ${STATUS_TONES[order.status]}`}>
+                {a.statuses[order.status]}
+              </span>
+            </div>
+            <p className="mt-2 text-graphite">
+              {order.program_name} · {order.kcal} {o.kcal} · {order.days} {plural(order.days, o.dayForms)}
+              {order.weekdays_only ? ` · ${o.weekdaysShort}` : ""}
+            </p>
+            <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
+              <div className="flex gap-2">
+                <dt className="text-muted">{a.orderStart}</dt>
+                <dd className="tabular-nums">{date(order.start_date)}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="text-muted">{a.orderTotal}</dt>
+                <dd className="font-semibold tabular-nums">
+                  {formatSum(order.total)} {o.currency}
+                </dd>
+              </div>
+            </dl>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-5 text-sm text-muted">{a.ordersNote}</p>
+    </>
+  );
+}
+
+function OrdersSkeleton() {
+  return (
+    <div className="mt-5 grid gap-3" aria-hidden>
+      <div className="h-28 animate-pulse rounded-2xl bg-ivory-deep" />
+      <div className="h-28 animate-pulse rounded-2xl bg-ivory-deep" />
     </div>
   );
 }
