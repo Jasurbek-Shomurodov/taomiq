@@ -7,19 +7,13 @@ import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
 import { CYCLE_DAYS } from "@/lib/data/types";
+import { pageMetadata } from "@/lib/seo";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/menu">): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
-  return {
-    title: t.menu.title,
-    description: t.menu.lead,
-    alternates: {
-      canonical: `/${locale}/menu`,
-      languages: { uz: "/uz/menu", ru: "/ru/menu", "x-default": "/uz/menu" },
-    },
-  };
+  return pageMetadata({ locale, path: "/menu", title: t.menu.title, description: t.menu.lead });
 }
 
 export default async function MenuPage({ params, searchParams }: PageProps<"/[locale]/menu">) {

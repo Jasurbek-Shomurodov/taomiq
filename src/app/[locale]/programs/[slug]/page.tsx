@@ -7,6 +7,7 @@ import { getDictionary } from "@/i18n";
 import { formatSum, isLocale, locales } from "@/i18n/config";
 import { getDurations, getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data/catalog";
 import { pricePerDay } from "@/lib/data/types";
+import { pageMetadata } from "@/lib/seo";
 import { programProduct } from "@/lib/structured-data";
 
 export async function generateStaticParams() {
@@ -19,14 +20,12 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/programs
   if (!isLocale(locale)) return {};
   const program = (await getPrograms()).find((p) => p.slug === slug);
   if (!program) return {};
-  return {
+  return pageMetadata({
+    locale,
+    path: `/programs/${slug}`,
     title: `${program.name} — ${locale === "ru" ? program.tagline_ru : program.tagline_uz}`,
     description: locale === "ru" ? program.description_ru : program.description_uz,
-    alternates: {
-      canonical: `/${locale}/programs/${slug}`,
-      languages: { uz: `/uz/programs/${slug}`, ru: `/ru/programs/${slug}`, "x-default": `/uz/programs/${slug}` },
-    },
-  };
+  });
 }
 
 export default async function ProgramPage({ params }: PageProps<"/[locale]/programs/[slug]">) {

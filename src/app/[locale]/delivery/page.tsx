@@ -5,20 +5,19 @@ import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { getOrderSettings, type OrderSettings } from "@/lib/data/catalog";
 import { DEFAULT_CUTOFF_HOUR, DEFAULT_DELIVERY_WINDOWS } from "@/lib/order/rules";
+import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/delivery">): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
-  return {
+  return pageMetadata({
+    locale,
+    path: "/delivery",
     title: t.delivery.metaTitle,
     description: t.delivery.metaDescription,
-    alternates: {
-      canonical: `/${locale}/delivery`,
-      languages: { uz: "/uz/delivery", ru: "/ru/delivery", "x-default": "/uz/delivery" },
-    },
-  };
+  });
 }
 
 export default async function DeliveryPage({ params }: PageProps<"/[locale]/delivery">) {

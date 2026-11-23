@@ -1,6 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { defaultLocale, isLocale, locales } from "@/i18n/config";
 
+/** A request for a file (a dot extension at the end), not a page. */
+const FILE_PATH = /\.[a-zA-Z0-9]+$/;
+
+function noindex(response: NextResponse): NextResponse {
+  response.headers.set("X-Robots-Tag", "noindex, nofollow");
+  return response;
+}
+
 /**
  * Two sites, one app:
  *  - taomiq.uz        → /[locale]/…  (client site, uz + ru)
@@ -13,9 +21,12 @@ export function proxy(request: NextRequest) {
   const isAdminHost = host.startsWith("admin.");
 
   if (isAdminHost) {
+    // The back office is never indexed: say so in a header on every admin-host response,
+    // including files such as /robots.txt that are served as they are (second matcher below).
+    if (FILE_PATH.test(pathname)) return noindex(NextResponse.next());
     const url = request.nextUrl.clone();
     url.pathname = `/admin${pathname === "/" ? "" : pathname}`;
-    return NextResponse.rewrite(url);
+    return noindex(NextResponse.rewrite(url));
   }
 
   if (pathname === "/admin" || pathname.startsWith("/admin/")) {
@@ -47,5 +58,14 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/|api/|.*\\.[a-zA-Z0-9]+$).*)"],
+  matcher: [
+    // Pages on both hosts; files (a dot in the last segment), _next and api are skipped.
+    "/((?!_next/|api/|.*\\.[a-zA-Z0-9]+$).*)",
+    // Files on the admin host only (robots.txt, sitemap.xml, icons), to add X-Robots-Tag.
+    // The public host is not matched here, so its files never run the proxy.
+    {
+      source: "/((?!_next/|api/).*\\.[a-zA-Z0-9]+)",
+      has: [{ type: "host", value: "admin\\..*" }],
+    },
+  ],
 };

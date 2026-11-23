@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
@@ -6,8 +7,22 @@ import { MenuDay } from "@/components/MenuDay";
 import { getDictionary } from "@/i18n";
 import { formatSum, isLocale } from "@/i18n/config";
 import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
+import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { faqPage } from "@/lib/structured-data";
+
+export async function generateMetadata({ params }: PageProps<"/[locale]">): Promise<Metadata> {
+  const { locale } = await params;
+  if (!isLocale(locale)) return {};
+  const t = getDictionary(locale);
+  return pageMetadata({
+    locale,
+    path: "",
+    title: t.meta.title,
+    description: t.meta.description,
+    absoluteTitle: true,
+  });
+}
 
 export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const { locale } = await params;

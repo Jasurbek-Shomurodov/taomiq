@@ -317,6 +317,12 @@ const uz: Dictionary = {
     ],
     questions: "Yetkazib berish boʻyicha savollaringiz bormi? Telegramda yozing.",
   },
+  notFound: {
+    metaTitle: "Sahifa topilmadi",
+    title: "Bunday sahifa yoʻq",
+    text: "Havola eskirgan yoki manzilda xato boʻlishi mumkin. Bosh sahifadan boshlang yoki boʻlimni tanlang:",
+    home: "Bosh sahifaga",
+  },
 };
 
 export default uz;

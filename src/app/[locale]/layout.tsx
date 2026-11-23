@@ -32,18 +32,14 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
+  // Site-wide defaults only. Canonical, hreflang and page Open Graph come from each page
+  // (src/lib/seo.ts), so a page that forgets them never canonicalises to the home page.
   return {
     metadataBase: new URL(site.url),
     title: { default: t.meta.title, template: "%s · TAOMIQ" },
     description: t.meta.description,
-    alternates: {
-      canonical: `/${locale}`,
-      languages: { uz: "/uz", ru: "/ru", "x-default": "/uz" },
-    },
     openGraph: {
-      siteName: "TAOMIQ",
-      title: t.meta.title,
-      description: t.meta.description,
+      siteName: site.name,
       locale: locale === "ru" ? "ru_UZ" : "uz_UZ",
       type: "website",
     },

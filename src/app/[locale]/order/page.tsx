@@ -6,13 +6,15 @@ import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog";
 import { SOURCE_KEYS, SOURCE_VALUE_MAX, startDateRange } from "@/lib/order/rules";
+import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { OrderForm, type OrderProgram } from "./OrderForm";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/order">): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
-  return { title: getDictionary(locale).order.title, robots: { index: false, follow: false } };
+  const t = getDictionary(locale);
+  return pageMetadata({ locale, path: "/order", title: t.order.title, description: t.order.lead, index: false });
 }
 
 export default async function OrderPage({ params, searchParams }: PageProps<"/[locale]/order">) {

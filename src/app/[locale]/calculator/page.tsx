@@ -4,6 +4,7 @@ import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { getDurations, getPrograms } from "@/lib/data/catalog";
 import { pricePerDay } from "@/lib/data/types";
+import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { Calculator, type CalculatorProgram } from "./Calculator";
 
@@ -11,14 +12,12 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/calculat
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
-  return {
+  return pageMetadata({
+    locale,
+    path: "/calculator",
     title: t.calculator.metaTitle,
     description: t.calculator.metaDescription,
-    alternates: {
-      canonical: `/${locale}/calculator`,
-      languages: { uz: "/uz/calculator", ru: "/ru/calculator", "x-default": "/uz/calculator" },
-    },
-  };
+  });
 }
 
 export default async function CalculatorPage({ params }: PageProps<"/[locale]/calculator">) {

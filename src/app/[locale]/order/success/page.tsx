@@ -4,12 +4,18 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
+import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/order/success">): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
-  return { title: getDictionary(locale).order.success.title, robots: { index: false, follow: false } };
+  return pageMetadata({
+    locale,
+    path: "/order/success",
+    title: getDictionary(locale).order.success.title,
+    index: false,
+  });
 }
 
 export default async function OrderSuccessPage({ params, searchParams }: PageProps<"/[locale]/order/success">) {

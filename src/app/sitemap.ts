@@ -1,8 +1,10 @@
 import type { MetadataRoute } from "next";
-import { locales } from "@/i18n/config";
+import { defaultLocale, locales } from "@/i18n/config";
 import { getPrograms } from "@/lib/data/catalog";
 import { site } from "@/lib/site";
 
+// No `lastModified`: there is no per-page change date to state yet, and a date that
+// moves on every deploy teaches crawlers to ignore it.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const programs = await getPrograms();
   const paths = [
@@ -18,7 +20,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     locales.map((locale) => ({
       url: `${site.url}/${locale}${path}`,
       alternates: {
-        languages: Object.fromEntries(locales.map((l) => [l, `${site.url}/${l}${path}`])),
+        languages: {
+          ...Object.fromEntries(locales.map((l) => [l, `${site.url}/${l}${path}`])),
+          "x-default": `${site.url}/${defaultLocale}${path}`,
+        },
       },
     })),
   );
