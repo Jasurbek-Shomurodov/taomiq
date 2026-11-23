@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n";
 import { site } from "@/lib/site";
-import { Logo } from "./Logo";
+import { Lockup } from "./Logo";
 import { LocaleSwitch } from "./LocaleSwitch";
 
 export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
@@ -18,7 +18,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
     <header className="sticky top-0 z-40 border-b border-ivory/10 bg-forest/95 backdrop-blur">
       <div className="container-page flex h-16 items-center justify-between gap-4">
         <Link href={`/${locale}`} className="text-xl">
-          <Logo onDark />
+          <Lockup layout="inline" markSize={34} />
         </Link>
 
         <nav className="hidden items-center gap-7 text-sm text-ivory/80 lg:flex">
@@ -54,9 +54,10 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
     <footer className="bg-forest-deep text-ivory/70">
       <div className="container-page grid gap-8 py-12 md:grid-cols-3">
         <div>
-          <Logo onDark className="text-2xl" />
-          <p className="label mt-3 text-gold">Premium daily nutrition</p>
-          <p className="mt-3 text-sm">{t.footer.tagline}</p>
+          <Link href={`/${locale}`} className="inline-block">
+            <Lockup tagline width={208} />
+          </Link>
+          <p className="mt-5 text-sm">{t.footer.tagline}</p>
         </div>
         <nav className="flex flex-col gap-2 text-sm">
           <Link href={`/${locale}#programs`} className="hover:text-ivory">{t.nav.programs}</Link>

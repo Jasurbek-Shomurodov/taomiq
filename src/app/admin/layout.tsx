@@ -5,7 +5,7 @@ import "../globals.css";
 const serif = Noto_Serif_Display({
   variable: "--font-noto-serif-display",
   subsets: ["latin", "cyrillic"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "800"], // 800: the TQ monogram (components/Logo.tsx)
   display: "swap",
 });
 const sans = Manrope({ variable: "--font-manrope", subsets: ["latin", "latin-ext", "cyrillic"], display: "swap" });

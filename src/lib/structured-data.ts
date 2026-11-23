@@ -18,6 +18,7 @@ export function organizationAndWebsite(locale: Locale, description: string) {
         "@id": ORGANIZATION_ID,
         name: site.name,
         url: site.url,
+        logo: `${site.url}/brand/logo-512.png`,
         sameAs: [site.telegram, site.instagram],
       },
       {

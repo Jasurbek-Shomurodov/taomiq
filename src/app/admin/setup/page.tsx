@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Logo } from "@/components/Logo";
+import { Lockup } from "@/components/Logo";
 
 export const metadata: Metadata = { title: "Настройка" };
 
@@ -8,7 +8,7 @@ export default function SetupPage() {
   return (
     <main className="flex min-h-dvh items-center justify-center bg-forest p-5">
       <div className="w-full max-w-lg rounded-3xl bg-ivory p-8">
-        <Logo className="text-2xl" />
+        <Lockup onDark={false} width={112} />
         <h1 className="mt-4 font-serif text-3xl text-forest">База данных не подключена</h1>
         <p className="mt-3 text-muted">
           Панель заработает после того, как будет создан проект Supabase и его ключи добавлены в настройки сайта:

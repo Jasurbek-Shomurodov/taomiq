@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { Lockup } from "@/components/Logo";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { pageMetadata } from "@/lib/seo";
@@ -25,8 +26,8 @@ export default async function OrderSuccessPage({ params, searchParams }: PagePro
 
   return (
     <section className="container-page py-16 text-center md:py-24">
-      <p className="label text-gold">TAOMIQ</p>
-      <h1 className="mt-3 font-serif text-5xl text-forest md:text-6xl">{t.order.success.title}</h1>
+      <Lockup onDark={false} width={120} className="mx-auto" />
+      <h1 className="mt-8 font-serif text-5xl text-forest md:text-6xl">{t.order.success.title}</h1>
       <Suspense fallback={<div className="mx-auto mt-8 h-24 w-56 animate-pulse rounded-2xl bg-ivory-deep" />}>
         <OrderNumber t={t} searchParams={searchParams} />
       </Suspense>

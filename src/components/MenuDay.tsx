@@ -2,6 +2,7 @@ import Image from "next/image";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n";
 import { portionNutrition, sumNutrition, type MenuEntry } from "@/lib/data/types";
+import { Monogram } from "./Logo";
 
 /** One day's meals with weights, kcal and Б/Ж/У, plus the day total. */
 export function MenuDay({
@@ -45,9 +46,7 @@ export function MenuDay({
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center" aria-hidden>
-                    <span className="flex h-20 w-20 items-center justify-center rounded-full border border-gold/60 font-serif text-2xl text-forest/50">
-                      TQ
-                    </span>
+                    <Monogram size={80} onDark={false} className="opacity-50" />
                   </div>
                 )}
                 <span className="label absolute left-3 top-3 rounded-full bg-forest px-3 py-1.5 text-ivory">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { Logo } from "@/components/Logo";
+import { Lockup } from "@/components/Logo";
 import { signOut } from "@/lib/admin/actions";
 import { requireStaff } from "@/lib/admin/auth";
 
@@ -46,8 +46,8 @@ export default function PanelLayout({ children }: LayoutProps<"/admin">) {
     <div className="min-h-dvh bg-ivory">
       <header className="bg-forest text-ivory">
         <div className="container-page flex h-14 items-center justify-between gap-4">
-          <Link href="/" className="flex items-baseline gap-2 text-lg">
-            <Logo onDark />
+          <Link href="/" className="flex items-center gap-2.5 text-lg">
+            <Lockup layout="inline" markSize={30} />
             <span className="label text-gold">Admin</span>
           </Link>
           <div className="flex items-center gap-4">

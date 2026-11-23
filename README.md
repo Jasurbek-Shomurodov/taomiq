@@ -25,6 +25,9 @@ npm run dev -- -p 5555
   30-day menu editor per calorie level with live day totals, copy between calorie levels, programs and prices.
 - Not built yet: order configurator, Payme/Click checkout, customer account, Telegram bot.
 
+Logo: the approved source is `src/assets/brand/taomiq-logo.jpg`; `node scripts/build-brand-assets.mjs` rebuilds the
+favicon, share image and other raster crops from it, and `src/components/Logo.tsx` draws the live logo.
+
 ### Supabase
 
 Until the keys are set, the client site shows demonstration data from `src/lib/data/demo.ts` and the admin shows
