@@ -12,8 +12,8 @@ type NavLink = { href: string; label: string };
  * Phones and tablets: a 44 px menu button that opens the site sections as a bottom sheet. The sheet is a
  * native modal <dialog>, so the browser handles Escape, focus trapping and returning focus to the button.
  * Its links are rendered on the server (closed dialog), so crawlers and the HTML see them. It closes on a
- * link tap, a backdrop tap, Escape and any route change. The page behind cannot scroll while it is open
- * (globals.css, .nav-sheet).
+ * link tap, a backdrop tap, Escape and any route change (at once, so the page transition plays alone). The page
+ * behind cannot scroll while it is open (globals.css, .nav-sheet).
  */
 export function MobileNav({
   locale,
@@ -33,13 +33,16 @@ export function MobileNav({
 
   // A navigation that did not start from a link in the sheet (back button) still closes it.
   useEffect(() => {
-    dialog.current?.close();
+    if (dialog.current?.open) closeForNavigation(dialog.current);
   }, [pathname]);
 
   function onSheetClick(event: MouseEvent<HTMLDialogElement>) {
+    const sheet = event.currentTarget;
     const target = event.target as HTMLElement;
+    const link = target.closest("a");
+    if (link && new URL(link.href, location.href).pathname !== location.pathname) closeForNavigation(sheet);
     // A click on the dialog box itself, not its content, is a click on the backdrop.
-    if (target === event.currentTarget || target.closest("a")) event.currentTarget.close();
+    else if (target === sheet || link) sheet.close();
   }
 
   return (
@@ -51,7 +54,9 @@ export function MobileNav({
         aria-controls={id}
         aria-label={labels.sections}
         onClick={() => {
-          dialog.current?.showModal();
+          if (!dialog.current) return;
+          delete dialog.current.dataset.instant;
+          dialog.current.showModal();
           setOpen(true);
         }}
         className="press -mr-2 inline-flex size-11 items-center justify-center rounded-full text-ivory lg:hidden"
@@ -110,4 +115,14 @@ export function MobileNav({
       </dialog>
     </>
   );
+}
+
+/**
+ * Closing because the page changes. Where the browser runs view transitions, the sheet goes at once instead
+ * of sliding away: React keeps it live underneath the transition overlay, so its 160 ms exit would play behind
+ * the fading page snapshots. Without view transitions it slides away over the new page as usual.
+ */
+function closeForNavigation(sheet: HTMLDialogElement) {
+  if ("startViewTransition" in document) sheet.dataset.instant = "";
+  sheet.close();
 }

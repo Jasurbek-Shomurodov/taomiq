@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
+import { PageTransition } from "@/components/PageTransition";
 import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { getDurations, getPrograms } from "@/lib/data/catalog";
@@ -51,7 +52,7 @@ export default async function CalculatorPage({ params }: PageProps<"/[locale]/ca
   }
 
   return (
-    <>
+    <PageTransition>
       <JsonLd data={breadcrumbList(locale, [{ name: t.calculator.title, path: "/calculator" }])} />
       <section className="bg-forest text-ivory">
         <div className="container-page py-12 md:py-16">
@@ -79,6 +80,6 @@ export default async function CalculatorPage({ params }: PageProps<"/[locale]/ca
           </p>
         </div>
       </section>
-    </>
+    </PageTransition>
   );
 }

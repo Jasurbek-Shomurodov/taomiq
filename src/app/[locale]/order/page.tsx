@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
+import { PageTransition } from "@/components/PageTransition";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog";
@@ -24,7 +25,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/[l
   const t = getDictionary(locale);
 
   return (
-    <>
+    <PageTransition>
       <section className="bg-forest text-ivory">
         <div className="container-page py-10 md:py-14">
           <p className="label text-gold">TAOMIQ</p>
@@ -37,7 +38,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/[l
       <Suspense fallback={<OrderSkeleton />}>
         <OrderLoader locale={locale} t={t} searchParams={searchParams} />
       </Suspense>
-    </>
+    </PageTransition>
   );
 }
 

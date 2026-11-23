@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { PageTransition } from "@/components/PageTransition";
 import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { pageMetadata } from "@/lib/seo";
@@ -18,7 +19,7 @@ export default async function PrivacyPage({ params }: PageProps<"/[locale]/priva
   const t = getDictionary(locale);
 
   return (
-    <>
+    <PageTransition>
       <section className="bg-forest text-ivory">
         <div className="container-page py-12 md:py-16">
           <p className="label text-gold">TAOMIQ</p>
@@ -46,6 +47,6 @@ export default async function PrivacyPage({ params }: PageProps<"/[locale]/priva
           {t.privacy.contact}
         </a>
       </article>
-    </>
+    </PageTransition>
   );
 }

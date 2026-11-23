@@ -6,6 +6,7 @@ import { DayPicker } from "@/components/DayPicker";
 import { JsonLd } from "@/components/JsonLd";
 import { MenuDay } from "@/components/MenuDay";
 import { MenuSkeleton } from "@/components/MenuSkeleton";
+import { PageTransition } from "@/components/PageTransition";
 import { ProgramLinks } from "@/components/ProgramLinks";
 import { CHIP } from "@/components/menu-styles";
 import { getDictionary, type Dictionary } from "@/i18n";
@@ -36,7 +37,7 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/[lo
   }
 
   return (
-    <>
+    <PageTransition>
       <JsonLd data={breadcrumbList(locale, [{ name: t.menu.title, path: "/menu" }])} />
       <section className="bg-forest text-ivory">
         <div className="container-page py-12 md:py-16">
@@ -66,7 +67,7 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/[lo
       <div className="bg-ivory-deep">
         <ProgramLinks programs={programs} locale={locale} t={t} />
       </div>
-    </>
+    </PageTransition>
   );
 }
 

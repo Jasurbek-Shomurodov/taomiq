@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { JsonLd } from "@/components/JsonLd";
+import { PageTransition } from "@/components/PageTransition";
 import { ProgramLinks } from "@/components/ProgramLinks";
 import { getOrderSettings, getPrograms, type OrderSettings } from "@/lib/data/catalog";
 import type { Program } from "@/lib/data/types";
@@ -53,7 +54,7 @@ export default async function DeliveryPage({ params }: PageProps<"/[locale]/deli
   }
 
   return (
-    <>
+    <PageTransition>
       <JsonLd data={breadcrumbList(locale, [{ name: t.delivery.title, path: "/delivery" }])} />
       <section className="bg-forest text-ivory">
         <div className="container-page py-12 md:py-16">
@@ -115,6 +116,6 @@ export default async function DeliveryPage({ params }: PageProps<"/[locale]/deli
           </div>
         </div>
       </section>
-    </>
+    </PageTransition>
   );
 }

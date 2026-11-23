@@ -349,6 +349,51 @@ details.faq > summary::-webkit-details-marker {
   pointer-events: none;
 }
 
+/* Page change (components/PageTransition.tsx): the old page leaves fast (160 ms), then the new page fades
+   in and rises 12 px (240 ms). 400 ms in all. */
+::view-transition-old(.page-out) {
+  animation: var(--duration-fast) var(--ease-exit) both fade reverse;
+}
+::view-transition-new(.page-in) {
+  animation:
+    var(--duration-base) var(--ease-out-calm) var(--duration-fast) both fade,
+    var(--duration-base) var(--ease-out-calm) var(--duration-fast) both lift;
+}
+
+/* The header and the phone call-to-action bar belong to the layout: they stay put while the page changes.
+   React leaves everything unnamed live under the transition overlay, where the fading page snapshots would
+   cover the fixed bar for a moment; named, both sit above the pages and show their new state at once. */
+.site-header {
+  view-transition-name: site-header;
+}
+.cta-bar {
+  view-transition-name: cta-bar;
+}
+::view-transition-group(site-header),
+::view-transition-group(cta-bar) {
+  animation: none;
+  z-index: 100;
+}
+::view-transition-old(site-header),
+::view-transition-old(cta-bar) {
+  display: none;
+}
+::view-transition-new(site-header),
+::view-transition-new(cta-bar) {
+  animation: none;
+}
+
+/* The program name on a home card grows into the program page's h1 (and back): 400 ms. */
+::view-transition-group(.program-morph) {
+  animation-duration: var(--duration-slow);
+  animation-timing-function: var(--ease-in-out-calm);
+}
+::view-transition-old(.program-morph),
+::view-transition-new(.program-morph) {
+  animation-duration: var(--duration-slow);
+  animation-timing-function: var(--ease-in-out-calm);
+}
+
 /* Day picker: the gold indicator glides from the old day to the new one. Only the new snapshot is
    drawn (both are the same gold disc), and multiply keeps the day numbers readable underneath. */
 ::view-transition-group(.day-glide) {
@@ -447,6 +492,11 @@ details.faq > summary::-webkit-details-marker {
   .nav-sheet[open]::backdrop {
     background-color: rgb(18 46 40 / 0);
   }
+}
+/* Closed for a page change (MobileNav.tsx, closeForNavigation): gone at once, the page transition plays alone. */
+.nav-sheet[data-instant],
+.nav-sheet[data-instant]::backdrop {
+  transition: none;
 }
 @media (prefers-reduced-motion: reduce) {
   /* ::backdrop is not matched by the global * rule. */

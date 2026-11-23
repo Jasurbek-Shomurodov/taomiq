@@ -88,7 +88,11 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   }
 
   return (
+    // data-scroll-behavior: globals.css scrolls smoothly (in-page anchors); this tells Next to jump, not glide,
+    // to the top of a new page. Without it the new page lands 1–2 screens of smooth scrolling later, after the
+    // page transition has measured it, and the program-name morph finds no heading on screen to pair with.
     <html
+      data-scroll-behavior="smooth"
       lang={htmlLang[locale]}
       className={`${serif.variable} ${sans.variable} antialiased`}
       style={sansOverride(locale)}

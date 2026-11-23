@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import { Lockup } from "@/components/Logo";
+import { PageTransition } from "@/components/PageTransition";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { pageMetadata } from "@/lib/seo";
@@ -25,22 +26,24 @@ export default async function OrderSuccessPage({ params, searchParams }: PagePro
   const t = getDictionary(locale);
 
   return (
-    <section className="container-page py-16 text-center md:py-24">
-      <Lockup onDark={false} width={120} className="mx-auto" />
-      <h1 className="mt-8 font-serif text-5xl text-forest md:text-6xl">{t.order.success.title}</h1>
-      <Suspense fallback={<div className="mx-auto mt-8 h-24 w-56 animate-pulse rounded-2xl bg-ivory-deep" />}>
-        <OrderNumber t={t} searchParams={searchParams} />
-      </Suspense>
-      <p className="mx-auto mt-6 max-w-xl text-lg text-muted">{t.order.success.text}</p>
-      <div className="mt-8 flex flex-wrap justify-center gap-3">
-        <a href={site.telegram} className="btn btn-forest" rel="noopener">
-          {t.order.success.telegram}
-        </a>
-        <Link href={`/${locale}`} className="btn btn-outline text-forest">
-          {t.order.success.home}
-        </Link>
-      </div>
-    </section>
+    <PageTransition>
+      <section className="container-page py-16 text-center md:py-24">
+        <Lockup onDark={false} width={120} className="mx-auto" />
+        <h1 className="mt-8 font-serif text-5xl text-forest md:text-6xl">{t.order.success.title}</h1>
+        <Suspense fallback={<div className="mx-auto mt-8 h-24 w-56 animate-pulse rounded-2xl bg-ivory-deep" />}>
+          <OrderNumber t={t} searchParams={searchParams} />
+        </Suspense>
+        <p className="mx-auto mt-6 max-w-xl text-lg text-muted">{t.order.success.text}</p>
+        <div className="mt-8 flex flex-wrap justify-center gap-3">
+          <a href={site.telegram} className="btn btn-forest" rel="noopener">
+            {t.order.success.telegram}
+          </a>
+          <Link href={`/${locale}`} className="btn btn-outline text-forest">
+            {t.order.success.home}
+          </Link>
+        </div>
+      </section>
+    </PageTransition>
   );
 }
 
