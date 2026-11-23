@@ -39,9 +39,12 @@ export function plural(n: number, forms: readonly string[]): string {
   return forms[2];
 }
 
-/** Group thousands with a thin space: 215000 → "215 000". */
+/**
+ * Group thousands with a no-break space (U+00A0): 215000 → "215 000", never wrapped mid-number.
+ * Written as an escape so an editor cannot turn it into a plain space.
+ */
 export function formatSum(amount: number): string {
   return Math.round(amount)
     .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+    .replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }

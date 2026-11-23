@@ -27,15 +27,18 @@ const UNITS: Record<string, string> = {
   "so'm": "сўм",
   "so‘m": "сўм",
   "so`m": "сўм",
+  "so’m": "сўм",
+  "soʼm": "сўм",
   g: "г",
   kg: "кг",
   ml: "мл",
   sm: "см",
 };
 
-/** Marks that turn o / g into oʻ / gʻ. */
-const TURNED_COMMA = "ʻ'‘`";
-/** Every apostrophe-like mark. One that is not part of oʻ / gʻ is the tutuq belgisi (ъ). */
+/**
+ * Every apostrophe-like mark. Right after o / g any of them makes oʻ / gʻ (people type ʻ ' ‘ ` ’ ʼ
+ * interchangeably); anywhere else it is the tutuq belgisi (ъ).
+ */
 const APOSTROPHES = "ʻʼ'‘’`";
 
 const SINGLE: Record<string, string> = {
@@ -75,7 +78,7 @@ const PROTECTED = new Set(PROTECTED_WORDS.map((word) => word.toLowerCase()));
  * A word: Latin letters, with an apostrophe inside it (maʼlumot, oʻt) or right after o / g at its end (bogʻ).
  * Quotes around a word ('salom') are not part of it.
  */
-const WORD = /[A-Za-z](?:[A-Za-z]|[ʻʼ'‘’`](?=[A-Za-z])|(?<=[OoGg])[ʻ'‘`])*/g;
+const WORD = /[A-Za-z](?:[A-Za-z]|[ʻʼ'‘’`](?=[A-Za-z])|(?<=[OoGg])[ʻʼ'‘’`])*/g;
 
 const isUpper = (ch: string) => ch !== ch.toLowerCase();
 
@@ -103,7 +106,7 @@ function convertWord(word: string): string {
     const after = lower[i + 2] ?? "";
 
     // oʻ and gʻ first: they decide what the letters around them are (yoʻl → йўл, yongʻoq → ёнғоқ).
-    if ((c === "o" || c === "g") && next && TURNED_COMMA.includes(next)) {
+    if ((c === "o" || c === "g") && next && APOSTROPHES.includes(next)) {
       emit(c === "o" ? "ў" : "ғ", i, c === "o");
       i += 2;
       continue;
@@ -124,7 +127,7 @@ function convertWord(word: string): string {
       continue;
     }
     // yo, yu, ya, ye — unless the o starts an oʻ (yoʻl → йўл).
-    if (c === "y" && Y_PAIRS[next] && !(next === "o" && after && TURNED_COMMA.includes(after))) {
+    if (c === "y" && Y_PAIRS[next] && !(next === "o" && after && APOSTROPHES.includes(after))) {
       emit(Y_PAIRS[next], i, true);
       i += 2;
       continue;

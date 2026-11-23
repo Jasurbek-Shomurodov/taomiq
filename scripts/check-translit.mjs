@@ -15,6 +15,14 @@ const CASES = [
   ["yongʻoq", "ёнғоқ"],
   ["yoʻl", "йўл"],
   ["koʻk noʻxat", "кўк нўхат"],
+  // ’ (U+2019) and ʼ (U+02BC) after o / g are the same modifier
+  ["Go’sht", "Гўшт"],
+  ["yong’oq", "ёнғоқ"],
+  ["o’simlik yog’i", "ўсимлик ёғи"],
+  ["oʼrik", "ўрик"],
+  ["bog’", "боғ"],
+  ["bogʼ", "боғ"],
+  ["so’m", "сўм"],
   // sh, ch, ng
   ["shahar", "шаҳар"],
   ["choy", "чой"],
@@ -39,6 +47,8 @@ const CASES = [
   ["maʼlumot", "маълумот"],
   ["sanʼat", "санъат"],
   ["taʼm", "таъм"],
+  ["maʼno", "маъно"],
+  ["ma’no", "маъно"],
   ["mas'ul", "масъул"],
   ["e’lon", "эълон"],
   // single letters
