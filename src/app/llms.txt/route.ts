@@ -36,7 +36,7 @@ export async function GET() {
       "",
     ]);
 
-  const languageList = locales.map((l) => `${localeNameEn[l]} (/${l})`);
+  const languageList = locales.map((l) => `${localeNameEn[l]} at /${l}`);
   const languages =
     languageList.length > 1 ? `${languageList.slice(0, -1).join(", ")} and ${languageList.at(-1)}` : languageList[0];
 
