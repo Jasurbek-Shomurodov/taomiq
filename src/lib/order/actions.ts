@@ -140,6 +140,7 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
     scheduleOrderAlert({
       number,
       programName: program?.name ?? "—",
+      tagColor: program?.tag_color ?? "",
       kcal: variant?.kcal ?? 0,
       days: input.days,
       weekdaysOnly: input.weekdaysOnly,
