@@ -89,9 +89,14 @@ export function sumNutrition(entries: { dish: Dish; weight_g: number }[]): Nutri
   );
 }
 
-/** Price per day for a duration, rounded to the nearest 1,000 UZS. */
+/**
+ * Price per day for a duration, rounded half up to the nearest 1,000 UZS.
+ * Integer arithmetic (markup has two decimals), so a value that is exactly …500 is never
+ * nudged below the half by floating point. `submit_order()` in the database uses the same rule.
+ */
 export function pricePerDay(basePrice: number, markupPct: number): number {
-  return Math.round((basePrice * (1 + Number(markupPct) / 100)) / 1000) * 1000;
+  const scaled = Math.round(basePrice) * Math.round(10_000 + Number(markupPct) * 100); // base × (100 + markup) × 100
+  return Math.round(scaled / 10_000_000) * 1000;
 }
 
 /** Which day of the 30-day cycle a calendar date falls on (1…30). */

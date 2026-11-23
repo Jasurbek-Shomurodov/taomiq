@@ -80,6 +80,12 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
                     <span className="block font-sans text-xs text-muted">
                       {variant.meals_per_day} {t.programs.mealsPerDay}
                     </span>
+                    <Link
+                      href={`/${locale}/order?program=${program.slug}&kcal=${variant.kcal}`}
+                      className="mt-2 inline-block font-sans text-sm font-semibold text-forest underline decoration-gold underline-offset-4"
+                    >
+                      {t.nav.cta}
+                    </Link>
                   </th>
                   {durations.map((d) => {
                     const perDay = pricePerDay(variant.price_per_day, d.markup_pct);

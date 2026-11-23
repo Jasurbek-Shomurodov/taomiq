@@ -65,6 +65,7 @@ export function Footer({ locale, t }: { locale: Locale; t: Dictionary }) {
         <div className="flex flex-col gap-2 text-sm">
           <a href={site.telegram} className="hover:text-ivory" rel="noopener">Telegram</a>
           <a href={site.instagram} className="hover:text-ivory" rel="noopener">Instagram · @taom_iq</a>
+          <Link href={`/${locale}/privacy`} className="hover:text-ivory">{t.footer.privacy}</Link>
           <p className="mt-2 text-xs text-ivory/50">{t.footer.legal}</p>
         </div>
       </div>

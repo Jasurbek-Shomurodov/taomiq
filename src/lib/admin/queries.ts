@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Dish, Duration, MenuItem, Program } from "@/lib/data/types";
+import { ORDER_STATUSES, type Order, type OrderRow, type OrderStatus } from "./orders";
 
 /** Programs with all calorie levels, including inactive ones. */
 export async function listPrograms(supabase: SupabaseClient): Promise<Program[]> {
@@ -43,4 +44,76 @@ export async function menuCounts(supabase: SupabaseClient): Promise<Map<string, 
     result.set(row.variant_id, entry);
   }
   return new Map([...result].map(([id, v]) => [id, { items: v.items, days: v.days.size }]));
+}
+
+// ---------- orders (owner only; RLS returns nothing to other roles) ----------
+
+export const ORDERS_PAGE_SIZE = 50;
+
+const ORDER_LIST_COLUMNS =
+  "id, number, status, program_name, kcal, days, weekdays_only, start_date, total, customer_name, phone, created_at";
+
+/**
+ * One page of orders, newest first, optionally of one status.
+ * No count here: the caller pages with orderCounts(), and a range past the end simply returns
+ * no rows (with count: "exact" PostgREST would answer 416 / PGRST103 instead).
+ */
+export async function listOrders(
+  supabase: SupabaseClient,
+  status: OrderStatus | null,
+  page: number,
+): Promise<OrderRow[]> {
+  const from = (page - 1) * ORDERS_PAGE_SIZE;
+  let query = supabase
+    .from("orders")
+    .select(ORDER_LIST_COLUMNS)
+    .order("created_at", { ascending: false })
+    .range(from, from + ORDERS_PAGE_SIZE - 1);
+  if (status) query = query.eq("status", status);
+  const { data, error } = await query;
+  if (error) {
+    if (error.code === "PGRST103") return [];
+    throw new Error(error.message);
+  }
+  return (data ?? []) as unknown as OrderRow[];
+}
+
+/** How many orders are in each status (head-only count queries, no rows transferred). */
+export async function orderCounts(supabase: SupabaseClient): Promise<Record<OrderStatus, number>> {
+  const results = await Promise.all(
+    ORDER_STATUSES.map((status) =>
+      supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", status),
+    ),
+  );
+  const counts = {} as Record<OrderStatus, number>;
+  ORDER_STATUSES.forEach((status, i) => {
+    const { error, count } = results[i];
+    if (error) throw new Error(error.message);
+    counts[status] = count ?? 0;
+  });
+  return counts;
+}
+
+/** Orders waiting for a call, for the overview card. */
+export async function newOrderCount(supabase: SupabaseClient): Promise<number> {
+  const { error, count } = await supabase
+    .from("orders")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "new");
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+/** Everything except ip_hash, which is only for rate limiting. */
+const ORDER_DETAIL_COLUMNS =
+  "id, number, status, variant_id, program_name, kcal, days, weekdays_only, start_date, price_per_day, total, customer_name, phone, address, delivery_window, comment, exclusions, locale, source, staff_note, consent_at, created_at, updated_at";
+
+export async function getOrder(supabase: SupabaseClient, id: string): Promise<Order | null> {
+  const { data, error } = await supabase
+    .from("orders")
+    .select(ORDER_DETAIL_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return data as unknown as Order | null;
 }

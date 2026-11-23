@@ -1,12 +1,13 @@
 "use server";
 
-import { updateTag } from "next/cache";
+import { refresh, updateTag } from "next/cache";
 import { redirect } from "next/navigation";
 import { CATALOG_TAG } from "@/lib/data/catalog";
 import { CYCLE_DAYS, SLOTS, type Slot } from "@/lib/data/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
 import { requireOwner, requireStaff } from "./auth";
+import { STAFF_NOTE_MAX, STATUS_LABELS, canMove, isOrderStatus } from "./orders";
 
 export type FormState = { error?: string; ok?: string };
 
@@ -210,4 +211,54 @@ export async function saveDurations(_prev: FormState, form: FormData): Promise<F
   }
   updateTag(CATALOG_TAG);
   return { ok: "Сохранено." };
+}
+
+// ---------- orders (owner only) ----------
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Moves an order one step along new → confirmed → paid → active → completed, or cancels an open one.
+ * The update only applies if the order is still in the status the page showed, so a stale tab or a
+ * double click never skips a step.
+ */
+export async function setOrderStatus(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase } = await requireOwner();
+  const id = text(form, "id");
+  const from = text(form, "from");
+  const to = text(form, "to");
+  if (!UUID_RE.test(id) || !isOrderStatus(from) || !isOrderStatus(to) || !canMove(from, to)) {
+    return { error: "Такой переход статуса невозможен." };
+  }
+
+  const { data, error } = await supabase
+    .from("orders")
+    .update({ status: to })
+    .eq("id", id)
+    .eq("status", from)
+    .select("id");
+  if (error) {
+    // check_order_status() in the database enforces the same rule as canMove().
+    if (error.message.includes("invalid_transition")) return { error: "Такой переход статуса невозможен." };
+    return { error: `Не удалось сохранить: ${error.message}` };
+  }
+
+  refresh();
+  if (!data?.length) return { error: "Статус заказа уже изменился — страница обновлена." };
+  return { ok: `Статус: ${STATUS_LABELS[to]}.` };
+}
+
+export async function saveOrderNote(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase } = await requireOwner();
+  const id = text(form, "id");
+  const note = text(form, "staff_note");
+  if (!UUID_RE.test(id)) return { error: "Заказ не найден." };
+  if (note.length > STAFF_NOTE_MAX) return { error: `Заметка длиннее ${STAFF_NOTE_MAX} символов.` };
+
+  const { data, error } = await supabase.from("orders").update({ staff_note: note }).eq("id", id).select("id");
+  if (error) return { error: `Не удалось сохранить: ${error.message}` };
+  if (!data?.length) return { error: "Заказ не найден." };
+
+  refresh();
+  return { ok: "Заметка сохранена." };
 }

@@ -6,6 +6,7 @@ import { requireStaff } from "@/lib/admin/auth";
 
 const NAV = [
   { href: "/", label: "Обзор", ownerOnly: false },
+  { href: "/orders", label: "Заказы", ownerOnly: true },
   { href: "/menu", label: "Меню на 30 дней", ownerOnly: false },
   { href: "/dishes", label: "Блюда", ownerOnly: false },
   { href: "/programs", label: "Программы и цены", ownerOnly: true },
