@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Dictionary } from "@/i18n";
-import { formatSum, type Locale } from "@/i18n/config";
+import { formatSum, plural, type Locale } from "@/i18n/config";
 import { pricePerDay, type Duration, type Program } from "@/lib/data/types";
 
 /**
@@ -21,7 +21,9 @@ export function ProgramPrices({
   t: Dictionary;
 }) {
   const orderHref = (kcal: number) => `/${locale}/order?program=${program.slug}&kcal=${kcal}`;
-  const durationLabel = (d: Duration) => `${d.is_trial ? `${t.durations.trial} · ` : ""}${d.days} ${t.durations.days}`;
+  // "2 дня", "7 дней": Russian agrees the noun with the number; both Uzbek dictionaries repeat one form.
+  const durationLabel = (d: Duration) =>
+    `${d.is_trial ? `${t.durations.trial} · ` : ""}${d.days} ${plural(d.days, t.durations.dayForms)}`;
 
   return (
     <>

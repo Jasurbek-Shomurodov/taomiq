@@ -119,7 +119,7 @@ const uz: Dictionary = {
   },
   durations: {
     title: "Narxlar",
-    days: "kun",
+    dayForms: ["kun", "kun", "kun"],
     trial: "Sinov",
     perDay: "kuniga",
     total: "jami",
@@ -143,11 +143,11 @@ const uz: Dictionary = {
     more: "Savolingizga javob topmadingizmi?",
     topics: { delivery: "Yetkazib berish va pauza", food: "Taomlar va kaloriya", order: "Buyurtma va toʻlov" },
     items: [
-      { topic: "delivery", q: "Ratsion qachon yetkaziladi?", a: "Har kuni ertalab, siz tanlagan ikki soatlik oraliqda. Bir kun oldin kechqurun eslatib qoʻyamiz." },
-      { topic: "delivery", q: "Ovqatlanishni pauzaga qoʻysa boʻladimi?", a: "Ha. Toʻlangan kunlar kuymaydi — ularni oʻzingizga qulay sanalarga koʻchirasiz." },
-      { topic: "food", q: "Taomlar halolmi?", a: "Ha. Choʻchqa goʻshti va alkogol ishlatmaymiz, mahsulotlarni ishonchli yetkazib beruvchilardan olamiz." },
-      { topic: "food", q: "Kaloriyani qanday tanlash kerak?", a: "Saytdagi kalkulyatordan foydalaning: u boʻy, vazn, yosh va faollik boʻyicha kunlik meʼyorni baholab, mos ratsionni koʻrsatadi. Ikkilansangiz — bizga yozing, tanlashga yordam beramiz." },
-      { topic: "order", q: "Qanday toʻlash mumkin?", a: "Saytda buyurtma bering — menejer siz bilan bogʻlanib, buyurtmani tasdiqlaydi va qanday toʻlashni aytadi. Payme va Click orqali onlayn toʻlov ulanmoqda." },
+      { id: "when", topic: "delivery", q: "Ratsion qachon yetkaziladi?", a: "Har kuni ertalab, siz tanlagan ikki soatlik oraliqda. Bir kun oldin kechqurun eslatib qoʻyamiz." },
+      { id: "pause", topic: "delivery", q: "Ovqatlanishni pauzaga qoʻysa boʻladimi?", a: "Ha. Toʻlangan kunlar kuymaydi — ularni oʻzingizga qulay sanalarga koʻchirasiz." },
+      { id: "halal", topic: "food", q: "Taomlar halolmi?", a: "Ha. Choʻchqa goʻshti va alkogol ishlatmaymiz, mahsulotlarni ishonchli yetkazib beruvchilardan olamiz." },
+      { id: "kcal", topic: "food", q: "Kaloriyani qanday tanlash kerak?", a: "Saytdagi kalkulyatordan foydalaning: u boʻy, vazn, yosh va faollik boʻyicha kunlik meʼyorni baholab, mos ratsionni koʻrsatadi. Ikkilansangiz — bizga yozing, tanlashga yordam beramiz." },
+      { id: "pay", topic: "order", q: "Qanday toʻlash mumkin?", a: "Saytda buyurtma bering — menejer siz bilan bogʻlanib, buyurtmani tasdiqlaydi va qanday toʻlashni aytadi. Payme va Click orqali onlayn toʻlov ulanmoqda." },
     ],
   },
   cta: {
@@ -286,7 +286,7 @@ const uz: Dictionary = {
     metaDescription:
       "Kunlik kaloriya, oqsil, yogʻ va uglevod meʼyorini Mifflin — San Jeor formulasi boʻyicha bepul hisoblang: ozish, vaznni saqlash yoki massa yigʻish uchun.",
     title: "Kaloriya va OYU kalkulyatori",
-    lead: "Jins, yosh, boʻy, vazn va faollik boʻyicha kunlik meʼyoringizni baholaymiz va unga eng yaqin ratsionni koʻrsatamiz.",
+    lead: "Jins, yosh, boʻy, vazn va faollik boʻyicha kunlik kaloriya meʼyoringizni (TDEE) baholaymiz va unga eng yaqin ratsionni koʻrsatamiz.",
     sex: "Jins",
     female: "Ayol",
     male: "Erkak",
@@ -335,6 +335,161 @@ const uz: Dictionary = {
     ],
     disclaimer:
       "Bu ratsion tanlash uchun taxminiy hisob, tibbiy tavsiya emas. Kalkulyator kattalar uchun moʻljallangan. Kasalligingiz boʻlsa, homilador boʻlsangiz yoki emizayotgan boʻlsangiz, ovqatlanishni shifokor bilan maslahatlashing.",
+  },
+  calcTools: {
+    crumb: "Kalkulyatorlar",
+    tabs: { calories: "Kaloriya va OYU", protein: "Oqsil", bmi: "TMI", water: "Suv" },
+    resultEmpty: "Barcha maydonlarni toʻldiring — bu yerda natija paydo boʻladi.",
+    nextTitle: "Keyingi qadam",
+    caloriesLink: "Kaloriya va OYU ni hisoblash",
+    caloriesHint: "Kaloriya kalkulyatori kunlik meʼyorni baholaydi va ratsionning kaloriya darajasini tanlab beradi.",
+    programsLink: "Dasturlarni koʻrish",
+    programLink: "Dastur haqida",
+    protein: {
+      metaTitle: "Oqsil kalkulyatori: kunlik protein meʼyori",
+      metaDescription:
+        "Kuniga qancha oqsil kerak: vazn, faollik va maqsad boʻyicha grammlarda hisoblang — ozish, vaznni saqlash yoki mushak massasini oshirish uchun.",
+      title: "Oqsil kalkulyatori",
+      lead: "Vazn, faollik va maqsad boʻyicha kuniga necha gramm oqsil kerakligini baholaymiz va mos ratsionni koʻrsatamiz.",
+      resultLabel: "Kunlik oqsil",
+      perKg: "Vaznning har bir kilogrammiga {min}–{max} g",
+      high: "Bu yuqori ehtiyoj: uni har bir mahalda oqsil koʻproq boʻlgan ratsion bilan qoplash qulayroq.",
+      how: [
+        "Faollik boʻyicha vaznning har bir kilogrammiga oqsil oraligʻini olamiz: kam harakatli turmushda 0,8–1,0 g (kattalar uchun isteʼmol meʼyori), yengil faollikda 1,0–1,2 g, oʻrtachada 1,2–1,6 g va yuqori faollikda 1,4–1,8 g.",
+        "Vazn kamaytirish va mushak massasini oshirish uchun 0,2 g/kg qoʻshamiz: kaloriya defitsitida oqsil mushaklarni saqlashga, massa yigʻishda esa ularni oʻstirishga yordam beradi. 2,0 g/kg dan koʻp hisoblamaymiz.",
+        "Oraliqni vazningizga koʻpaytiramiz va 5 g gacha yaxlitlaymiz.",
+      ],
+    },
+    bmi: {
+      metaTitle: "TMI kalkulyatori: tana massasi indeksi (BMI)",
+      metaDescription:
+        "Boʻy va vazn boʻyicha tana massasi indeksini hisoblang: JSST tasnifi boʻyicha toifa va boʻyingiz uchun meʼyoriy vazn oraligʻi. Kattalar uchun.",
+      title: "Tana massasi indeksi kalkulyatori",
+      lead: "Boʻy va vazn boʻyicha tana massasi indeksi (TMI), JSST tasnifi boʻyicha toifa va boʻyingiz uchun meʼyoriy vazn.",
+      resultLabel: "Sizning TMI",
+      unit: "kg/m²",
+      categories: {
+        under: "Vazn yetishmasligi",
+        normal: "Meʼyoriy vazn",
+        over: "Ortiqcha vazn",
+        obese: "Semizlik",
+      },
+      scaleLabel: "JSST boʻyicha TMI shkalasi",
+      normalRange: "Boʻyingiz uchun meʼyoriy vazn: {min}–{max} kg",
+      how: [
+        "TMI — kilogrammdagi vaznning metrdagi boʻy kvadratiga nisbati. Masalan, boʻy 170 sm va vazn 70 kg boʻlsa: 70 / 1,7² ≈ 24,2.",
+        "Toifalar — Jahon sogʻliqni saqlash tashkilotining (JSST) kattalar uchun tasnifi boʻyicha: 18,5 dan kam — vazn yetishmasligi, 18,5–24,9 — meʼyor, 25–29,9 — ortiqcha vazn, 30 va undan yuqori — semizlik.",
+        "TMI mushak va yogʻni farqlamaydi, shuning uchun sportchilarda u yuqoriroq chiqishi mumkin. Bu tashxis emas, tezkor moʻljal.",
+      ],
+    },
+    water: {
+      metaTitle: "Kunlik suv meʼyori: vazn boʻyicha kalkulyator",
+      metaDescription:
+        "Kuniga qancha suv ichish kerak: vazn va faollik boʻyicha kunlik suyuqlik meʼyori, litr va stakanlarda. Tibbiy tavsiya emas, taxminiy moʻljal.",
+      title: "Kunlik suv meʼyori",
+      lead: "Vazn va faollik boʻyicha kuniga qancha suyuqlik kerakligini litr va stakanlarda baholaymiz.",
+      resultLabel: "Kunlik suyuqlik",
+      unit: "l",
+      glasses: "≈ {min}–{max} {glasses}, har biri 250 ml",
+      glassForms: ["stakan", "stakan", "stakan"],
+      how: [
+        "Vaznning har bir kilogrammiga 30–35 ml olamiz — kattalar uchun keng tarqalgan moʻljal.",
+        "Mashgʻulotlar uchun qoʻshamiz: yengil faollikda 250 ml, oʻrtachada 500 ml va yuqori faollikda 750 ml.",
+        "Bu kun davomidagi barcha suyuqlik: suv, choy, shoʻrva va boshqa ichimliklar. Issiqda va kasallik paytida koʻproq kerak boʻladi; buyrak yoki yurak kasalliklarida meʼyorni shifokor belgilaydi.",
+      ],
+    },
+  },
+  goals: {
+    label: "Maqsad boʻyicha ovqatlanish",
+    forProgram: "Bu dastur quyidagilar uchun mos",
+    programTitle: "Shu maqsad uchun dastur",
+    programsTitle: "Dasturni tanlang",
+    sampleTitle: "Bir kunlik namunaviy menyu",
+    faqTitle: "Savol va javoblar",
+    moreTitle: "Shuningdek koʻring",
+    allPrograms: "Barcha dasturlar",
+    pages: {
+      "weight-loss": {
+        short: "Ozish uchun",
+        metaTitle: "Ozish uchun ovqatlar — Toshkentda yetkazib berish",
+        metaDescription:
+          "Ozish uchun ratsion Toshkent boʻylab yetkazib berish bilan: yengil va toʻyimli taomlar, kaloriya va OYU hisoblangan. Har kuni ertalab olib kelamiz.",
+        title: "Ozish uchun ovqatlar — Toshkentda yetkazib berish",
+        intro:
+          "Kaloriya va OYU hisoblangan bir kunlik ratsion: hech narsani tortish, hisoblash va pishirish shart emas. Meʼyoringizga mos kaloriyani tanlang — kechasi tayyorlab, ertalab olib kelamiz.",
+        faq: [
+          {
+            q: "Vazn kamaytirish uchun qaysi kaloriyani tanlash kerak?",
+            a: "Meʼyoringizni kalkulyatorda hisoblang: vazn kamaytirish uchun u kunlik sarfdan taxminan 15% ayiradi va dasturning eng yaqin darajasini koʻrsatadi. 1200 kkal dan past ratsion taklif qilmaymiz — bundan past kaloriya faqat shifokor bilan birga tanlanadi.",
+          },
+          {
+            q: "Kaloriya va OYU ni qayerda koʻrish mumkin?",
+            a: "Menyuda: har bir taomning vazni, kaloriyasi, oqsil, yogʻ va uglevodlari koʻrsatilgan, pastda esa kunlik jami. 30 kunlik menyuni buyurtmadan oldin koʻrish mumkin.",
+          },
+          {
+            q: "Men yemaydigan mahsulotlarni chiqarib tashlash mumkinmi?",
+            a: "Ha. Taomni almashtirish va uchtagacha masalliqni chiqarib tashlash narxga kiritilgan — ularni buyurtma berishda koʻrsating.",
+          },
+        ],
+      },
+      "high-protein": {
+        short: "Proteinli ovqatlar",
+        metaTitle: "Proteinli ovqatlar — Toshkentda yetkazib berish",
+        metaDescription:
+          "Mashgʻulot qiladiganlar uchun proteinli ratsion: har bir mahalda koʻproq oqsil, kaloriya va OYU hisoblangan. Har kuni ertalab Toshkent boʻylab yetkazamiz.",
+        title: "Proteinli ovqatlar — Toshkentda yetkazib berish",
+        intro:
+          "Mashgʻulot qiladiganlar uchun: har bir mahalda koʻproq oqsil va har bir taom boʻyicha aniq raqamlar. Kechasi tayyorlaymiz va bir kunlik ratsionni ertalabgacha olib kelamiz.",
+        faq: [
+          {
+            q: "Menga kuniga qancha oqsil kerak?",
+            a: "Oqsil kalkulyatorida baholang: u vazn, faollik va maqsad boʻyicha grammlardagi oraliqni hisoblaydi. Bu ratsion tanlash uchun moʻljal, tibbiy tavsiya emas.",
+          },
+          {
+            q: "Ratsionda qancha oqsil borligini qayerda koʻrish mumkin?",
+            a: "Menyuda: har bir taomning vazni, kaloriyasi, oqsil, yogʻ va uglevodlari koʻrsatilgan, pastda esa kunlik jami. 30 kunlik menyu buyurtmadan oldin ochiq.",
+          },
+        ],
+      },
+      balanced: {
+        short: "Muvozanatli ovqatlanish",
+        metaTitle: "Muvozanatli ovqatlanish — Toshkentda yetkazib berish",
+        metaDescription:
+          "Har kun uchun muvozanatli ratsion: har bir taomda kaloriya, oqsil, yogʻ va uglevod hisoblangan. 30 kunlik menyu, Toshkent boʻylab har kuni ertalab.",
+        title: "Muvozanatli ovqatlanish — Toshkentda yetkazib berish",
+        intro:
+          "Bozor, oshxona va hisob-kitobsiz bir kunlik ratsion: har bir taomda kaloriya, oqsil, yogʻ va uglevod hisoblangan. 30 kunlik takrorlanmas menyuni buyurtmadan oldin koʻrasiz.",
+        faq: [
+          {
+            q: "Bir kunlik ratsionga nimalar kiradi?",
+            a: "Kun davomidagi barcha mahallar — nonushtadan kechki ovqatgacha; ularning soni har bir kaloriya darajasida koʻrsatilgan. Ertalab kuryer bir kunlik toʻplamni firma paketida topshiradi.",
+          },
+          {
+            q: "Ratsionni faqat ish kunlari olsa boʻladimi?",
+            a: "Ha. Buyurtma berishda «Faqat ish kunlari»ni tanlang — dushanbadan jumagacha yetkazamiz. Muddat — yetkazib beriladigan kunlar soni.",
+          },
+        ],
+      },
+      halal: {
+        short: "Halol ratsion",
+        metaTitle: "Halol ratsionlar — Toshkentda yetkazib berish",
+        metaDescription:
+          "Toshkent boʻylab halol ratsionlar: choʻchqa goʻshti va alkogolsiz, har bir taomda kaloriya va OYU hisoblangan. Har kuni ertalab olib kelamiz.",
+        title: "Halol ratsionlar — Toshkentda yetkazib berish",
+        intro:
+          "Choʻchqa goʻshti va alkogol ishlatmaymiz, mahsulotlarni ishonchli yetkazib beruvchilardan olamiz. Bu barcha dasturlarga tegishli — maqsadingizga mosini tanlang.",
+        faq: [
+          {
+            q: "Bu barcha dasturlarga tegishlimi?",
+            a: "Ha. Choʻchqa goʻshti va alkogolni hech bir dasturda va hech bir kaloriya darajasida ishlatmaymiz.",
+          },
+          {
+            q: "Taomlar tarkibini qayerda koʻrish mumkin?",
+            a: "Menyuda: har bir taomning tarkibi, allergenlari, vazni, kaloriyasi va OYU koʻrsatilgan. 30 kunlik menyu buyurtmadan oldin ochiq.",
+          },
+        ],
+      },
+    },
   },
   delivery: {
     metaTitle: "Toshkent boʻylab ratsion yetkazib berish",

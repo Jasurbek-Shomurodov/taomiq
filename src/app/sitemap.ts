@@ -1,6 +1,8 @@
 import type { MetadataRoute } from "next";
 import { defaultLocale, htmlLang, locales } from "@/i18n/config";
+import { CALCULATOR_TOOLS } from "@/lib/calculator";
 import { getPrograms } from "@/lib/data/catalog";
+import { GOAL_PAGES } from "@/lib/goal-pages";
 import { site } from "@/lib/site";
 
 // No `lastModified`: there is no per-page change date to state yet, and a date that
@@ -11,8 +13,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     "",
     "/menu",
     ...programs.map((p) => `/programs/${p.slug}`),
+    ...GOAL_PAGES.map((goal) => `/goals/${goal}`),
     "/prices",
     "/calculator",
+    ...CALCULATOR_TOOLS.map((tool) => `/calculator/${tool}`),
     "/delivery",
     "/faq",
     "/privacy",

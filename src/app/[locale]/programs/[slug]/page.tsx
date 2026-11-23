@@ -10,6 +10,7 @@ import { getDictionary } from "@/i18n";
 import { isLocale, locales } from "@/i18n/config";
 import { getDurations, getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
+import { goalsForProgram } from "@/lib/goal-pages";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbList, programProduct } from "@/lib/structured-data";
 
@@ -86,6 +87,23 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
 
         <div className="mt-6">
           <ProgramPrices program={program} durations={durations} locale={locale} t={t} />
+        </div>
+
+        {/* The goal pages this program serves */}
+        <div className="mt-8 border-t border-line pt-6">
+          <p className="label text-muted">{t.goals.forProgram}</p>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {goalsForProgram(program.slug).map((goal) => (
+              <li key={goal}>
+                <Link
+                  href={`/${locale}/goals/${goal}`}
+                  className="press inline-flex min-h-11 items-center rounded-full border border-line bg-white px-4 text-sm font-semibold text-forest hover:border-forest"
+                >
+                  {t.goals.pages[goal].short}
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 

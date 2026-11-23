@@ -1,4 +1,5 @@
-import { calculate, recommend } from "../src/lib/calculator";
+import { bodyMassIndex, calculate, formatDecimal, proteinNeed, recommend, waterNeed } from "../src/lib/calculator";
+import { GOAL_PAGES, GOAL_PROGRAM } from "../src/lib/goal-pages";
 import { demoDurations, demoPrograms } from "../src/lib/data/demo";
 import { pricePerDay } from "../src/lib/data/types";
 import { defaultLocale, formatSum, htmlLang, localeName, locales, type Locale } from "../src/i18n/config";
@@ -169,6 +170,61 @@ test("calculator gives a daily norm and a matching program", async ({ page }) =>
   );
 });
 
+for (const locale of locales) {
+  test(`goal pages render in ${locale}, link their program and state breadcrumbs only`, async ({ page }) => {
+    const t = getDictionary(locale);
+    for (const goal of GOAL_PAGES) {
+      const response = await page.goto(`/${locale}/goals/${goal}`);
+      expect(response?.status(), goal).toBe(200);
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(t.goals.pages[goal].title);
+      // A one-program goal links its program page; halal lists every program.
+      const programs = GOAL_PROGRAM[goal] ? demoPrograms.filter((p) => p.slug === GOAL_PROGRAM[goal]) : demoPrograms;
+      for (const program of programs) {
+        await expect(page.locator(`main a[href="/${locale}/programs/${program.slug}"]`).first()).toBeVisible();
+      }
+      const types = await jsonLdTypes(page);
+      expect(types).toContain("BreadcrumbList");
+      expect(types).not.toContain("FAQPage");
+    }
+
+    const unknown = await page.goto(`/${locale}/goals/no-such-goal`);
+    expect(unknown?.status()).toBe(404);
+  });
+}
+
+test("calculator suite: protein, BMI and water give their estimates; the tabs mark the current tool", async ({ page }) => {
+  const c = ru.calculator;
+  const tools = ru.calcTools;
+  const summary = page.locator('[aria-live="polite"]');
+
+  await page.goto("/ru/calculator/protein");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(tools.protein.title);
+  await expect(page.getByRole("navigation", { name: tools.crumb }).getByRole("link", { name: tools.tabs.protein })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await page.getByLabel(c.weight, { exact: true }).fill("80");
+  await choose(page, c.activities.high.title);
+  await choose(page, c.goals.gain.title);
+  const protein = proteinNeed({ weight: 80, activity: "high", goal: "gain" });
+  await expect(summary).toContainText(`${tools.protein.resultLabel}: ${protein.min}–${protein.max} ${c.grams}.`);
+  await expect(page.getByRole("link", { name: c.order })).toHaveAttribute("href", `/ru/order?program=${protein.program}`);
+
+  await page.goto("/ru/calculator/bmi");
+  await page.getByLabel(c.height, { exact: true }).fill("170");
+  await page.getByLabel(c.weight, { exact: true }).fill("70");
+  const bmi = bodyMassIndex({ height: 170, weight: 70 });
+  await expect(summary).toContainText(
+    `${tools.bmi.resultLabel}: ${formatDecimal(bmi.bmi)} ${tools.bmi.unit}, ${tools.bmi.categories[bmi.category]}.`,
+  );
+
+  await page.goto("/ru/calculator/water");
+  await page.getByLabel(c.weight, { exact: true }).fill("70");
+  await choose(page, c.activities.moderate.title);
+  const water = waterNeed({ weight: 70, activity: "moderate" });
+  await expect(summary).toContainText(`${tools.water.resultLabel}: ${formatDecimal(water.min)}–${formatDecimal(water.max)} ${tools.water.unit}.`);
+});
+
 test("order form: errors keep typed values, a valid order gets the demo notice", async ({ page }) => {
   const t = uz.order;
   const address = "Toshkent, Amir Temur koʻchasi 1, 5-xonadon";
@@ -226,5 +282,7 @@ test("robots.txt and sitemap.xml are served on the public host", async ({ reques
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
   const urls = await sitemap.text();
-  for (const path of ["/uz/menu", "/uz/faq", "/uz/prices"]) expect(urls).toContain(path);
+  for (const path of ["/uz/menu", "/uz/faq", "/uz/prices", "/uz/goals/weight-loss", "/uz/calculator/protein"]) {
+    expect(urls).toContain(path);
+  }
 });

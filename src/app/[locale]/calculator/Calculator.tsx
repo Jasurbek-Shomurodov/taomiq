@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Dictionary } from "@/i18n";
 import { formatSum, type Locale } from "@/i18n/config";
 import {
@@ -18,6 +18,7 @@ import {
   type Sex,
 } from "@/lib/calculator";
 import { useCountUp } from "@/lib/use-count-up";
+import { Option } from "./fields";
 
 export type CalculatorProgram = {
   slug: string;
@@ -314,35 +315,5 @@ export function Calculator({ locale, t, programs, telegramUrl }: Props) {
         </div>
       )}
     </section>
-  );
-}
-
-/** A radio styled as a tappable card or chip (same look as the order form). */
-function Option({
-  name,
-  value,
-  checked,
-  onChange,
-  compact,
-  children,
-}: {
-  name: string;
-  value: string;
-  checked: boolean;
-  onChange: () => void;
-  compact?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <label className="relative block cursor-pointer">
-      <input type="radio" name={name} value={value} checked={checked} onChange={onChange} className="peer sr-only" />
-      <span
-        className={`block h-full border transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold ${
-          compact ? "rounded-xl px-3.5 py-2.5" : "rounded-2xl p-4"
-        } ${checked ? "border-forest bg-forest text-ivory" : "border-line bg-white text-forest hover:border-forest"}`}
-      >
-        {children}
-      </span>
-    </label>
   );
 }

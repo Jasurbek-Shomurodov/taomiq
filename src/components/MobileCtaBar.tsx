@@ -3,10 +3,15 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { formatSum, type Locale } from "@/i18n/config";
+import { GOAL_PROGRAM, isGoalPage } from "@/lib/goal-pages";
 
-/** Pages with their own bottom action: the order flow, and the calculator's result bar (.calc-bar). */
+/**
+ * Pages without the bar: the order flow, the calculator's own result bar (.calc-bar), and the other
+ * calculators under /calculator/…, whose next step sits under their result.
+ */
 const OWN_ACTION = /^\/[^/]+\/(order|calculator)(\/|$)/;
 const PROGRAM_PAGE = /^\/[^/]+\/programs\/([^/]+)\/?$/;
+const GOAL_PAGE = /^\/[^/]+\/goals\/([^/]+)\/?$/;
 
 /**
  * Phones: the primary action stays within thumb reach. A fixed bar with "from X so'm per day" and the
@@ -29,8 +34,10 @@ export function MobileCtaBar({
 }) {
   const pathname = usePathname() ?? "";
   if (OWN_ACTION.test(pathname)) return null;
-  // On a program page the order form opens with that program chosen, like the page's own button.
-  const program = PROGRAM_PAGE.exec(pathname)?.[1];
+  // On a program page, and on a goal page that sells one program, the order form opens with that program
+  // chosen, like the page's own button.
+  const goal = GOAL_PAGE.exec(pathname)?.[1];
+  const program = PROGRAM_PAGE.exec(pathname)?.[1] ?? (goal && isGoalPage(goal) ? GOAL_PROGRAM[goal] : null);
   const href = `/${locale}/order${program ? `?program=${program}` : ""}`;
 
   return (

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n";
 import type { Program } from "@/lib/data/types";
+import { GOAL_PAGES } from "@/lib/goal-pages";
 import { site } from "@/lib/site";
 import { Lockup } from "./Logo";
 import { LocaleSwitch } from "./LocaleSwitch";
@@ -69,14 +70,25 @@ export function Footer({
           </Link>
           <p className="mt-5 text-sm">{t.footer.tagline}</p>
         </div>
-        <nav aria-label={t.nav.programs} className="flex flex-col gap-2 text-sm">
-          <Link href={`/${locale}#programs`} className="label text-ivory/50 hover:text-ivory">{t.nav.programs}</Link>
-          {programs.map((program) => (
-            <Link key={program.slug} href={`/${locale}/programs/${program.slug}`} className="hover:text-ivory">
-              {program.name}
-            </Link>
-          ))}
-        </nav>
+        {/* Programs, then the goal pages under them: one column, so the footer stays two columns on phones. */}
+        <div className="flex flex-col gap-6 text-sm">
+          <nav aria-label={t.nav.programs} className="flex flex-col gap-2">
+            <Link href={`/${locale}#programs`} className="label text-ivory/50 hover:text-ivory">{t.nav.programs}</Link>
+            {programs.map((program) => (
+              <Link key={program.slug} href={`/${locale}/programs/${program.slug}`} className="hover:text-ivory">
+                {program.name}
+              </Link>
+            ))}
+          </nav>
+          <nav aria-label={t.goals.label} className="flex flex-col gap-2">
+            <p className="label text-ivory/50">{t.goals.label}</p>
+            {GOAL_PAGES.map((goal) => (
+              <Link key={goal} href={`/${locale}/goals/${goal}`} className="hover:text-ivory">
+                {t.goals.pages[goal].short}
+              </Link>
+            ))}
+          </nav>
+        </div>
         <nav className="flex flex-col gap-2 text-sm">
           <Link href={`/${locale}/menu`} className="hover:text-ivory">{t.nav.menu}</Link>
           <Link href={`/${locale}/prices`} className="hover:text-ivory">{t.nav.prices}</Link>

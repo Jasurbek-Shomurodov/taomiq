@@ -6,6 +6,7 @@ import { FaqList } from "@/components/FaqList";
 import { Monogram } from "@/components/Logo";
 import { MenuDay } from "@/components/MenuDay";
 import { PageTransition } from "@/components/PageTransition";
+import { HowItWorks, Included } from "@/components/ServiceSections";
 import { getDictionary } from "@/i18n";
 import { formatSum, isLocale } from "@/i18n/config";
 import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
@@ -90,19 +91,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         </ul>
       </section>
 
-      {/* How it works */}
-      <section id="how" className="container-page scroll-mt-20 lg:scroll-mt-28 py-16 md:py-20">
-        <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.how.title}</h2>
-        <ol className="mt-10 grid gap-8 md:grid-cols-3">
-          {t.how.steps.map((step, index) => (
-            <li key={step.title} className="reveal border-t border-gold pt-5">
-              <p className="font-serif text-3xl text-gold">0{index + 1}</p>
-              <h3 className="mt-2 text-lg font-semibold text-forest">{step.title}</h3>
-              <p className="mt-2 leading-relaxed text-muted">{step.text}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
+      <HowItWorks t={t} id="how" />
 
       {/* Programs */}
       <section id="programs" className="scroll-mt-20 lg:scroll-mt-28 bg-ivory-deep py-16 md:py-20">
@@ -192,20 +181,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
         </section>
       )}
 
-      {/* Included */}
-      <section className="bg-forest py-16 text-ivory md:py-20">
-        <div className="container-page grid gap-10 md:grid-cols-2 md:items-center">
-          <h2 className="reveal font-serif text-4xl md:text-5xl">{t.included.title}</h2>
-          <ul className="grid gap-4">
-            {t.included.items.map((item) => (
-              <li key={item} className="reveal flex gap-4 border-b border-ivory/15 pb-4">
-                <span className="mt-2.5 h-px w-6 shrink-0 bg-gold" aria-hidden />
-                <span className="text-lg text-ivory/90">{item}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
+      <Included t={t} />
 
       {/* FAQ */}
       {/* The FAQPage structured data lives on /faq, the page that owns the questions. */}
