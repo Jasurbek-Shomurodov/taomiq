@@ -6,11 +6,14 @@ import { defaultLocale, isLocale, locales } from "@/i18n/config";
  *  - taomiq.uz        → /[locale]/…  (client site, uz + ru)
  *  - admin.taomiq.uz  → /admin/…     (back office)
  * In development use http://localhost:3000 and http://admin.localhost:3000.
+ * Until the taomiq.uz domain is connected, the admin is also served at taomiq-admin.vercel.app.
  */
+const EXTRA_ADMIN_HOSTS = ["taomiq-admin.vercel.app"];
+
 export function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
-  const isAdminHost = host.startsWith("admin.");
+  const isAdminHost = host.startsWith("admin.") || EXTRA_ADMIN_HOSTS.includes(host);
 
   if (isAdminHost) {
     const url = request.nextUrl.clone();
