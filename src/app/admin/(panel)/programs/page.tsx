@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
-import { requireStaff } from "@/lib/admin/auth";
+import { requireOwner } from "@/lib/admin/auth";
 import { listDurations, listPrograms } from "@/lib/admin/queries";
 import { DurationsForm, ProgramForm } from "./Forms";
 
 export const metadata: Metadata = { title: "Программы и цены" };
 
 export default async function ProgramsAdminPage() {
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireOwner();
   const [programs, durations] = await Promise.all([listPrograms(supabase), listDurations(supabase)]);
 
   return (

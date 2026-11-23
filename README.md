@@ -34,10 +34,10 @@ a "database not connected" page.
 2. Run the files in `supabase/migrations` in order (SQL editor or CLI). They create the tables, security rules,
    the photo bucket and the three launch programs. (Already applied to the `taomiq` project.)
 3. Copy `.env.example` to `.env.local` and fill in the project URL and publishable key.
-4. Create the cook's login in Supabase → Authentication → Users, then give it staff access:
+4. Create the login in Supabase → Authentication → Users, then give it a role — `owner` (everything) or `admin` (dishes and menu only):
    ```sql
    insert into public.staff (user_id, name, role)
-   select id, 'Имя повара', 'cook' from auth.users where email = 'cook@example.com';
+   select id, 'Имя', 'admin' from auth.users where email = 'cook@example.com';
    ```
 
 ### Vercel

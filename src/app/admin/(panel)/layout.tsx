@@ -5,15 +5,39 @@ import { signOut } from "@/lib/admin/actions";
 import { requireStaff } from "@/lib/admin/auth";
 
 const NAV = [
-  { href: "/", label: "Обзор" },
-  { href: "/menu", label: "Меню на 30 дней" },
-  { href: "/dishes", label: "Блюда" },
-  { href: "/programs", label: "Программы и цены" },
+  { href: "/", label: "Обзор", ownerOnly: false },
+  { href: "/menu", label: "Меню на 30 дней", ownerOnly: false },
+  { href: "/dishes", label: "Блюда", ownerOnly: false },
+  { href: "/programs", label: "Программы и цены", ownerOnly: true },
 ];
+
+const ROLE_LABELS = { owner: "Владелец", admin: "Администратор" } as const;
 
 async function CurrentUser() {
   const { staff } = await requireStaff();
-  return <span className="hidden text-sm text-ivory/70 sm:inline">{staff.name || staff.email}</span>;
+  return (
+    <span className="hidden text-sm text-ivory/70 sm:inline">
+      {staff.name || staff.email} · {ROLE_LABELS[staff.role]}
+    </span>
+  );
+}
+
+/** Navigation depends on the role, so it streams in with the session. */
+async function Nav() {
+  const { staff } = await requireStaff();
+  return (
+    <>
+      {NAV.filter((item) => !item.ownerOnly || staff.role === "owner").map((item) => (
+        <Link
+          key={item.href}
+          href={item.href}
+          className="whitespace-nowrap border-b-2 border-transparent pb-3 text-ivory/80 hover:border-gold hover:text-ivory"
+        >
+          {item.label}
+        </Link>
+      ))}
+    </>
+  );
 }
 
 export default function PanelLayout({ children }: LayoutProps<"/admin">) {
@@ -37,15 +61,9 @@ export default function PanelLayout({ children }: LayoutProps<"/admin">) {
           </div>
         </div>
         <nav className="container-page flex gap-6 overflow-x-auto text-sm">
-          {NAV.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className="whitespace-nowrap border-b-2 border-transparent pb-3 text-ivory/80 hover:border-gold hover:text-ivory"
-            >
-              {item.label}
-            </Link>
-          ))}
+          <Suspense fallback={<span className="pb-3">&nbsp;</span>}>
+            <Nav />
+          </Suspense>
         </nav>
       </header>
 

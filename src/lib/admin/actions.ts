@@ -6,7 +6,7 @@ import { CATALOG_TAG } from "@/lib/data/catalog";
 import { CYCLE_DAYS, SLOTS, type Slot } from "@/lib/data/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
-import { requireStaff } from "./auth";
+import { requireOwner, requireStaff } from "./auth";
 
 export type FormState = { error?: string; ok?: string };
 
@@ -170,7 +170,7 @@ export async function copyMenuFromVariant(
 // ---------- programs and prices ----------
 
 export async function saveProgram(_prev: FormState, form: FormData): Promise<FormState> {
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireOwner();
   const id = text(form, "id");
 
   const { error } = await supabase
@@ -201,7 +201,7 @@ export async function saveProgram(_prev: FormState, form: FormData): Promise<For
 }
 
 export async function saveDurations(_prev: FormState, form: FormData): Promise<FormState> {
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireOwner();
   for (const days of form.getAll("days").map(Number)) {
     const markup = num(form, `markup_${days}`);
     if (!Number.isFinite(markup)) return { error: "Наценка должна быть числом." };
