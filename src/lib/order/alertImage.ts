@@ -1,16 +1,19 @@
 /**
  * The staff alert for a new order, drawn as a branded PNG card: an SVG string rasterised by sharp with
- * the fonts bundled in src/assets/fonts. No network, no personal data (no name, phone, address, comment
+ * the fonts bundled in src/assets/fonts and the monogram from src/assets/brand. No network, no personal data (no name, phone, address, comment
  * or exclusions): the card ends with a pointer to the admin, like the text alert.
  *
  * Server-only by reach: loaded only through the dynamic import in ./telegram.ts (and by the preview
  * script). Imports stay relative so scripts/preview-order-alert.mjs can run this file under plain Node.
  */
 import "./alertFontConfig"; // must run before sharp loads
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { formatSum, plural } from "../../i18n/config";
-import { ALERT_FONT_DIRECTORY, ALERT_FONT_FAMILY, ALERT_FONT_FILES } from "./alertFontConfig";
+import { ALERT_FONT_DIRECTORY, ALERT_FONT_FILES, ALERT_FONT_SANS, ALERT_FONT_SERIF } from "./alertFontConfig";
+
+/** The TQ monogram on a transparent background, cropped from the approved logo by scripts/build-brand-assets.mjs. */
+const MONOGRAM_PATH = join(process.cwd(), "src", "assets", "brand", "monogram-alert.png");
 
 export type OrderAlert = {
   number: number;
@@ -39,6 +42,7 @@ const LINE = "#d9d2c2";
 const WIDTH = 1200;
 const PAD = 64;
 const HEADER = 196;
+const MARK = 116; // monogram size in the header
 const COLUMN_2 = 616;
 
 const LANGUAGE: Record<string, string> = { uz: "узбекский", ru: "русский" };
@@ -48,8 +52,9 @@ function escapeXml(value: string): string {
 }
 
 /**
- * Keeps what Noto Sans can draw (Latin incl. ʻ, Cyrillic, common punctuation, №) and drops the rest,
- * e.g. emoji, instead of drawing empty boxes.
+ * Keeps what the bundled fonts can draw (Latin incl. ʻ, Cyrillic incl. Uzbek Қ Ғ Ҳ, common punctuation, №)
+ * and drops the rest, e.g. emoji, instead of drawing empty boxes. Manrope draws most of it; Fontconfig takes
+ * the few letters it lacks (ʻ, Қ Ғ Ҳ) from Noto Serif Display.
  */
 export function drawableText(value: string): string {
   return value
@@ -80,7 +85,8 @@ function fact(x: number, y: number, label: string, value: string): string {
     <text x="${x}" y="${y + 46}" font-size="34" font-weight="700" fill="${GRAPHITE}">${escapeXml(value)}</text>`;
 }
 
-export function orderAlertSvg(order: OrderAlert): string {
+/** `monogram` is the header mark as a data URI; without it the wordmark moves to the left edge. */
+export function orderAlertSvg(order: OrderAlert, monogram: string | null = null): string {
   const programName = clip(drawableText(order.programName) || "—", 26);
   const window = clip(drawableText(order.window) || "—", 24);
   const days = `${order.days} ${plural(order.days, ["день", "дня", "дней"])}`;
@@ -93,21 +99,27 @@ export function orderAlertSvg(order: OrderAlert): string {
   const footerY = bandY + 50;
   const height = bandY + 80;
 
+  const wordmarkX = monogram ? PAD + MARK + 30 : PAD;
+  const mark = monogram
+    ? `<image x="${PAD}" y="${(HEADER - 4 - MARK) / 2}" width="${MARK}" height="${MARK}" href="${monogram}"/>`
+    : "";
+
   const total =
     order.total !== null && order.pricePerDay !== null
-      ? `<text x="${PAD}" y="${totalY + 72}" font-size="68" font-weight="800" fill="${FOREST}">${escapeXml(formatSum(order.total))}<tspan font-size="34" font-weight="700" dx="14">сум</tspan></text>
+      ? `<text x="${PAD}" y="${totalY + 74}" font-family="${ALERT_FONT_SERIF}" font-size="76" font-weight="500" fill="${FOREST}">${escapeXml(formatSum(order.total))}<tspan font-family="${ALERT_FONT_SANS}" font-size="32" font-weight="700" dx="16">сум</tspan></text>
     <text x="${PAD}" y="${totalY + 114}" font-size="24" fill="${MUTED}">${escapeXml(`${formatSum(order.pricePerDay)} сум в день`)}</text>`
       : `<text x="${PAD}" y="${totalY + 64}" font-size="40" font-weight="700" fill="${MUTED}">Сумма — в админке</text>`;
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${WIDTH}" height="${height}" viewBox="0 0 ${WIDTH} ${height}">
   <rect width="${WIDTH}" height="${height}" fill="${IVORY}"/>
-  <g font-family="${ALERT_FONT_FAMILY}">
+  <g font-family="${ALERT_FONT_SANS}">
     <rect width="${WIDTH}" height="${HEADER}" fill="${FOREST}"/>
     <rect y="${HEADER - 4}" width="${WIDTH}" height="4" fill="${GOLD}"/>
-    <text x="${PAD}" y="${HEADER / 2 + 22}" font-size="60" font-weight="800" letter-spacing="2.5" fill="${IVORY}">TAOM<tspan fill="${GOLD}">IQ</tspan></text>
+    ${mark}
+    <text x="${wordmarkX}" y="${HEADER / 2 + 18}" font-size="54" font-weight="700" letter-spacing="8.3" fill="${IVORY}">TAOM<tspan fill="${GOLD}">IQ</tspan></text>
     <text x="${WIDTH - PAD}" y="80" text-anchor="end" font-size="20" font-weight="700" letter-spacing="4" fill="${GOLD}">НОВЫЙ ЗАКАЗ</text>
-    <text x="${WIDTH - PAD}" y="146" text-anchor="end" font-size="56" font-weight="800" fill="${IVORY}">${escapeXml(`№ ${order.number}`)}</text>
+    <text x="${WIDTH - PAD}" y="148" text-anchor="end" font-family="${ALERT_FONT_SERIF}" font-size="60" font-weight="500" fill="${IVORY}">${escapeXml(`№ ${order.number}`)}</text>
 
     <circle cx="${PAD + 12}" cy="${programY - 15}" r="12" fill="${escapeXml(safeColor(order.tagColor))}"/>
     <text x="${PAD + 40}" y="${programY}" font-size="46" font-weight="800" fill="${GRAPHITE}">${escapeXml(programName)}<tspan font-size="34" font-weight="400" fill="${MUTED}" dx="20">${escapeXml(`${order.kcal} ккал`)}</tspan></text>
@@ -142,9 +154,16 @@ function assertFontsAvailable(): void {
   if (missing.length > 0) throw new Error(`Order alert fonts are missing: ${missing.join(", ")}`);
 }
 
+/** The header monogram as a data URI, or null if the file is missing (the card is still complete without it). */
+function monogramDataUri(): string | null {
+  if (!existsSync(MONOGRAM_PATH)) return null;
+  return `data:image/png;base64,${readFileSync(MONOGRAM_PATH).toString("base64")}`;
+}
+
 export async function renderOrderAlertPng(order: OrderAlert): Promise<Buffer> {
   assertFontsAvailable();
+  const svg = orderAlertSvg(order, monogramDataUri());
   // Loaded here, after ./alertFontConfig has set FONTCONFIG_FILE, whatever order a bundler emits imports in.
   const { default: sharp } = await import("sharp");
-  return sharp(Buffer.from(orderAlertSvg(order))).png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
+  return sharp(Buffer.from(svg)).png({ compressionLevel: 9, adaptiveFiltering: true }).toBuffer();
 }

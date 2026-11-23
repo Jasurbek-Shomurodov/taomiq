@@ -12,9 +12,17 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export const ALERT_FONT_FAMILY = "Noto Sans";
+/** The brand pair, as on the site: Manrope for text, Noto Serif Display for the order number and total. */
+export const ALERT_FONT_SANS = "Manrope";
+export const ALERT_FONT_SERIF = "Noto Serif Display";
 export const ALERT_FONT_DIRECTORY = join(process.cwd(), "src", "assets", "fonts");
-export const ALERT_FONT_FILES = ["NotoSans-Regular.ttf", "NotoSans-Bold.ttf", "NotoSans-ExtraBold.ttf"] as const;
+// Static instances only: weight selection from a variable font depends on the Pango build.
+export const ALERT_FONT_FILES = [
+  "Manrope-Regular.ttf",
+  "Manrope-Bold.ttf",
+  "Manrope-ExtraBold.ttf",
+  "NotoSerifDisplay-Medium.ttf",
+] as const;
 
 const configDirectory = join(tmpdir(), "taomiq-fontconfig");
 const cacheDirectory = join(tmpdir(), "taomiq-font-cache");
@@ -24,6 +32,8 @@ function escapeXml(value: string): string {
   return value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&apos;" })[c] ?? c);
 }
 
+// Only the bundled directory is listed, so no system font can stand in. Each family falls back to the
+// other: Manrope has no ʻ (Uzbek Latin) and no Қ Ғ Ҳ (Uzbek Cyrillic); Noto Serif Display has all three.
 mkdirSync(configDirectory, { recursive: true });
 mkdirSync(cacheDirectory, { recursive: true });
 writeFileSync(
@@ -34,8 +44,12 @@ writeFileSync(
   <dir>${escapeXml(ALERT_FONT_DIRECTORY)}</dir>
   <cachedir>${escapeXml(cacheDirectory)}</cachedir>
   <alias>
-    <family>${ALERT_FONT_FAMILY}</family>
-    <prefer><family>${ALERT_FONT_FAMILY}</family></prefer>
+    <family>${ALERT_FONT_SANS}</family>
+    <prefer><family>${ALERT_FONT_SANS}</family><family>${ALERT_FONT_SERIF}</family></prefer>
+  </alias>
+  <alias>
+    <family>${ALERT_FONT_SERIF}</family>
+    <prefer><family>${ALERT_FONT_SERIF}</family><family>${ALERT_FONT_SANS}</family></prefer>
   </alias>
 </fontconfig>`,
 );
