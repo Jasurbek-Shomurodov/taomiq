@@ -3,9 +3,9 @@ import type { Dictionary } from "./ru";
 // NOTE: Uzbek copy is a first draft and must be reviewed by a native editor before launch.
 const uz: Dictionary = {
   meta: {
-    title: "TAOMIQ — Toshkentda premium kundalik ratsionlar",
+    title: "Toʻgʻri ovqatlanish yetkazib berish Toshkentda — TAOMIQ",
     description:
-      "Kaloriyasi va oqsil-yogʻ-uglevodi hisoblangan muvozanatli ratsionlar. Har kecha tayyorlaymiz, ertalab yetkazamiz. LIGHT, BALANCE va PROTEIN dasturlari.",
+      "Toshkentda sogʻlom va PP ovqat yetkazib berish: kaloriya va OYU hisoblangan kunlik ratsionlar har kuni ertalab eshigingizgacha. LIGHT, BALANCE, PROTEIN.",
   },
   nav: {
     programs: "Dasturlar",
@@ -15,11 +15,14 @@ const uz: Dictionary = {
     calculator: "Kalkulyator",
     delivery: "Yetkazib berish",
     cta: "Ratsion tanlash",
+    sections: "Boʻlimlar",
+    close: "Yopish",
   },
   hero: {
     eyebrow: "Premium daily nutrition · Toshkent",
     title: "Aqlli ovqatlanish.",
     titleAccent: "Har kuni.",
+    subtitle: "Toshkentda toʻgʻri ovqatlanish yetkazib berish — kaloriyasi hisoblangan kunlik ratsionlar",
     lead: "Kechasi tayyorlaymiz, ertalabgacha yetkazamiz. Har bir taomning tarkibi, kaloriyasi va OYU koʻrsatkichlari aniq. Sizga faqat idishni ochish qoladi.",
     cta: "Ratsion tanlash",
     secondary: "Menyuni koʻrish",
@@ -49,8 +52,31 @@ const uz: Dictionary = {
     details: "Batafsil",
     priceNote: "30 kunlik buyurtmada bir kunlik narx",
     kcal: "kkal",
+    seo: {
+      light: {
+        title: "ozish uchun ratsion, yetkazib berish bilan",
+        description:
+          "Ozish uchun ratsion: ochlik hissisiz yengil va toʻyimli ovqatlar, kaloriya va OYU hisoblangan. Har kuni ertalab Toshkent boʻylab yetkazamiz.",
+        subtitle: "Ozish uchun ovqatlar — Toshkent boʻylab har kuni yetkazib berish",
+      },
+      balance: {
+        title: "kaloriya hisoblangan kunlik ratsion",
+        description:
+          "Har kun uchun muvozanatli ratsion: kaloriya, oqsil, yogʻ va uglevod hisoblangan ovqatlar. Kunlik va haftalik ratsionni Toshkent boʻylab yetkazamiz.",
+        subtitle: "Kaloriya hisoblangan kunlik ratsion — yetkazib berish bilan",
+      },
+      protein: {
+        title: "proteinli ovqatlar va fitnes ratsion",
+        description:
+          "Proteinli ovqatlar: mashgʻulot qiladiganlar uchun oqsilga boy fitnes ratsion, kaloriya va OYU hisoblangan. Har kuni ertalab Toshkent boʻylab yetkazamiz.",
+        subtitle: "Oqsilga boy fitnes ovqatlar — har kuni yetkazib berish bilan",
+      },
+    },
   },
   menu: {
+    metaTitle: "Haftalik sogʻlom menyu va 30 kunlik ratsion",
+    metaDescription:
+      "Har kun uchun sogʻlom menyu: taomlar, grammlar, kaloriya va OYU. LIGHT, BALANCE va PROTEIN dasturlarining 30 kunlik menyusini buyurtmadan oldin koʻring.",
     title: "Menyu",
     lead: "30 kunlik haqiqiy menyu. Uni toʻlovdan oldin koʻrasiz.",
     today: "Bugungi menyu",
@@ -239,9 +265,9 @@ const uz: Dictionary = {
     contact: "Telegramda yozish",
   },
   calculator: {
-    metaTitle: "Kaloriya va OYU kalkulyatori",
+    metaTitle: "Kaloriya kalkulyatori: kunlik meʼyor va OYU hisobi",
     metaDescription:
-      "Kunlik kaloriya, oqsil, yogʻ va uglevod meʼyorini Mifflin — San Jeor formulasi boʻyicha hisoblang va mos TAOMIQ ratsionini tanlang.",
+      "Kunlik kaloriya, oqsil, yogʻ va uglevod meʼyorini Mifflin — San Jeor formulasi boʻyicha bepul hisoblang: ozish, vaznni saqlash yoki massa yigʻish uchun.",
     title: "Kaloriya va OYU kalkulyatori",
     lead: "Jins, yosh, boʻy, vazn va faollik boʻyicha kunlik meʼyoringizni baholaymiz va unga eng yaqin ratsionni koʻrsatamiz.",
     sex: "Jins",

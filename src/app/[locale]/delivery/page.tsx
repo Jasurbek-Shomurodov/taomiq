@@ -3,10 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
-import { getOrderSettings, type OrderSettings } from "@/lib/data/catalog";
+import { JsonLd } from "@/components/JsonLd";
+import { ProgramLinks } from "@/components/ProgramLinks";
+import { getOrderSettings, getPrograms, type OrderSettings } from "@/lib/data/catalog";
+import type { Program } from "@/lib/data/types";
 import { DEFAULT_CUTOFF_HOUR, DEFAULT_DELIVERY_WINDOWS } from "@/lib/order/rules";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
+import { breadcrumbList } from "@/lib/structured-data";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/delivery">): Promise<Metadata> {
   const { locale } = await params;
@@ -40,8 +44,17 @@ export default async function DeliveryPage({ params }: PageProps<"/[locale]/deli
     { title: t.delivery.priceTitle, text: t.delivery.priceText },
   ];
 
+  // Links to the program pages. The delivery facts still render without them.
+  let programs: Program[] = [];
+  try {
+    programs = await getPrograms();
+  } catch (error) {
+    console.error("delivery page: catalogue unavailable", error);
+  }
+
   return (
     <>
+      <JsonLd data={breadcrumbList(locale, [{ name: t.delivery.title, path: "/delivery" }])} />
       <section className="bg-forest text-ivory">
         <div className="container-page py-12 md:py-16">
           <p className="label text-gold">TAOMIQ</p>
@@ -90,7 +103,9 @@ export default async function DeliveryPage({ params }: PageProps<"/[locale]/deli
         </div>
       </section>
 
-      <section className="py-14 md:py-16">
+      <ProgramLinks programs={programs} locale={locale} t={t} />
+
+      <section className="bg-ivory-deep py-14 md:py-16">
         <div className="container-page text-center">
           <h2 className="font-serif text-4xl text-forest md:text-5xl">{t.cta.title}</h2>
           <p className="mx-auto mt-4 max-w-xl text-muted">{t.delivery.questions}</p>

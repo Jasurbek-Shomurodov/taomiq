@@ -1,6 +1,20 @@
 import type { Metadata } from "next";
+import shareImage from "@/app/[locale]/opengraph-image.jpg";
 import { defaultLocale, htmlLang, locales, ogLocale, type Locale } from "@/i18n/config";
 import { site } from "@/lib/site";
+
+/**
+ * The share image (1200 × 630). The home page gets it from the file convention
+ * (src/app/[locale]/opengraph-image.jpg, twitter-image.jpg); every other page sets its own `openGraph`,
+ * which replaces the parent's, so the same file is attached here explicitly. Alt text as in
+ * opengraph-image.alt.txt.
+ */
+const SHARE_IMAGE = {
+  url: shareImage.src,
+  width: shareImage.width,
+  height: shareImage.height,
+  alt: "TAOMIQ logo: TQ monogram in a gold ring, premium daily nutrition",
+};
 
 type PageMetadataInput = {
   locale: Locale;
@@ -50,11 +64,13 @@ export function pageMetadata({
       locale: ogLocale[locale],
       siteName: site.name,
       type: "website",
+      images: [SHARE_IMAGE],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description,
+      images: [SHARE_IMAGE],
     },
   };
 }

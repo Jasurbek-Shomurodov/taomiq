@@ -8,6 +8,7 @@ import { getDictionary } from "@/i18n";
 import { formatSum, isLocale } from "@/i18n/config";
 import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
+import { lowestPricePerDay } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { faqPage } from "@/lib/structured-data";
@@ -31,7 +32,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const t = getDictionary(locale);
 
   const programs = await getPrograms();
-  const minPrice = Math.min(...programs.flatMap((p) => p.variants.map((v) => v.price_per_day)));
+  const minPrice = lowestPricePerDay(programs);
 
   // "Today's menu" preview: the middle program at its first calorie level.
   const featured = programs.find((p) => p.slug === "balance") ?? programs[0];
@@ -53,14 +54,16 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               <br />
               <span className="text-gold">{t.hero.titleAccent}</span>
             </h1>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-ivory/80">{t.hero.lead}</p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <p className="mt-5 max-w-xl text-lg font-semibold leading-snug text-ivory sm:text-xl">{t.hero.subtitle}</p>
+            <p className="mt-4 max-w-xl text-lg leading-relaxed text-ivory/80">{t.hero.lead}</p>
+            {/* .hero-cta: the phone call-to-action bar waits until these buttons scroll away. */}
+            <div className="hero-cta mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <Link href={`/${locale}/order`} className="btn btn-gold w-full sm:w-auto">{t.hero.cta}</Link>
               <Link href={`/${locale}/menu`} className="btn btn-outline w-full text-ivory sm:w-auto">
                 {t.hero.secondary}
               </Link>
             </div>
-            {Number.isFinite(minPrice) && (
+            {minPrice !== null && (
               <p className="mt-6 text-sm text-ivory/70">
                 {t.hero.from} <span className="font-semibold text-ivory">{formatSum(minPrice)}</span> {t.hero.perDay}
               </p>
@@ -87,7 +90,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </section>
 
       {/* How it works */}
-      <section id="how" className="container-page scroll-mt-28 py-16 md:py-20">
+      <section id="how" className="container-page scroll-mt-20 lg:scroll-mt-28 py-16 md:py-20">
         <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.how.title}</h2>
         <ol className="mt-10 grid gap-8 md:grid-cols-3">
           {t.how.steps.map((step, index) => (
@@ -101,19 +104,32 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </section>
 
       {/* Programs */}
-      <section id="programs" className="scroll-mt-28 bg-ivory-deep py-16 md:py-20">
+      <section id="programs" className="scroll-mt-20 lg:scroll-mt-28 bg-ivory-deep py-16 md:py-20">
         <div className="container-page">
           <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.programs.title}</h2>
           <p className="mt-3 max-w-2xl text-muted">{t.programs.lead}</p>
 
-          <ul className="mt-10 grid gap-5 md:grid-cols-3">
+          {/* Phones: a snap row, each card 85 % wide so the next one peeks in (dots where the browser
+              draws ::scroll-marker). From md: the three-column grid. The whole card links to the
+              program page; the menu link sits above that. */}
+          <ul className="program-row reveal -mx-5 mt-10 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:snap-none md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0 md:pb-0">
             {programs.map((program) => {
               const from = Math.min(...program.variants.map((v) => v.price_per_day));
               return (
-                <li key={program.id} className="reveal flex flex-col rounded-3xl bg-forest p-7 text-ivory">
+                <li
+                  key={program.id}
+                  className="press relative flex w-[85%] shrink-0 snap-start flex-col rounded-3xl bg-forest p-7 text-ivory md:w-auto"
+                >
                   <span className="h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
                   <p className="label mt-5 text-ivory/60">TAOMIQ</p>
-                  <h3 className="font-serif text-4xl">{program.name}</h3>
+                  <h3 className="font-serif text-4xl">
+                    <Link
+                      href={`/${locale}/programs/${program.slug}`}
+                      className="after:absolute after:inset-0 after:rounded-3xl after:content-['']"
+                    >
+                      {program.name}
+                    </Link>
+                  </h3>
                   <p className="mt-1 text-gold">{localized(program, "tagline", locale)}</p>
                   <p className="mt-4 text-sm leading-relaxed text-ivory/75">
                     {localized(program, "description", locale)}
@@ -133,12 +149,13 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                     <span className="font-serif text-2xl text-ivory">{formatSum(from)}</span> {t.hero.perDay}
                   </p>
                   <div className="mt-auto flex flex-wrap gap-2 pt-6">
-                    <Link href={`/${locale}/programs/${program.slug}`} className="btn btn-gold !px-5 !py-2.5 !text-sm">
+                    {/* Looks like a button; the tap target is the whole card (the link on the name). */}
+                    <span aria-hidden className="btn btn-gold !px-5 !py-2.5 !text-sm">
                       {t.programs.details}
-                    </Link>
+                    </span>
                     <Link
                       href={`/${locale}/menu?program=${program.slug}`}
-                      className="btn btn-outline !px-5 !py-2.5 !text-sm text-ivory"
+                      className="btn btn-outline relative z-10 !px-5 !py-2.5 !text-sm text-ivory"
                     >
                       {t.programs.viewMenu}
                     </Link>
@@ -186,7 +203,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="container-page scroll-mt-28 py-16 md:py-20">
+      <section id="faq" className="container-page scroll-mt-20 lg:scroll-mt-28 py-16 md:py-20">
         <JsonLd data={faqPage(t.faq.items, locale)} />
         <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.faq.title}</h2>
         <div className="mt-8 max-w-3xl divide-y divide-line border-y border-line">

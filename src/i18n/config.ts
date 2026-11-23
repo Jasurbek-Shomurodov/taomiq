@@ -23,6 +23,13 @@ export const localeLabel: Record<Locale, string> = { uz: "Oʻz", uzc: "Ўз", ru
 /** The language's full name in that language, for the switch's accessible names. */
 export const localeName: Record<Locale, string> = { uz: "Oʻzbekcha", uzc: "Ўзбекча", ru: "Русский" };
 
+/** The language named in English, for machine-read summaries (/llms.txt). */
+export const localeNameEn: Record<Locale, string> = {
+  uz: "Uzbek (Latin script)",
+  uzc: "Uzbek (Cyrillic script)",
+  ru: "Russian",
+};
+
 /** The language named in Russian, for staff-facing text (order alerts, the admin). */
 export const localeNameRu: Record<Locale, string> = {
   uz: "узбекский",

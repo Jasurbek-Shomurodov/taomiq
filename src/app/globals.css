@@ -234,6 +234,9 @@ details.faq > summary::-webkit-details-marker {
   .hero-enter > :nth-child(5) {
     animation-delay: 240ms;
   }
+  .hero-enter > :nth-child(n + 6) {
+    animation-delay: 300ms;
+  }
 }
 
 /* Scroll reveal: fade + 24 px rise while the element enters the viewport. Browsers without
@@ -366,6 +369,118 @@ details.faq > summary::-webkit-details-marker {
 @starting-style {
   .grow-live {
     scale: 0 1;
+  }
+}
+
+/* ---------------------------------------------------------------------------------------
+   Phones: navigation sheet (components/MobileNav.tsx) and call-to-action bar (MobileCtaBar.tsx).
+   --------------------------------------------------------------------------------------- */
+
+/* Bottom sheet on a native modal <dialog>: rises in 400 ms, leaves in 160 ms; the backdrop fades in
+   240 ms. Closed, it is display: none like any dialog, so the off-screen start is never a resting state.
+   Without @starting-style it simply appears. */
+.nav-sheet {
+  position: fixed;
+  inset: auto 0 0;
+  margin: 0;
+  width: 100%;
+  max-width: none;
+  max-height: 90dvh;
+  padding: 0;
+  border: 0;
+  border-radius: 1.5rem 1.5rem 0 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  translate: 0 100%;
+  transition:
+    translate var(--duration-fast) var(--ease-exit),
+    overlay var(--duration-fast) allow-discrete,
+    display var(--duration-fast) allow-discrete;
+}
+.nav-sheet[open] {
+  translate: 0 0;
+  transition-duration: var(--duration-slow);
+  transition-timing-function: var(--ease-out-calm);
+}
+@starting-style {
+  .nav-sheet[open] {
+    translate: 0 100%;
+  }
+}
+.nav-sheet::backdrop {
+  background-color: rgb(18 46 40 / 0);
+  transition:
+    background-color var(--duration-fast) var(--ease-exit),
+    overlay var(--duration-fast) allow-discrete,
+    display var(--duration-fast) allow-discrete;
+}
+.nav-sheet[open]::backdrop {
+  background-color: rgb(18 46 40 / 0.6);
+  transition-duration: var(--duration-base);
+  transition-timing-function: var(--ease-out-calm);
+}
+@starting-style {
+  .nav-sheet[open]::backdrop {
+    background-color: rgb(18 46 40 / 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* ::backdrop is not matched by the global * rule. */
+  .nav-sheet::backdrop {
+    transition-duration: 0.01ms !important;
+  }
+}
+/* The page behind the open sheet does not scroll. */
+html:has(.nav-sheet[open]) {
+  overflow: hidden;
+}
+
+/* The bar's in-flow box after the footer: as tall as the bar (12 px + 48 px button + bottom padding
+   + 1 px border), so the footer's last line can always scroll above it. */
+.cta-bar-space {
+  height: calc(3.75rem + 1px + max(0.75rem, env(safe-area-inset-bottom)));
+}
+@media (max-width: 47.999rem) {
+  html:has(.cta-bar) {
+    scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
+}
+
+/* A page's own hero call to action names a view timeline (inset by the 56 px phone header). The bar
+   waits below the screen while that CTA is visible and slides up, with the scroll, as it leaves.
+   Pages without one leave the timeline inactive, and the bar simply shows. */
+.hero-cta {
+  view-timeline-name: --hero-cta;
+  view-timeline-inset: 3.5rem 0;
+}
+body {
+  timeline-scope: --hero-cta;
+}
+@supports (animation-timeline: view()) {
+  @keyframes cta-bar-wait {
+    from {
+      translate: 0 100%;
+      visibility: hidden;
+    }
+  }
+  .cta-bar {
+    animation: cta-bar-wait linear both;
+    animation-timeline: --hero-cta;
+    animation-range: exit 0% exit 100%;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* No slide: the bar appears at once when the hero CTA has left. */
+    .cta-bar {
+      animation-timing-function: steps(1, end);
+    }
+  }
+}
+
+/* Home program cards on phones: a snap row. The peeking next card says "swipe"; no dots, because
+   ::scroll-marker is Chromium-only and the CSS optimiser warns on it at every build. */
+@media (max-width: 47.999rem) {
+  .program-row {
+    scrollbar-width: none;
   }
 }
 

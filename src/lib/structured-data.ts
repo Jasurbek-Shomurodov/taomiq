@@ -35,6 +35,24 @@ export function organizationAndWebsite(locale: Locale, description: string) {
   };
 }
 
+/**
+ * BreadcrumbList from the home page down to the current page. `trail` is the pages after home, each
+ * with its name and its path after the locale ("/menu", "/programs/light"); the last one is the page itself.
+ */
+export function breadcrumbList(locale: Locale, trail: readonly { name: string; path: string }[]) {
+  const items = [{ name: site.name, path: "" }, ...trail];
+  return {
+    "@context": CONTEXT,
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: `${site.url}/${locale}${item.path}`,
+    })),
+  };
+}
+
 export function faqPage(items: readonly { q: string; a: string }[], locale: Locale) {
   return {
     "@context": CONTEXT,

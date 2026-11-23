@@ -3,20 +3,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense, ViewTransition } from "react";
 import { DayPicker } from "@/components/DayPicker";
+import { JsonLd } from "@/components/JsonLd";
 import { MenuDay } from "@/components/MenuDay";
 import { MenuSkeleton } from "@/components/MenuSkeleton";
+import { ProgramLinks } from "@/components/ProgramLinks";
 import { CHIP } from "@/components/menu-styles";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
-import { CYCLE_DAYS } from "@/lib/data/types";
+import { CYCLE_DAYS, type Program } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
+import { breadcrumbList } from "@/lib/structured-data";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/menu">): Promise<Metadata> {
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
-  return pageMetadata({ locale, path: "/menu", title: t.menu.title, description: t.menu.lead });
+  return pageMetadata({ locale, path: "/menu", title: t.menu.metaTitle, description: t.menu.metaDescription });
 }
 
 export default async function MenuPage({ params, searchParams }: PageProps<"/[locale]/menu">) {
@@ -24,8 +27,17 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/[lo
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
 
+  // Links to the program pages under the menu. The menu itself still renders without them.
+  let programs: Program[] = [];
+  try {
+    programs = await getPrograms();
+  } catch (error) {
+    console.error("menu page: catalogue unavailable", error);
+  }
+
   return (
     <>
+      <JsonLd data={breadcrumbList(locale, [{ name: t.menu.title, path: "/menu" }])} />
       <section className="bg-forest text-ivory">
         <div className="container-page py-12 md:py-16">
           <p className="label text-gold">TAOMIQ</p>
@@ -50,6 +62,10 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/[lo
           </ViewTransition>
         </Suspense>
       </section>
+
+      <div className="bg-ivory-deep">
+        <ProgramLinks programs={programs} locale={locale} t={t} />
+      </div>
     </>
   );
 }
@@ -128,7 +144,7 @@ async function MenuBrowser({
       </div>
 
       {/* Anchor for the previous / next buttons: they bring the reader back to the top of the day. */}
-      <div id="menu-day" className="scroll-mt-32 lg:scroll-mt-24">
+      <div id="menu-day" className="scroll-mt-20 lg:scroll-mt-24">
         <p id="menu-day-label" className="label mt-8 text-muted">
           {t.menu.day}
         </p>

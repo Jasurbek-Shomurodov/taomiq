@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/JsonLd";
 import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { getDurations, getPrograms } from "@/lib/data/catalog";
 import { pricePerDay } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
+import { breadcrumbList } from "@/lib/structured-data";
 import { Calculator, type CalculatorProgram } from "./Calculator";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/calculator">): Promise<Metadata> {
@@ -50,6 +52,7 @@ export default async function CalculatorPage({ params }: PageProps<"/[locale]/ca
 
   return (
     <>
+      <JsonLd data={breadcrumbList(locale, [{ name: t.calculator.title, path: "/calculator" }])} />
       <section className="bg-forest text-ivory">
         <div className="container-page py-12 md:py-16">
           <p className="label text-gold">TAOMIQ</p>

@@ -9,7 +9,15 @@ import { getDurations, getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data
 import { localized } from "@/lib/data/localized";
 import { pricePerDay } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
-import { programProduct } from "@/lib/structured-data";
+import { breadcrumbList, programProduct } from "@/lib/structured-data";
+
+/**
+ * The whole page must come out of a static render, also for a slug the build did not list. Next then
+ * renders an unlisted slug completely before answering, instead of streaming a fallback shell first:
+ * a program added in the back office later is rendered (and cached) on its first visit, and an unknown
+ * slug reaches notFound() before the response starts, so it is a real 404 rather than a 200.
+ */
+export const ensureStatic = "navigation";
 
 export async function generateStaticParams() {
   const programs = await getPrograms();
@@ -21,11 +29,13 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/programs
   if (!isLocale(locale)) return {};
   const program = (await getPrograms()).find((p) => p.slug === slug);
   if (!program) return {};
+  // Keyword copy for the known programs; a program added later in admin uses its own tagline and text.
+  const seo = getDictionary(locale).programs.seo[program.slug];
   return pageMetadata({
     locale,
     path: `/programs/${slug}`,
-    title: `${program.name} — ${localized(program, "tagline", locale)}`,
-    description: localized(program, "description", locale),
+    title: `${program.name} — ${seo?.title ?? localized(program, "tagline", locale)}`,
+    description: seo?.description ?? localized(program, "description", locale),
   });
 }
 
@@ -39,21 +49,25 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
   if (!program) notFound();
 
   const firstVariant = program.variants[0];
+  const subtitle = t.programs.seo[program.slug]?.subtitle;
   const sample = firstVariant ? await getMenuDay(firstVariant.id, 1) : [];
 
   return (
     <>
       <JsonLd data={programProduct(program, durations, locale, t.programs.kcal)} />
+      <JsonLd data={breadcrumbList(locale, [{ name: program.name, path: `/programs/${program.slug}` }])} />
       <section className="bg-forest text-ivory">
         <div className="container-page py-14 md:py-20">
           <span className="block h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
           <p className="label mt-5 text-ivory/60">TAOMIQ</p>
           <h1 className="font-serif text-6xl md:text-7xl">{program.name}</h1>
           <p className="mt-2 text-xl text-gold">{localized(program, "tagline", locale)}</p>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ivory/80">
+          {subtitle && <p className="mt-4 max-w-2xl text-lg font-semibold leading-snug text-ivory">{subtitle}</p>}
+          <p className={`${subtitle ? "mt-3" : "mt-5"} max-w-2xl text-lg leading-relaxed text-ivory/80`}>
             {localized(program, "description", locale)}
           </p>
-          <Link href={`/${locale}/order?program=${program.slug}`} className="btn btn-gold mt-8">
+          {/* .hero-cta: the phone call-to-action bar waits until this button scrolls away. */}
+          <Link href={`/${locale}/order?program=${program.slug}`} className="hero-cta btn btn-gold mt-8">
             {t.nav.cta}
           </Link>
         </div>

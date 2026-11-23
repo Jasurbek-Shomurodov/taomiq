@@ -3,9 +3,12 @@ import type { CSSProperties } from "react";
 import { Manrope, Noto_Serif_Display, Onest } from "next/font/google";
 import { notFound } from "next/navigation";
 import { JsonLd } from "@/components/JsonLd";
+import { MobileCtaBar } from "@/components/MobileCtaBar";
 import { Footer, Header } from "@/components/SiteChrome";
 import { getDictionary } from "@/i18n";
 import { htmlLang, isLocale, locales, ogLocale, type Locale } from "@/i18n/config";
+import { getPrograms } from "@/lib/data/catalog";
+import { lowestPricePerDay, type Program } from "@/lib/data/types";
 import { site } from "@/lib/site";
 import { organizationAndWebsite } from "@/lib/structured-data";
 import "../globals.css";
@@ -76,6 +79,14 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
   if (!isLocale(locale)) notFound();
   const t = getDictionary(locale);
 
+  // The footer's program links and the phone bar's "from" price. The chrome still renders without them.
+  let programs: Program[] = [];
+  try {
+    programs = await getPrograms();
+  } catch (error) {
+    console.error("layout: catalogue unavailable", error);
+  }
+
   return (
     <html
       lang={htmlLang[locale]}
@@ -86,7 +97,12 @@ export default async function LocaleLayout({ children, params }: LayoutProps<"/[
         <JsonLd data={organizationAndWebsite(locale, t.meta.description)} />
         <Header locale={locale} t={t} />
         <main className="flex-1">{children}</main>
-        <Footer locale={locale} t={t} />
+        <Footer locale={locale} t={t} programs={programs} />
+        <MobileCtaBar
+          locale={locale}
+          fromPrice={lowestPricePerDay(programs)}
+          labels={{ cta: t.nav.cta, from: t.hero.from, perDay: t.hero.perDay }}
+        />
       </body>
     </html>
   );

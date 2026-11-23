@@ -105,6 +105,15 @@ export function pricePerDay(basePrice: number, markupPct: number): number {
   return Math.round(scaled / 10_000_000) * 1000;
 }
 
+/**
+ * The lowest catalogue price per day across the given programs' calorie levels: the "from … per day"
+ * figure shown in the home hero and the phone call-to-action bar. null when there are no levels.
+ */
+export function lowestPricePerDay(programs: Pick<Program, "variants">[]): number | null {
+  const prices = programs.flatMap((p) => p.variants.map((v) => v.price_per_day));
+  return prices.length > 0 ? Math.min(...prices) : null;
+}
+
 /** Which day of the 30-day cycle a calendar date falls on (1…30). */
 export function cycleDayFor(date: Date, anchorIso: string): number {
   const anchor = new Date(`${anchorIso}T00:00:00+05:00`); // Tashkent time
