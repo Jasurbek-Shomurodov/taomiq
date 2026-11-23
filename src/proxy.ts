@@ -10,18 +10,32 @@ function noindex(response: NextResponse): NextResponse {
 }
 
 /**
- * The site language for a first visit with no locale in the path, from Accept-Language, in the
- * browser's order. A language tag cannot tell the two Uzbek scripts apart unless it names the
- * script, so uz-Cyrl → uzc and any other uz → uz (Latin). Once a visitor picks a language, the
+ * The site language for a first visit with no locale in the path, from Accept-Language: the
+ * supported language the browser weights highest (q, 1 when absent; q=0 means "not acceptable"),
+ * the earlier one on a tie. A language tag cannot tell the two Uzbek scripts apart unless it names
+ * the script, so uz-Cyrl → uzc and any other uz → uz (Latin). Once a visitor picks a language, the
  * path carries it and this is not consulted again.
  */
 function preferredLocale(acceptLanguage: string): Locale {
+  let best: Locale = defaultLocale;
+  let bestWeight = 0;
   for (const part of acceptLanguage.toLowerCase().split(",")) {
-    const tag = part.split(";")[0].trim();
-    if (tag === "uz" || tag.startsWith("uz-")) return tag.split("-").includes("cyrl") ? "uzc" : "uz";
-    if (tag === "ru" || tag.startsWith("ru-")) return "ru";
+    const [rawTag, ...params] = part.split(";");
+    const tag = rawTag.trim();
+    let locale: Locale;
+    if (tag === "uz" || tag.startsWith("uz-")) locale = tag.split("-").includes("cyrl") ? "uzc" : "uz";
+    else if (tag === "ru" || tag.startsWith("ru-")) locale = "ru";
+    else continue;
+
+    const q = params.map((param) => param.trim()).find((param) => param.startsWith("q="));
+    const parsed = q ? Number(q.slice(2)) : 1;
+    const weight = Number.isFinite(parsed) ? parsed : 1;
+    if (weight > bestWeight) {
+      best = locale;
+      bestWeight = weight;
+    }
   }
-  return defaultLocale;
+  return best;
 }
 
 /**

@@ -20,8 +20,9 @@ async function choose(page: Page, name: string) {
 }
 
 /**
- * The first-visit redirect in src/proxy.ts (preferredLocale): the first uz or ru tag in the browser's
- * order wins, a uz tag naming the Cyrillic script picks uzc, anything else falls back to the default.
+ * The first-visit redirect in src/proxy.ts (preferredLocale): the uz or ru tag with the highest
+ * q wins (the earlier one on a tie, q=0 never), a uz tag naming the Cyrillic script picks uzc, anything else
+ * falls back to the default.
  */
 const acceptLanguageCases: { header: string; expected: Locale }[] = [
   { header: "", expected: defaultLocale },
@@ -30,6 +31,10 @@ const acceptLanguageCases: { header: string; expected: Locale }[] = [
   { header: "uz-UZ,uz;q=0.9,ru;q=0.8", expected: "uz" },
   { header: "uz-Cyrl-UZ,uz;q=0.9,ru;q=0.8", expected: "uzc" },
   { header: "en-US,ru;q=0.8,uz;q=0.5", expected: "ru" },
+  { header: "ru;q=0.5,uz;q=0.9", expected: "uz" },
+  { header: "en;q=0.9, ru;q=0.4, uz-Cyrl;q=0.8", expected: "uzc" },
+  { header: "ru;q=0,en", expected: defaultLocale },
+  { header: "ru;q=0,uz-Cyrl;q=0.1", expected: "uzc" },
 ];
 
 test("/ sends visitors to their language, the default locale otherwise", async ({ page, request }) => {
@@ -76,6 +81,21 @@ test("the language switch keeps the current page, through every locale and back"
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(getDictionary(target).menu.title);
     await expect(link).toHaveAttribute("aria-current", "true");
   }
+});
+
+test("the language switch keeps the query string, also after a same-page day change", async ({ page }) => {
+  await page.goto("/uz/menu?day=1");
+  // A client-side navigation that changes only the query: the switch must pick up the new one.
+  await page
+    .getByRole("navigation", { name: uz.menu.day, exact: true })
+    .getByRole("link", { name: "2", exact: true })
+    .click();
+  await expect(page).toHaveURL(/[?&]day=2(&|$)/);
+  const search = new URL(page.url()).search;
+
+  await page.getByRole("banner").getByRole("link", { name: localeName.ru, exact: true }).click();
+  await expect(page).toHaveURL((url) => url.pathname === "/ru/menu" && url.search === search);
+  await expect(page.locator("html")).toHaveAttribute("lang", htmlLang.ru);
 });
 
 test("menu: choosing another day changes the dishes", async ({ page }) => {
