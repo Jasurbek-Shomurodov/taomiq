@@ -107,3 +107,15 @@ Needs content from the business and a storage decision (MDX in repo vs Supabase 
 - Until the menu has data, `/menu` is thin. Proposal: leave it in the sitemap but fill at least one program before submitting the sitemap to search engines.
 - Keyword volumes are still unvalidated (Yandex Wordstat, Google Keyword Planner) — slice 3 copy uses the seed list.
 - Goal landing URL slugs: transliterated Uzbek (`/uz/ozish-uchun-ratsion`) and Russian (`/ru/pitanie-dlya-pohudeniya`) differ per locale, or one shared English slug? Proposal: shared neutral slugs (`/goals/weight-loss`) — simpler hreflang; keywords live in title, h1 and copy.
+
+## Status (23 Nov 2026)
+
+| Slice | State |
+|---|---|
+| 1 Metadata correctness | Shipped (`c51f6be`) |
+| 2 Brand assets and share previews | Shipped: icons and share image came with the logo work; manifest, `llms.txt`, large Twitter card in `5402b79`. Per-program share images and `Product.image` not done (no program images) |
+| 3 Keywords and on-page | Shipped (`5402b79`), now in uz, uzc and ru. Unknown program slugs return a real 404. The localised 404 page still has an empty server HTML shell (no supported fix found in Next 16.4 with `cacheComponents`) |
+| 4 Evergreen pages | Shipped: `/faq`, `/prices` (`5dc4235`); goal pages `/goals/{weight-loss,high-protein,balanced,halal}` and `/calculator/{protein,bmi,water}` (`7367a70`). `/about` and `LocalBusiness` wait for owner content |
+| 5 Content hub and local pages | Not started: needs articles, served districts, and a storage decision |
+
+Still open outside the repo: DNS delegation for `taomiq.uz` (zone exists at PS Cloud with correct records; the `.uz` registry had not published the delegation), Search Console, Yandex Webmaster, business listings. All new Uzbek copy (Latin and Cyrillic) needs a native editor's pass.

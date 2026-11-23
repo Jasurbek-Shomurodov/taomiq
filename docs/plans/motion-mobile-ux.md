@@ -126,3 +126,16 @@ Reviewer required for 5b (it is the conversion path and carries personal data).
 
 1. The spec describes five order steps including phone OTP and payment; the form today has three sections. This plan steps the existing three. OTP and payment remain for the ordering phase.
 2. Bottom tab bar vs single sticky call to action: this plan chooses the single CTA (one conversion goal). Say so if you prefer tabs.
+
+## Status (23 Nov 2026)
+
+| Slice | State |
+|---|---|
+| 1 Foundation and touch polish | Shipped (`eea0f74`) |
+| 2 Mobile navigation and call-to-action bar | Shipped (`5402b79`), with the home program snap row. The CSS-only dots were dropped (Chromium-only, build warnings) |
+| 3 Route and shared-element transitions | Shipped (`1a39907`). The morph does not play on browser back/forward |
+| 4 Menu and program pages on mobile | Shipped (`bebb40e`) |
+| 5a Calculator feedback | Shipped (`5456a34`) |
+| 5b Stepped order form | Shipped (`6988670`), reviewed. Steps live in component state, not browser history (hash history was tried and removed as unreliable). Also: separate Next and Order buttons with a 400 ms rest, `method="post"`, form reset after an order |
+
+Not yet done: a pass on real iOS Safari and in the Telegram and Instagram in-app browsers; reduced-motion checked in code and headless Chromium only.

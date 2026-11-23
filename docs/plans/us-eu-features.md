@@ -100,3 +100,13 @@ Each is independent and needs no payments or account.
 3. **Named nutritionist and chef**, photos, halal certificate, suppliers, and any real statistics (Slices B, D). Nothing is shown until it exists.
 4. **Telegram first-order benefit and referral reward** — what is offered? The brandbook rules out loud discounts.
 5. **Reviews** — are there Google / Yandex Maps listings yet?
+
+## Status (23 Nov 2026)
+
+| Item | State |
+|---|---|
+| 1 Sticky order bar | Shipped (`5402b79`) |
+| 2 Goal landing pages, 7 calculator suite | Shipped (`7367a70`) |
+| 3 / slice A Dish chips, badges, detail sheet | Shipped (`0139523`). Storage, reheating and shelf-life text need a `dishes` column and kitchen content |
+| 4 / slice B Program finder quiz | Shipped (`0139523`), three steps, no nutritionist face yet |
+| Slices C, D, E; items 6, 9–14 | Waiting on the owner's answers under "Open questions" |
