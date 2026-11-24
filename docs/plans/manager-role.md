@@ -28,7 +28,7 @@ The owner picks the role when approving a request and can switch a team member b
 - Team actions: `approveAccess` takes the chosen role — calls `approve_staff_request` (grants `admin`), then `set_staff_role` when the choice is `manager`; if the second call fails the member stays `admin` and the owner sees the error. New action `changeStaffRole`.
 - Dictionaries (ru / uz / uzc): `roles.manager`, the role chooser, the role descriptions, the changed notice. "Manager" in Russian: «Менеджер».
 
-## Data model — migration `0011_manager_role.sql`
+## Data model — migration `0012_manager_role.sql`
 
 (0009 and 0010 are the kitchen and delivery sheets, which landed first.)
 
