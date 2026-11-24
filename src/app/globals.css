@@ -469,6 +469,11 @@ details.faq > summary::-webkit-details-marker {
   .hero-enter > :nth-child(n + 6) {
     animation-delay: 300ms;
   }
+  /* The hero's visual (cover photo, ration label) joins the stagger last. It only moves, never fades: the
+     photo may be the LCP element, and nothing starts hidden. */
+  .hero-visual {
+    animation: lift var(--duration-slow) var(--ease-out-calm) 300ms both;
+  }
 }
 
 /* Scroll reveal: fade + 24 px rise while the element enters the viewport. Browsers without

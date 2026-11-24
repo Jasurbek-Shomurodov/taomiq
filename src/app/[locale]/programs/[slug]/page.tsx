@@ -7,10 +7,12 @@ import { JsonLd } from "@/components/JsonLd";
 import { MenuDay } from "@/components/MenuDay";
 import { PageTransition } from "@/components/PageTransition";
 import { ProgramPrices } from "@/components/ProgramPrices";
+import { RationLabel } from "@/components/RationLabel";
 import { getDictionary } from "@/i18n";
 import { isLocale, locales } from "@/i18n/config";
 import { getDurations, getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
+import { sumNutrition } from "@/lib/data/types";
 import { goalsForProgram } from "@/lib/goal-pages";
 import { pageMetadata } from "@/lib/seo";
 import { breadcrumbList, programProduct } from "@/lib/structured-data";
@@ -56,6 +58,8 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
   const subtitle = t.programs.seo[program.slug]?.subtitle;
   const sample = firstVariant ? await getMenuDay(firstVariant.id, 1) : [];
   const tagline = localized(program, "tagline", locale);
+  // The ration label prints the sample day's totals only when that day is complete (every meal of the level).
+  const sampleTotals = firstVariant && sample.length >= firstVariant.meals_per_day ? sumNutrition(sample) : undefined;
 
   const intro = (
     <>
@@ -84,26 +88,54 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
       <JsonLd data={programProduct(program, durations, locale, t.programs.kcal)} />
       <JsonLd data={breadcrumbList(locale, [{ name: program.name, path: `/programs/${program.slug}` }])} />
       <section className="bg-forest text-ivory">
-        {program.photo_url ? (
-          // With a cover photo: above the text on phones, beside the heading from md.
-          <div className="container-page grid gap-8 py-14 md:grid-cols-[1.3fr_1fr] md:items-center md:gap-12 md:py-20">
-            <div className="relative aspect-[3/2] overflow-hidden rounded-3xl md:order-last">
-              {/* The largest element of the page: load it at once. */}
-              <Image
-                src={program.photo_url}
-                alt={`${program.name} — ${tagline}`}
-                fill
-                sizes="(min-width: 768px) 45vw, 100vw"
-                loading="eager"
-                fetchPriority="high"
-                className="object-cover"
-              />
+        <div
+          className={`container-page grid gap-8 py-14 md:gap-12 md:py-20 ${
+            program.photo_url || firstVariant ? "md:grid-cols-[1.3fr_1fr] md:items-center" : ""
+          }`}
+        >
+          <div className="md:col-start-1 md:row-start-1">{intro}</div>
+          {program.photo_url ? (
+            // With a cover photo: above the text on phones, the ration label under it. From md the photo is a tall
+            // frame beside the heading with the label overlapping its lower left corner. Phones: the wrapper is
+            // display: contents, so the photo and the label are ordered in the hero's own grid.
+            <div className="contents md:relative md:col-start-2 md:row-start-1 md:block md:w-full md:max-w-[24rem] md:justify-self-center">
+              <div className="relative order-first aspect-[3/2] overflow-hidden rounded-3xl md:order-none md:aspect-[4/5]">
+                {/* The largest element of the page: load it at once. */}
+                <Image
+                  src={program.photo_url}
+                  alt={`${program.name} — ${tagline}`}
+                  fill
+                  sizes="(min-width: 768px) 24rem, 100vw"
+                  loading="eager"
+                  fetchPriority="high"
+                  className="object-cover"
+                />
+              </div>
+              {firstVariant && (
+                <RationLabel
+                  program={program}
+                  variant={firstVariant}
+                  totals={sampleTotals}
+                  locale={locale}
+                  compact
+                  className="hero-visual order-last w-full max-w-sm md:absolute md:-bottom-8 md:-left-8 md:w-60"
+                />
+              )}
             </div>
-            <div>{intro}</div>
-          </div>
-        ) : (
-          <div className="container-page py-14 md:py-20">{intro}</div>
-        )}
+          ) : (
+            firstVariant && (
+              // No photo yet: the label fills the right half from md and sits under the text on phones. The h1 stays
+              // the largest element.
+              <RationLabel
+                program={program}
+                variant={firstVariant}
+                totals={sampleTotals}
+                locale={locale}
+                className="hero-visual w-full max-w-sm md:col-start-2 md:row-start-1 md:max-w-[22rem] md:justify-self-center"
+              />
+            )
+          )}
+        </div>
       </section>
 
       {/* Prices by calorie level and duration */}

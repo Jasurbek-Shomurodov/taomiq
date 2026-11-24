@@ -48,11 +48,12 @@ const uz: Dictionary = {
     title: "Ovqatlanish dasturlari",
     lead: "Bitta tizim, uchta dastur. Kaloriya darajasi har bir dastur ichida tanlanadi.",
     levels: "Kaloriya",
-    mealsPerDay: "mahal ovqat",
+    mealForms: ["mahal ovqat", "mahal ovqat", "mahal ovqat"],
     viewMenu: "Dastur menyusi",
     details: "Batafsil",
     priceNote: "30 kunlik buyurtmada bir kunlik narx",
     kcal: "kkal",
+    rationLabel: "Ratsion yorligʻi",
     seo: {
       light: {
         title: "ozish uchun ratsion, yetkazib berish bilan",

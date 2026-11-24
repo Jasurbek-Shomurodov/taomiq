@@ -14,7 +14,8 @@ export type NutritionLabels = {
   carbsFull: string;
 };
 
-type Nutrition = { kcal: number; protein: number; fat: number; carbs: number; weight: number };
+/** `weight` is the portion's net weight; leave it out for a whole day's totals (the ration label). */
+type Nutrition = { kcal: number; protein: number; fat: number; carbs: number; weight?: number };
 
 /**
  * The brandbook's data line: `297 ккал · Б 11 · Ж 8 · У 46 · 270 г`, tracked sans, kcal in forest and the rest muted.
@@ -60,10 +61,14 @@ export function DishDataLine({
           </span>
         </span>
       ))}
-      {dot}
-      <span className="whitespace-nowrap">
-        {weight} {labels.weight}
-      </span>
+      {weight !== undefined && (
+        <>
+          {dot}
+          <span className="whitespace-nowrap">
+            {weight} {labels.weight}
+          </span>
+        </>
+      )}
     </p>
   );
 }

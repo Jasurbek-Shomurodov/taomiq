@@ -45,11 +45,14 @@ const ru = {
     title: "Программы питания",
     lead: "Одна система, три программы. Калорийность выбирается внутри каждой.",
     levels: "Калорийность",
-    mealsPerDay: "приёмов пищи",
+    /** plural(): 1 приём пищи, 4 приёма пищи, 5 приёмов пищи. */
+    mealForms: ["приём пищи", "приёма пищи", "приёмов пищи"],
     viewMenu: "Меню программы",
     details: "Подробнее",
     priceNote: "Цена за день при заказе на 30 дней",
     kcal: "ккал",
+    /** Name of the ration label figure in the hero (RationLabel), for screen readers. */
+    rationLabel: "Этикетка рациона",
     /** Per program slug: title after the program name, meta description, subtitle under the h1. */
     seo: {
       light: {

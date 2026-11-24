@@ -35,7 +35,7 @@ export function ProgramPrices({
               {variant.kcal} <span className="text-base text-muted">{t.programs.kcal}</span>
             </h3>
             <p className="mt-1 text-xs text-muted">
-              {variant.meals_per_day} {t.programs.mealsPerDay}
+              {variant.meals_per_day} {plural(variant.meals_per_day, t.programs.mealForms)}
             </p>
             <dl className="mt-4 divide-y divide-line border-y border-line tabular-nums">
               {durations.map((d) => {
@@ -79,7 +79,7 @@ export function ProgramPrices({
                 <th className="p-4 font-serif text-2xl font-normal text-forest">
                   {variant.kcal} <span className="text-base text-muted">{t.programs.kcal}</span>
                   <span className="block font-sans text-xs text-muted">
-                    {variant.meals_per_day} {t.programs.mealsPerDay}
+                    {variant.meals_per_day} {plural(variant.meals_per_day, t.programs.mealForms)}
                   </span>
                   <Link
                     href={orderHref(variant.kcal)}

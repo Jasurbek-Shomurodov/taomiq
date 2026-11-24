@@ -4,15 +4,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ViewTransition } from "react";
 import { FaqList } from "@/components/FaqList";
-import { Monogram } from "@/components/Logo";
 import { MenuDay } from "@/components/MenuDay";
 import { PageTransition } from "@/components/PageTransition";
+import { RationLabel } from "@/components/RationLabel";
 import { HowItWorks, Included } from "@/components/ServiceSections";
 import { getDictionary } from "@/i18n";
 import { formatSum, isLocale } from "@/i18n/config";
 import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
-import { lowestPricePerDay } from "@/lib/data/types";
+import { lowestPricePerDay, sumNutrition } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 
@@ -44,12 +44,18 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const todayMenu = featuredVariant ? await getMenuDay(featuredVariant.id, today) : [];
   // While the cook is still filling the cycle, fall back to day 1 so the section is never empty.
   const preview = todayMenu.length > 0 || !featuredVariant ? todayMenu : await getMenuDay(featuredVariant.id, 1);
+  // The hero's ration label carries that day's totals only when the day is complete (every meal of the level is
+  // on the menu): a half-filled day would print a total the customer never gets.
+  const previewTotals =
+    featuredVariant && preview.length >= featuredVariant.meals_per_day ? sumNutrition(preview) : undefined;
 
   return (
     <PageTransition>
       {/* Hero */}
       <section className="bg-forest text-ivory">
-        <div className="container-page grid gap-10 py-16 md:grid-cols-[1.3fr_1fr] md:items-center md:py-24">
+        <div
+          className={`container-page grid gap-10 py-16 md:items-center md:py-24 ${featuredVariant ? "md:grid-cols-[1.3fr_1fr]" : ""}`}
+        >
           <div className="hero-enter">
             <p className="label text-gold">{t.hero.eyebrow}</p>
             <h1 className="mt-5 font-serif text-5xl leading-[1.05] sm:text-6xl md:text-7xl">
@@ -82,13 +88,45 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
             )}
           </div>
 
-          <div className="hidden justify-self-center md:block" aria-hidden>
-            <div className="flex h-72 w-72 items-center justify-center rounded-full border border-gold/40">
-              <div className="flex h-56 w-56 items-center justify-center rounded-full border border-gold/70">
-                <Monogram size={132} />
+          {/* The product instead of a logo: the BALANCE ration's packaging label at its first calorie level, the
+              same level as "Today's menu" below, so the day's totals on it are that menu's. Phones: under the
+              buttons, never above them. */}
+          {featured && featuredVariant &&
+            (featured.photo_url ? (
+              // With the program's cover photo: a tall frame with the label overlapping its lower left corner (from
+              // md). On phones the photo alone, at most 320 px tall.
+              <div className="hero-visual relative md:w-full md:max-w-[24rem] md:justify-self-center">
+                <div className="relative h-80 overflow-hidden rounded-3xl md:aspect-[4/5] md:h-auto">
+                  {/* The largest element of the page: load it at once. */}
+                  <Image
+                    src={featured.photo_url}
+                    alt={`${featured.name} — ${localized(featured, "tagline", locale)}`}
+                    fill
+                    sizes="(min-width: 768px) 24rem, 100vw"
+                    loading="eager"
+                    fetchPriority="high"
+                    className="object-cover"
+                  />
+                </div>
+                <RationLabel
+                  program={featured}
+                  variant={featuredVariant}
+                  totals={previewTotals}
+                  locale={locale}
+                  compact
+                  className="absolute -bottom-8 -left-8 hidden w-60 md:block"
+                />
               </div>
-            </div>
-          </div>
+            ) : (
+              // No photo yet: the label stands alone. The h1 stays the largest element.
+              <RationLabel
+                program={featured}
+                variant={featuredVariant}
+                totals={previewTotals}
+                locale={locale}
+                className="hero-visual w-full max-w-sm md:max-w-[22rem] md:justify-self-center"
+              />
+            ))}
         </div>
 
         <ul className="container-page grid gap-px border-t border-ivory/10 sm:grid-cols-2 lg:grid-cols-4">
