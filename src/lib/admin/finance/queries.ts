@@ -1,8 +1,14 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { readCapped } from "../stats";
+import { addDays, readCapped } from "../stats";
 import { rowKind, type EntryKind } from "./categories";
-import type { MonthCashflow } from "./math";
+import {
+  mergeInvestors,
+  type FinancePeriod,
+  type FinanceTotals,
+  type InvestorTotal,
+  type MonthCashflow,
+} from "./math";
 import type { FinanceMonth } from "./month";
 
 /*
@@ -30,6 +36,91 @@ export async function loadMonthlyCashflow(supabase: SupabaseClient, months: numb
     expenses: money(row.expenses),
     salaries: money(row.salaries),
   }));
+}
+
+function text(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : {};
+}
+
+function list(value: unknown): Record<string, unknown>[] {
+  return Array.isArray(value) ? value.map(record) : [];
+}
+
+function amounts(value: unknown): Record<string, number> {
+  return Object.fromEntries(Object.entries(record(value)).map(([key, amount]) => [key, money(amount)]));
+}
+
+/**
+ * Everything the Month screen shows for a range of Tashkent days, both ends included (at most 366 days):
+ * public.finance_period. `salaries` is read when the function returns it (the payroll migration, slice 3) and is 0
+ * until then.
+ */
+export async function loadPeriod(supabase: SupabaseClient, from: string, to: string): Promise<FinancePeriod> {
+  const { data, error } = await supabase.rpc("finance_period", { p_from: from, p_to: to });
+  if (error) throw new Error(`finance_period: ${error.code} ${error.message}`);
+  const body = record(data);
+  return {
+    revenue: money(body.revenue),
+    order_count: money(body.order_count),
+    byDay: list(body.by_day).map((day) => ({
+      day: String(day.day),
+      revenue: money(day.revenue),
+      spent: money(day.spent),
+    })),
+    expenseByCategory: amounts(body.expense_by_category),
+    incomeByCategory: amounts(body.income_by_category),
+    investors: list(body.investors).map((investor) => ({
+      name: text(investor.name) ?? "",
+      amount: money(investor.amount),
+    })),
+    largest: list(body.largest).map((entry) => ({
+      id: String(entry.id),
+      entry_date: String(entry.entry_date),
+      category: String(entry.category),
+      payment_method: String(entry.payment_method),
+      amount: money(entry.amount),
+      counterparty: text(entry.counterparty),
+      note: text(entry.note),
+    })),
+    salaries: money(body.salaries),
+  };
+}
+
+/** All-time sums for the investor view: public.finance_totals(). */
+export async function loadTotals(supabase: SupabaseClient): Promise<FinanceTotals> {
+  const { data, error } = await supabase.rpc("finance_totals");
+  if (error) throw new Error(`finance_totals: ${error.code} ${error.message}`);
+  const row = record(Array.isArray(data) ? data[0] : data);
+  return {
+    investor_support: money(row.investor_support),
+    revenue: money(row.revenue),
+    other_income: money(row.other_income),
+    expenses: money(row.expenses),
+    salaries: money(row.salaries),
+    first_order_day: text(row.first_order_day),
+    first_investment_day: text(row.first_investment_day),
+  };
+}
+
+/** The longest range public.finance_period accepts, in days (p_to − p_from <= 365). */
+const PERIOD_MAX_DAYS = 366;
+
+/**
+ * Investor money per name from `from` to `to` (both included), added up over as many finance_period calls as the
+ * range needs (366 days each, read in parallel), so the sums stay in SQL and no row cap applies.
+ */
+export async function loadInvestorTotals(supabase: SupabaseClient, from: string, to: string): Promise<InvestorTotal[]> {
+  const ranges: { from: string; to: string }[] = [];
+  for (let start = from; start <= to; start = addDays(start, PERIOD_MAX_DAYS)) {
+    const end = addDays(start, PERIOD_MAX_DAYS - 1);
+    ranges.push({ from: start, to: end < to ? end : to });
+  }
+  const periods = await Promise.all(ranges.map((range) => loadPeriod(supabase, range.from, range.to)));
+  return mergeInvestors(periods.map((period) => period.investors));
 }
 
 export type FinanceEntry = {

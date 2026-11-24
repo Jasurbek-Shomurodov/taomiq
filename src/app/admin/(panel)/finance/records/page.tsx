@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, NotebookPen, SearchX } from "lucide-react";
+import { NotebookPen, SearchX } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createElement } from "react";
@@ -6,7 +6,7 @@ import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
 import { formatSum, type Locale } from "@/i18n/config";
 import { requireOwner } from "@/lib/admin/auth";
 import { categoryIcon, isEntryKind, isPaymentMethod, type EntryKind } from "@/lib/admin/finance/categories";
-import { financeMonth, formatEntryDay, formatMonth, type FinanceMonth } from "@/lib/admin/finance/month";
+import { financeMonth, formatEntryDay, formatMonth } from "@/lib/admin/finance/month";
 import { ENTRIES_CAP, listMonthEntries, type FinanceEntry } from "@/lib/admin/finance/queries";
 import { addDays, tashkentDay } from "@/lib/admin/stats";
 import { BeforeHydration } from "../../../kit/BeforeHydration";
@@ -15,6 +15,7 @@ import { EmptyState } from "../../../kit/EmptyState";
 import { Notice } from "../../../kit/Notice";
 import { Panel } from "../../../kit/Panel";
 import { Segmented } from "../../../kit/Segmented";
+import { FinanceMonthSwitcher } from "../FinanceMonthSwitcher";
 import { FinanceTabs } from "../FinanceTabs";
 import { DeleteEntry } from "./DeleteEntry";
 import { EntryForm } from "./EntryForm";
@@ -113,7 +114,12 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
       </Panel>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <MonthNav month={month} current={today.slice(0, 7)} kind={kind} label={monthName} t={t} />
+        <FinanceMonthSwitcher
+          month={month}
+          today={today}
+          locale={locale}
+          hrefFor={(monthParam) => href(monthParam, kind)}
+        />
         <Segmented
           label={r.filter}
           value={kind ?? "all"}
@@ -179,49 +185,6 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
         </>
       )}
     </div>
-  );
-}
-
-function MonthNav({
-  month,
-  current,
-  kind,
-  label,
-  t,
-}: {
-  month: FinanceMonth;
-  /** The current month's key, "YYYY-MM". */
-  current: string;
-  kind: EntryKind | null;
-  label: string;
-  t: AdminDictionary;
-}) {
-  const r = t.finance.records;
-  // The current month is the address without ?m.
-  const target = (key: string | null) => (key ? href(key === current ? null : key, kind) : null);
-  return (
-    <nav aria-label={r.monthNav} className="flex items-center gap-1.5">
-      <Arrow href={target(month.prev)} label={r.prevMonth}>
-        <ChevronLeft aria-hidden="true" />
-      </Arrow>
-      <h2 className="adm-heading min-w-40 text-center tabular-nums">{label}</h2>
-      <Arrow href={target(month.next)} label={r.nextMonth}>
-        <ChevronRight aria-hidden="true" />
-      </Arrow>
-    </nav>
-  );
-}
-
-function Arrow({ href, label, children }: { href: string | null; label: string; children: React.ReactNode }) {
-  const className = "adm-btn adm-btn-outline adm-btn-sm adm-btn-icon";
-  return href ? (
-    <Link href={href} aria-label={label} title={label} className={className} scroll={false}>
-      {children}
-    </Link>
-  ) : (
-    <span role="link" aria-disabled="true" aria-label={label} title={label} className={className}>
-      {children}
-    </span>
   );
 }
 

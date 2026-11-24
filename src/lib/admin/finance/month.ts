@@ -53,6 +53,51 @@ export function financeMonth(param: string | undefined, today: string): FinanceM
   };
 }
 
+/**
+ * What a month is compared with: the month before it. While the month is still running, only the same days of the
+ * month before (1st to today's day number, cut at that month's last day), so a part of a month never meets a whole
+ * one. Null at the ledger's first month.
+ */
+export function comparisonRange(month: FinanceMonth, today: string): { from: string; to: string } | null {
+  if (!month.prev) return null;
+  const full = lastDay(month.prev);
+  if (!month.isCurrent) return { from: `${month.prev}-01`, to: full };
+  const sameDay = `${month.prev}-${today.slice(8, 10)}`;
+  return { from: `${month.prev}-01`, to: sameDay < full ? sameDay : full };
+}
+
+/** Every month key from `first` to `last` ("YYYY-MM", both included), newest first. */
+export function monthKeys(first: string, last: string): string[] {
+  const keys: string[] = [];
+  for (let key = last; key >= first; key = shift(key, -1)) keys.push(key);
+  return keys;
+}
+
+/** The month `months` away from "YYYY-MM" (negative is earlier). */
+export function shiftMonth(key: string, months: number): string {
+  return shift(key, months);
+}
+
+/** "1–25 ноября 2026 г.", "1–30 noyabr, 2026": a range of days as written (UTC, so the server's zone never shifts it). */
+export function formatDayRange(from: string, to: string, locale: Locale): string {
+  const date = (day: string) => {
+    const [y, m, d] = day.split("-").map(Number);
+    return new Date(Date.UTC(y, m - 1, d));
+  };
+  return new Intl.DateTimeFormat(htmlLang[locale], {
+    timeZone: "UTC",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).formatRange(date(from), date(to));
+}
+
+/** "нояб.", "noy": a month on a chart axis. */
+export function formatMonthShort(key: string, locale: Locale): string {
+  const [y, m] = key.split("-").map(Number);
+  return new Intl.DateTimeFormat(htmlLang[locale], { timeZone: "UTC", month: "short" }).format(new Date(Date.UTC(y, m - 1, 1)));
+}
+
 /** "Ноябрь 2026 г.", "Noyabr, 2026": the month as a heading, first letter up. */
 export function formatMonth(key: string, locale: Locale): string {
   const [y, m] = key.split("-").map(Number);
