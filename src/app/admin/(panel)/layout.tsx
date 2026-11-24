@@ -7,6 +7,7 @@ import { AdminShell } from "../shell/AdminShell";
 import { NAV } from "../shell/nav";
 import { NewOrdersBadge } from "../shell/NewOrdersBadge";
 import { RailScript } from "../shell/rail";
+import { TeamRequestsBadge } from "../shell/TeamRequestsBadge";
 import { ShellFallback } from "../shell/ShellFallback";
 
 /**
@@ -30,6 +31,12 @@ async function Shell({ children }: { children: React.ReactNode }) {
         orders: isOwner ? (
           <Suspense fallback={null}>
             <NewOrdersBadge />
+          </Suspense>
+        ) : null,
+        // People waiting for access (emails are personal data): owner only, its own boundary like the orders count.
+        team: isOwner ? (
+          <Suspense fallback={null}>
+            <TeamRequestsBadge />
           </Suspense>
         ) : null,
       }}

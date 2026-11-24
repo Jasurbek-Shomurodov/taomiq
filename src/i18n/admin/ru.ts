@@ -66,6 +66,7 @@ const ru = {
     menu: "Меню на 30 дней",
     dishes: "Блюда",
     programs: "Программы и цены",
+    team: "Команда",
     signOut: "Выйти",
   },
   roles: { owner: "Владелец", admin: "Администратор" },
@@ -372,6 +373,44 @@ const ru = {
     notFound: "Заказ не найден.",
     noteTooLong: (max: number) => `Заметка длиннее ${max} символов.`,
     noteSaved: "Заметка сохранена.",
+  },
+  /** The Team screen (/team): access requests and the staff list. Owner only. */
+  team: {
+    title: "Команда",
+    lead: "Кто входит в панель и кто просит доступ. Запрос появляется, когда человек входит без доступа.",
+    grants: "Одобрение даёт роль «Администратор»: блюда и меню на 30 дней. Заказы, программы и цены ему недоступны.",
+    loadFailed: "Не удалось загрузить команду и запросы.",
+    waiting: "Ждут доступа",
+    waitingEmpty: "Никто не ждёт",
+    waitingEmptyText: "Когда кто-то войдёт в панель без доступа, его запрос появится здесь.",
+    members: "В команде",
+    declined: (count: number) => `Отклонённые: ${count}`,
+    /** The name the person's Google account gave; they can change it, so the email is what identifies them. */
+    nameFromAccount: (name: string) => `Имя в аккаунте: ${name}`,
+    asked: (date: string) => `Запрос от ${date}`,
+    since: (date: string) => `В команде с ${date}`,
+    you: "Это вы",
+    noEmail: "Почта неизвестна",
+    approve: "Одобрить",
+    approving: "Одобряем…",
+    approveTitle: "Дать доступ к панели?",
+    approveText: (email: string) =>
+      `${email} получит роль «Администратор»: блюда и меню на 30 дней. Заказы, программы и цены останутся закрыты.`,
+    decline: "Отклонить",
+    declining: "Отклоняем…",
+    remove: "Убрать",
+    removing: "Убираем…",
+    removeTitle: "Убрать из команды?",
+    removeText: (email: string) =>
+      `${email} больше не сможет войти в панель. Если войдёт снова, здесь появится новый запрос.`,
+    // Server action messages
+    approved: "Доступ выдан.",
+    declinedDone: "Запрос отклонён.",
+    removed: "Убран из команды.",
+    gone: "Этот запрос уже обработан — страница обновлена.",
+    notRemovable: "Этого человека нельзя убрать здесь — страница обновлена.",
+    failed: "Не удалось сохранить. Попробуйте ещё раз.",
+    pendingBadge: (count: number) => `Ждут доступа: ${count}`,
   },
 };
 

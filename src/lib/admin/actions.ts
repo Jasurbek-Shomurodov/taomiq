@@ -16,6 +16,7 @@ import { adminGoogleCallbackUrl, isAdminGoogleLoginOn } from "./google";
 import { ADMIN_LOCALE_COOKIE, ADMIN_LOCALE_COOKIE_OPTIONS, cookieLocale, rememberStaffLocale } from "./locale";
 import { STAFF_NOTE_MAX, canMove, isOrderStatus } from "./orders";
 import { newOrderCount } from "./queries";
+import { pendingRequestCount } from "./team";
 
 export type FormState = { error?: string; ok?: string };
 
@@ -370,4 +371,68 @@ export async function saveOrderNote(_prev: FormState, form: FormData): Promise<F
 
   refresh();
   return { ok: t.order.noteSaved };
+}
+
+// ---------- team (owner only) ----------
+
+/**
+ * Approve, decline and remove go through the functions of migration 0008, which check the owner again and fix the
+ * granted role to admin. A request that was already handled (another tab) comes back as P0002: the page is
+ * refreshed and says so. Errors are logged with codes only; the rows hold personal data.
+ */
+async function teamCall(
+  form: FormData,
+  fn: "approve_staff_request" | "decline_staff_request" | "remove_staff",
+  messages: (t: ReturnType<typeof getAdminDictionary>) => { ok: string; gone: string },
+): Promise<FormState> {
+  const { supabase, staff } = await requireOwner();
+  const t = getAdminDictionary(staff.locale);
+  const userId = text(form, "user_id");
+  if (!UUID_RE.test(userId)) return { error: messages(t).gone };
+
+  const { error } = await supabase.rpc(fn, { p_user_id: userId });
+  if (error) {
+    console.error(`team: ${fn} failed`, error.code, error.message);
+    if (error.code === "P0002") {
+      refresh();
+      return { error: messages(t).gone };
+    }
+    return { error: t.team.failed };
+  }
+  refresh();
+  return { ok: messages(t).ok };
+}
+
+export async function approveAccess(_prev: FormState, form: FormData): Promise<FormState> {
+  return teamCall(form, "approve_staff_request", (t) => ({ ok: t.team.approved, gone: t.team.gone }));
+}
+
+export async function declineAccess(_prev: FormState, form: FormData): Promise<FormState> {
+  return teamCall(form, "decline_staff_request", (t) => ({ ok: t.team.declinedDone, gone: t.team.gone }));
+}
+
+export async function removeStaff(_prev: FormState, form: FormData): Promise<FormState> {
+  return teamCall(form, "remove_staff", (t) => ({ ok: t.team.removed, gone: t.team.notRemovable }));
+}
+
+/**
+ * The waiting-requests count for the pill on the Team row, read again on each client navigation
+ * (shell/TeamRequestsPill.tsx). Same rules as readNewOrderCount(): owners only, never redirects, null on anything
+ * else or on a failed read (no pill then).
+ */
+export async function readPendingRequestCount(): Promise<number | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const supabase = await createSessionClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: staff } = await supabase.from("staff").select("role").eq("user_id", user.id).maybeSingle();
+    if (staff?.role !== "owner") return null;
+    return await pendingRequestCount(supabase);
+  } catch (error) {
+    console.error("team request count refresh failed", error instanceof Error ? error.message : error);
+    return null;
+  }
 }
