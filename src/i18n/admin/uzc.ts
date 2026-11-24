@@ -7,6 +7,7 @@ const uzc: AdminDictionary = {
     saving: "Сақланмоқда…",
     deleting: "Ўчирилмоқда…",
     cancel: "Бекор қилиш",
+    retry: "Қайта уриниш",
     saved: "Сақланди.",
     saveFailed: (message) => `Сақлаб бўлмади: ${message}`,
     failed: (message) => `Хато: ${message}`,
@@ -55,6 +56,16 @@ const uzc: AdminDictionary = {
     signOut: "Чиқиш",
   },
   roles: { owner: "Эгаси", admin: "Администратор" },
+  shell: {
+    mainNav: "Панел бўлимлари",
+    openMenu: "Менюни очиш",
+    closeMenu: "Менюни ёпиш",
+    collapse: "Ён панелни йиғиш",
+    home: "TAOMIQ: умумий кўриниш",
+    groups: { sales: "Савдо", kitchen: "Ошхона", business: "Бизнес" },
+    newOrders: (count) => `Янги буюртмалар: ${count}`,
+    loading: "Юкланмоқда…",
+  },
   home: {
     hello: (name) => (name ? `Ассалому алайкум, ${name}` : "Ассалому алайкум"),
     newOrders: "Янги буюртмалар",
@@ -66,7 +77,7 @@ const uzc: AdminDictionary = {
   },
   dishes: {
     title: "Таомлар",
-    add: "+ Янги таом",
+    add: "Таом қўшиш",
     empty: "Ҳозирча таомлар йўқ. Биринчисини қўшинг — кейин уни менюга қўйиш мумкин.",
     dish: "Таом",
     portion: "Порция, г",
@@ -80,7 +91,7 @@ const uzc: AdminDictionary = {
   },
   dish: {
     title: "Таом",
-    back: "← Барча таомлар",
+    back: "Барча таомлар",
     newTitle: "Янги таом",
     name: "Номи",
     photo: "Таом расми",
@@ -226,7 +237,7 @@ const uzc: AdminDictionary = {
   order: {
     title: "Буюртма",
     heading: "Буюртма №",
-    back: "← Барча буюртмалар",
+    back: "Барча буюртмалар",
     loadFailed: "Буюртмани юклаб бўлмади. Бир дақиқадан кейин саҳифани янгиланг.",
     createdAt: (date) => `Яратилган: ${date}`,
     siteLanguage: (language) => `сайт тили: ${language}`,

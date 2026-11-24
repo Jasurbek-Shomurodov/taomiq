@@ -15,18 +15,17 @@ export default async function ProgramsAdminPage() {
   const [programs, durations] = await Promise.all([listPrograms(supabase), listDurations(supabase)]);
 
   return (
-    <div className="max-w-4xl">
-      <h1 className="font-serif text-4xl text-forest">{t.programs.title}</h1>
-      <p className="mt-1 text-sm text-muted">{t.programs.lead}</p>
+    <div className="adm-page">
+      <div className="grid w-full max-w-4xl gap-5">
+        <p className="adm-muted">{t.programs.lead}</p>
 
-      <div className="mt-6 grid gap-5">
         {programs.map((program) => (
           <ProgramForm key={program.id} program={program} locale={staff.locale} />
         ))}
-      </div>
 
-      <h2 className="mt-10 font-serif text-2xl text-forest">{t.programs.durations}</h2>
-      <DurationsForm durations={durations.map((d) => ({ ...d, markup_pct: Number(d.markup_pct) }))} locale={staff.locale} />
+        <h2 className="adm-heading mt-4 text-lg">{t.programs.durations}</h2>
+        <DurationsForm durations={durations.map((d) => ({ ...d, markup_pct: Number(d.markup_pct) }))} locale={staff.locale} />
+      </div>
     </div>
   );
 }

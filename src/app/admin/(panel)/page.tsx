@@ -1,8 +1,11 @@
+import { CameraOff, ClipboardList, ShoppingBag, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { getAdminDictionary } from "@/i18n/admin";
 import { requireStaff } from "@/lib/admin/auth";
 import { listDishes, listPrograms, menuCounts, newOrderCount } from "@/lib/admin/queries";
 import { CYCLE_DAYS } from "@/lib/data/types";
+import { Panel } from "../kit/Panel";
+import { StatTile } from "../kit/StatTile";
 
 export default async function AdminHome() {
   const { supabase, staff } = await requireStaff();
@@ -24,22 +27,37 @@ export default async function AdminHome() {
   const noPhoto = dishes.filter((d) => d.active && !d.photo_url).length;
 
   return (
-    <div>
-      <h1 className="font-serif text-4xl text-forest">{t.home.hello(staff.name)}</h1>
+    <div className="adm-page">
+      <p className="adm-muted">{t.home.hello(staff.name)}</p>
 
-      <div className={`mt-6 grid gap-4 ${newOrders === undefined ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4"}`}>
+      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]">
         {newOrders !== undefined && (
-          <Stat label={t.home.newOrders} value={newOrders ?? "—"} href="/orders?status=new" warn={(newOrders ?? 0) > 0} />
+          <StatTile
+            label={t.home.newOrders}
+            value={newOrders ?? "—"}
+            icon={ShoppingBag}
+            href="/orders?status=new"
+            tone={(newOrders ?? 0) > 0 ? "caution" : "accent"}
+          />
         )}
-        <Stat label={t.home.dishes} value={dishes.length} href="/dishes" />
-        <Stat label={t.home.unverified} value={unverified} href="/dishes" warn={unverified > 0} />
-        <Stat label={t.home.noPhoto} value={noPhoto} href="/dishes" warn={noPhoto > 0} />
+        <StatTile label={t.home.dishes} value={dishes.length} icon={UtensilsCrossed} href="/dishes" />
+        <StatTile
+          label={t.home.unverified}
+          value={unverified}
+          icon={ClipboardList}
+          href="/dishes"
+          tone={unverified > 0 ? "caution" : "accent"}
+        />
+        <StatTile
+          label={t.home.noPhoto}
+          value={noPhoto}
+          icon={CameraOff}
+          href="/dishes"
+          tone={noPhoto > 0 ? "caution" : "accent"}
+        />
       </div>
 
-      <h2 className="mt-10 font-serif text-2xl text-forest">{t.home.menuTitle}</h2>
-      <p className="mt-1 text-sm text-muted">{t.home.menuLead(CYCLE_DAYS)}</p>
-
-      <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-white">
+      <Panel flush title={t.home.menuTitle} description={t.home.menuLead(CYCLE_DAYS)}>
         {programs.flatMap((program) =>
           program.variants.map((variant) => {
             const done = counts.get(variant.id)?.days ?? 0;
@@ -47,42 +65,23 @@ export default async function AdminHome() {
               <Link
                 key={variant.id}
                 href={`/menu?variant=${variant.id}`}
-                className="flex items-center gap-4 border-b border-line p-4 last:border-0 hover:bg-ivory"
+                className="adm-row flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5"
               >
-                <span className="h-8 w-1.5 rounded-full" style={{ background: program.tag_color }} />
-                <span className="w-44 font-semibold text-forest">
+                <span className="h-8 w-1.5 shrink-0 rounded-full" style={{ background: program.tag_color }} />
+                <span className="min-w-[10rem] flex-1 font-semibold sm:max-w-[14rem]">
                   {program.name} / <span className="tabular-nums">{variant.kcal}</span>
                 </span>
-                <span className="h-2 flex-1 overflow-hidden rounded-full bg-ivory-deep">
-                  <span className="block h-full rounded-full bg-forest" style={{ width: `${(done / CYCLE_DAYS) * 100}%` }} />
+                <span className="order-last h-2 min-w-full flex-1 overflow-hidden rounded-full bg-adm-surface-muted sm:order-none sm:min-w-0">
+                  <span className="block h-full rounded-full bg-adm-accent" style={{ width: `${(done / CYCLE_DAYS) * 100}%` }} />
                 </span>
-                <span className="w-16 text-right text-sm tabular-nums text-muted">
+                <span className="w-16 text-right text-sm tabular-nums text-adm-muted">
                   {done} / {CYCLE_DAYS}
                 </span>
               </Link>
             );
           }),
         )}
-      </div>
+      </Panel>
     </div>
-  );
-}
-
-function Stat({
-  label,
-  value,
-  href,
-  warn = false,
-}: {
-  label: string;
-  value: number | string;
-  href: string;
-  warn?: boolean;
-}) {
-  return (
-    <Link href={href} className="rounded-2xl border border-line bg-white p-5 hover:border-forest">
-      <p className="label text-muted">{label}</p>
-      <p className={`mt-2 font-serif text-4xl tabular-nums ${warn ? "text-danger" : "text-forest"}`}>{value}</p>
-    </Link>
   );
 }

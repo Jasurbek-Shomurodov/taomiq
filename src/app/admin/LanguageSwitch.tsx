@@ -37,3 +37,27 @@ export function LanguageSwitch({
     </form>
   );
 }
+
+/**
+ * The same switch as a segmented control, for the panel's sidebar foot (.adm-segmented, full width). Same action,
+ * also a plain form.
+ */
+export function LanguageSegmented({ locale, label }: { locale: Locale; label: string }) {
+  return (
+    <form action={setAdminLocale} role="group" aria-label={label} className="adm-segmented flex w-full">
+      {locales.map((code) => (
+        <button
+          key={code}
+          type="submit"
+          name="locale"
+          value={code}
+          lang={htmlLang[code]}
+          aria-label={localeName[code]}
+          aria-pressed={code === locale}
+        >
+          {localeLabel[code]}
+        </button>
+      ))}
+    </form>
+  );
+}

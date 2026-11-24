@@ -49,6 +49,68 @@
   --color-ring: var(--color-gold);
 }
 
+/* Back-office kit tokens (docs/plans/admin-portal-upgrade.md). Defined only under .admin (the admin <body>), so the
+   public site never sees them. Every panel colour goes through these, so the dark theme is a variable swap.
+   Light values come from the brand tokens above. */
+.admin {
+  --adm-page: var(--color-ivory);
+  --adm-surface: #fff;
+  --adm-surface-muted: #f1ebdf;
+  --adm-hover: var(--color-ivory-deep);
+  --adm-border: var(--color-line);
+  --adm-hairline: color-mix(in srgb, var(--color-line) 70%, transparent);
+  --adm-text: var(--color-graphite);
+  --adm-text-muted: var(--color-muted);
+  /* Forest: filled controls and the active marker. -ink is forest-coloured text, -tint a pale selected surface,
+     on-accent the text on a forest fill. */
+  --adm-accent: var(--color-forest);
+  --adm-accent-hover: var(--color-forest-soft);
+  --adm-accent-ink: var(--color-forest);
+  --adm-accent-tint: color-mix(in srgb, var(--color-forest) 8%, #fff);
+  --adm-on-accent: var(--color-ivory);
+  /* Gold: the new-orders count and the focus ring. Too light for small text on white, so text on gold is forest. */
+  --adm-highlight: var(--color-gold);
+  --adm-on-highlight: var(--color-forest);
+  --adm-ring: var(--color-gold);
+  --adm-positive: #2c6e4f;
+  --adm-negative: var(--color-danger);
+  --adm-caution: #8a5a12;
+  --adm-info: #2f5f8a;
+  --adm-radius-btn: 8px;
+  --adm-radius-control: 10px;
+  --adm-radius-card: 12px;
+  --adm-radius-dialog: 16px;
+  --adm-shadow: 0 1px 2px rgb(24 60 52 / 6%);
+  --adm-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The kit tokens as Tailwind names (bg-adm-surface, text-adm-muted, rounded-adm-card, shadow-adm, …). Inline, so a
+   utility reads the --adm-* variable itself and follows a theme swap. */
+@theme inline {
+  --color-adm-page: var(--adm-page);
+  --color-adm-surface: var(--adm-surface);
+  --color-adm-surface-muted: var(--adm-surface-muted);
+  --color-adm-hover: var(--adm-hover);
+  --color-adm-border: var(--adm-border);
+  --color-adm-text: var(--adm-text);
+  --color-adm-muted: var(--adm-text-muted);
+  --color-adm-accent: var(--adm-accent);
+  --color-adm-accent-ink: var(--adm-accent-ink);
+  --color-adm-accent-tint: var(--adm-accent-tint);
+  --color-adm-on-accent: var(--adm-on-accent);
+  --color-adm-highlight: var(--adm-highlight);
+  --color-adm-on-highlight: var(--adm-on-highlight);
+  --color-adm-positive: var(--adm-positive);
+  --color-adm-negative: var(--adm-negative);
+  --color-adm-caution: var(--adm-caution);
+  --color-adm-info: var(--adm-info);
+  --radius-adm-btn: var(--adm-radius-btn);
+  --radius-adm-control: var(--adm-radius-control);
+  --radius-adm-card: var(--adm-radius-card);
+  --radius-adm-dialog: var(--adm-radius-dialog);
+  --shadow-adm: var(--adm-shadow);
+}
+
 /* Motion durations and travel distances. Not Tailwind namespaces (duration-* utilities read
    --transition-duration-*), so they are plain custom properties, always emitted. */
 :root {

@@ -14,6 +14,7 @@ import { requireOwner, requireStaff } from "./auth";
 import { adminGoogleCallbackUrl, isAdminGoogleLoginOn } from "./google";
 import { ADMIN_LOCALE_COOKIE, ADMIN_LOCALE_COOKIE_OPTIONS, cookieLocale, rememberStaffLocale } from "./locale";
 import { STAFF_NOTE_MAX, canMove, isOrderStatus } from "./orders";
+import { newOrderCount } from "./queries";
 
 export type FormState = { error?: string; ok?: string };
 
@@ -88,6 +89,29 @@ export async function setAdminLocale(form: FormData): Promise<void> {
     }
   }
   refresh();
+}
+
+/**
+ * The new-orders count for the sidebar pill, read again on each client navigation (shell/NewOrdersPill.tsx), since
+ * the layout itself is not re-rendered then. Owners only, checked here like requireOwner() but without redirecting:
+ * it runs in the background mid-navigation, so anyone else (or no session, or a failed read) just gets null and
+ * sees no pill. RLS returns no orders to anyone but the owner either way.
+ */
+export async function readNewOrderCount(): Promise<number | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const supabase = await createSessionClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: staff } = await supabase.from("staff").select("role").eq("user_id", user.id).maybeSingle();
+    if (staff?.role !== "owner") return null;
+    return await newOrderCount(supabase);
+  } catch (error) {
+    console.error("new order count refresh failed", error instanceof Error ? error.message : error);
+    return null;
+  }
 }
 
 // ---------- dishes ----------

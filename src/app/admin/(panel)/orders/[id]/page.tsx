@@ -1,11 +1,14 @@
+import { Phone } from "lucide-react";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAdminDictionary } from "@/i18n/admin";
 import { formatSum, isLocale } from "@/i18n/config";
 import { requireOwner, requireStaff } from "@/lib/admin/auth";
 import { formatDateTime, formatDay, formatPhone, type Order } from "@/lib/admin/orders";
 import { getOrder } from "@/lib/admin/queries";
+import { Notice } from "../../../kit/Notice";
+import { Panel } from "../../../kit/Panel";
+import { TopBarBack, TopBarTitle } from "../../../shell/TopBarSlot";
 import { NoteForm, StatusControls } from "../OrderControls";
 import { StatusBadge } from "../StatusBadge";
 
@@ -34,11 +37,11 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
 
   if (failed) {
     return (
-      <div className="max-w-5xl">
-        <BackLink label={t.order.back} />
-        <p role="alert" className="mt-6 rounded-2xl border border-danger/30 bg-danger/5 p-6 text-danger">
+      <div className="adm-page">
+        <TopBarBack href="/orders" label={t.order.back} />
+        <Notice tone="negative" retry={{ href: `/orders/${id}`, label: t.common.retry }}>
           {t.order.loadFailed}
-        </p>
+        </Notice>
       </div>
     );
   }
@@ -49,25 +52,26 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
   const sum = (amount: number) => `${formatSum(amount)} ${t.common.currency}`;
 
   return (
-    <div className="max-w-5xl">
-      <BackLink label={t.order.back} />
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h1 className="font-serif text-4xl text-forest">
+    <div className="adm-page">
+      <TopBarBack href="/orders" label={t.order.back} />
+      <TopBarTitle>
+        <span className="adm-truncate">
           {t.order.heading} <span className="tabular-nums">{order.number}</span>
-        </h1>
+        </span>
         <StatusBadge status={order.status} locale={locale} />
-      </div>
-      <p className="mt-1 text-sm text-muted">
+      </TopBarTitle>
+      <p className="adm-muted">
         {t.order.createdAt(formatDateTime(order.created_at, locale))} · {t.order.siteLanguage(siteLanguage)}
         {order.updated_at !== order.created_at && <> · {t.order.updatedAt(formatDateTime(order.updated_at, locale))}</>}
       </p>
 
-      <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_20rem]">
+      <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1fr_20rem]">
         <div className="grid content-start gap-5">
           <Card title={t.order.customer}>
-            <p className="text-lg font-semibold text-forest">{order.customer_name}</p>
+            <p className="text-lg font-semibold text-adm-text">{order.customer_name}</p>
             <p className="mt-1 tabular-nums">{formatPhone(order.phone)}</p>
-            <a href={`tel:${order.phone}`} className="btn btn-forest mt-4 !py-2.5">
+            <a href={`tel:${order.phone}`} className="adm-btn adm-btn-primary mt-4">
+              <Phone aria-hidden="true" />
               {t.order.call}
             </a>
           </Card>
@@ -82,7 +86,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
                 [t.order.total, sum(order.total)],
               ]}
             />
-            <p className="mt-3 text-xs text-muted">{t.order.priceFixed}</p>
+            <p className="adm-caption mt-3">{t.order.priceFixed}</p>
           </Card>
 
           <Card title={t.order.delivery}>
@@ -101,11 +105,11 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
 
           <Card title={t.order.source}>
             {sourceEntries.length === 0 ? (
-              <p className="text-muted">{t.order.noSource}</p>
+              <p className="text-adm-muted">{t.order.noSource}</p>
             ) : (
               <Rows rows={sourceEntries.map(([k, v]) => [k, String(v)])} />
             )}
-            <p className="mt-3 text-xs text-muted">{t.order.consent(formatDateTime(order.consent_at, locale))}</p>
+            <p className="adm-caption mt-3">{t.order.consent(formatDateTime(order.consent_at, locale))}</p>
           </Card>
         </div>
 
@@ -118,21 +122,8 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
   );
 }
 
-function BackLink({ label }: { label: string }) {
-  return (
-    <Link href="/orders" className="text-sm text-muted hover:text-forest">
-      {label}
-    </Link>
-  );
-}
-
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <section className="rounded-2xl border border-line bg-white p-5">
-      <h2 className="label text-muted">{title}</h2>
-      <div className="mt-3">{children}</div>
-    </section>
-  );
+  return <Panel title={title}>{children}</Panel>;
 }
 
 function Rows({ rows }: { rows: [string, string][] }) {
@@ -140,8 +131,8 @@ function Rows({ rows }: { rows: [string, string][] }) {
     <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-[11rem_1fr]">
       {rows.map(([label, value]) => (
         <div key={label} className="contents">
-          <dt className="text-sm text-muted">{label}</dt>
-          <dd className="whitespace-pre-line break-words text-graphite">{value}</dd>
+          <dt className="text-sm text-adm-muted">{label}</dt>
+          <dd className="whitespace-pre-line break-words text-adm-text">{value}</dd>
         </div>
       ))}
     </dl>

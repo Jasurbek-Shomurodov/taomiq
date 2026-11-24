@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAdminDictionary } from "@/i18n/admin";
 import { requireStaff } from "@/lib/admin/auth";
 import { localized } from "@/lib/data/localized";
 import type { Dish } from "@/lib/data/types";
+import { TopBarBack, TopBarTitle } from "../../../shell/TopBarSlot";
 import { DishForm } from "../DishForm";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -26,14 +26,14 @@ export default async function DishPage({ params }: PageProps<"/admin/dishes/[id]
   }
 
   return (
-    <div className="max-w-3xl">
-      <Link href="/dishes" className="text-sm text-muted hover:text-forest">
-        {t.dish.back}
-      </Link>
-      <h1 className="mt-2 font-serif text-4xl text-forest">
-        {dish ? localized(dish, "name", staff.locale) : t.dish.newTitle}
-      </h1>
-      <DishForm dish={dish} locale={staff.locale} />
+    <div className="adm-page">
+      <TopBarBack href="/dishes" label={t.dish.back} />
+      <TopBarTitle>
+        <span className="adm-truncate">{dish ? localized(dish, "name", staff.locale) : t.dish.newTitle}</span>
+      </TopBarTitle>
+      <div className="grid w-full max-w-4xl gap-4">
+        <DishForm dish={dish} locale={staff.locale} />
+      </div>
     </div>
   );
 }

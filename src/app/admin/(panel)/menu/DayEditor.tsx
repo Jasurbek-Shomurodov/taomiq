@@ -104,26 +104,26 @@ export function DayEditor({
   }
 
   return (
-    <section className="mt-8">
+    <section className="grid gap-4">
       <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h2 className="font-serif text-2xl text-forest">
+        <h2 className="adm-heading text-lg">
           {variantLabel} · {m.day(day)}
         </h2>
-        <p className="text-sm text-muted">{m.filled(filled, mealsPerDay)}</p>
+        <p className="adm-muted">{m.filled(filled, mealsPerDay)}</p>
       </div>
 
-      <div className="mt-4 overflow-hidden rounded-2xl border border-line bg-white">
+      <div className="adm-panel adm-panel-flush">
         {SLOTS.map((slot) => {
           const row = rows[slot];
           const n = nutrition(row);
           return (
-            <div key={slot} className="grid gap-3 border-b border-line p-4 last:border-0 md:grid-cols-[7rem_1fr_7rem_14rem] md:items-center">
-              <span className="label text-muted">{m.slots[slot]}</span>
+            <div key={slot} className="adm-row grid gap-3 p-4 md:grid-cols-[7rem_1fr_7rem_14rem] md:items-center">
+              <span className="text-sm font-semibold text-adm-muted">{m.slots[slot]}</span>
               <select
                 aria-label={m.dishAria(m.slots[slot])}
                 value={row.dish_id}
                 onChange={(e) => pickDish(slot, e.target.value)}
-                className="field"
+                className="adm-input"
               >
                 <option value="">{m.notSelected}</option>
                 {dishes.map((dish) => (
@@ -132,7 +132,7 @@ export function DayEditor({
                   </option>
                 ))}
               </select>
-              <label className="flex items-center gap-2 text-sm text-muted">
+              <label className="flex items-center gap-2 text-sm text-adm-muted">
                 <input
                   aria-label={m.weightAria(m.slots[slot])}
                   type="number" min="1" step="5" inputMode="numeric"
@@ -142,23 +142,23 @@ export function DayEditor({
                     setRows({ ...rows, [slot]: { ...row, weight: e.target.value } });
                     setResult({});
                   }}
-                  className="field tabular-nums disabled:bg-ivory"
+                  className="adm-input tabular-nums"
                 />
                 {t.common.g}
               </label>
-              <span className="text-sm tabular-nums text-graphite">
+              <span className="text-sm tabular-nums text-adm-text">
                 {row.dish_id ? (
                   <>
                     <b>
                       {n.kcal} {t.common.kcal}
                     </b>
-                    <span className="text-muted">
+                    <span className="text-adm-muted">
                       {" "}
                       · {t.common.p} {n.protein} · {t.common.f} {n.fat} · {t.common.c} {n.carbs}
                     </span>
                   </>
                 ) : (
-                  <span className="text-muted">—</span>
+                  <span className="text-adm-muted">—</span>
                 )}
               </span>
             </div>
@@ -167,44 +167,48 @@ export function DayEditor({
       </div>
 
       {/* Day total against the calorie target */}
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-forest p-5 text-ivory">
+      <div className="adm-panel flex flex-wrap items-center justify-between gap-4">
         <div className="tabular-nums">
-          <p className="label text-gold">{m.total}</p>
-          <p className="mt-1 font-serif text-3xl">
+          <p className="adm-caption font-medium">{m.total}</p>
+          <p className="mt-1 text-[28px] font-semibold leading-tight">
             {total.kcal}{" "}
-            <span className="text-lg text-ivory/70">
+            <span className="text-base font-medium text-adm-muted">
               / {targetKcal} {t.common.kcal}
             </span>
           </p>
-          <p className="text-sm text-ivory/70">
+          <p className="text-sm text-adm-muted">
             {t.common.p} {total.protein} · {t.common.f} {total.fat} · {t.common.c} {total.carbs}
           </p>
         </div>
-        <p className={`rounded-full px-4 py-1.5 text-sm font-semibold tabular-nums ${withinTarget ? "bg-sage text-forest" : "bg-ivory text-danger"}`}>
+        <p
+          className={`adm-status tabular-nums ${
+            filled === 0 ? "adm-tone-neutral" : withinTarget ? "adm-tone-positive" : "adm-tone-caution"
+          }`}
+        >
           {filled === 0
             ? m.dayEmpty
             : withinTarget
               ? m.withinTarget
               : m.offTarget(`${deviation > 0 ? "+" : ""}${deviation}`)}
         </p>
-        <button type="button" onClick={save} disabled={pending} className="btn btn-gold disabled:opacity-60">
+        <button type="button" onClick={save} disabled={pending} aria-busy={pending || undefined} className="adm-btn adm-btn-primary">
           {pending ? t.common.saving : m.saveDay}
         </button>
       </div>
 
-      {result.ok && <p role="status" className="mt-3 rounded-lg bg-sage/40 p-3 text-sm text-forest">{result.ok}</p>}
-      {result.error && <p role="alert" className="mt-3 rounded-lg bg-danger/10 p-3 text-sm text-danger">{result.error}</p>}
+      {result.ok && <p role="status" className="adm-notice adm-tone-positive">{result.ok}</p>}
+      {result.error && <p role="alert" className="adm-notice adm-tone-negative">{result.error}</p>}
 
       {otherVariants.length > 0 && (
-        <div className="mt-8 rounded-2xl border border-line bg-white p-5">
-          <h3 className="font-semibold text-forest">{m.copyTitle}</h3>
-          <p className="mt-1 text-sm text-muted">{m.copyText}</p>
+        <div className="adm-panel">
+          <h3 className="adm-heading">{m.copyTitle}</h3>
+          <p className="adm-muted mt-1">{m.copyText}</p>
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <select
               aria-label={m.copyFrom}
               value={copySource}
               onChange={(e) => setCopySource(e.target.value)}
-              className="field w-auto"
+              className="adm-input w-auto"
             >
               {otherVariants.map((v) => (
                 <option key={v.id} value={v.id}>
@@ -221,7 +225,7 @@ export function DayEditor({
               <ConfirmDialog
                 key={scope}
                 trigger={label}
-                triggerClassName="btn btn-outline !py-2 text-forest"
+                triggerClassName="adm-btn adm-btn-outline"
                 disabled={pending || !copySourceLabel}
                 title={m.copyAskTitle(what, copySourceLabel ?? "", variantLabel)}
                 description={m.copyAskText}

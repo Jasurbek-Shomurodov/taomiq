@@ -13,6 +13,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
+/** The brand's pill buttons, reshaped to the panel kit's 8 px button with its 14 px label. */
+const KIT_BUTTON = "rounded-adm-btn px-4 py-0 text-sm";
+
 /**
  * A button that asks before a change that cannot be undone. Nothing runs until the confirm button is pressed.
  *
@@ -112,14 +115,25 @@ export function ConfirmDialog({
       <AlertDialogTrigger ref={triggerRef} disabled={disabled} className={triggerClassName}>
         {trigger}
       </AlertDialogTrigger>
-      <AlertDialogContent onOverlayClick={() => changeOpen(false)}>
+      {/* The panel kit's shapes and type: dialog radius 16, buttons 8, Manrope headings (admin.css, --adm-*). */}
+      <AlertDialogContent
+        onOverlayClick={() => changeOpen(false)}
+        className="rounded-adm-dialog border border-adm-border bg-adm-surface text-adm-text"
+      >
         <AlertDialogHeader>
-          <AlertDialogTitle>{title}</AlertDialogTitle>
-          <AlertDialogDescription>{description}</AlertDialogDescription>
+          <AlertDialogTitle className="font-sans text-lg font-semibold text-adm-text">{title}</AlertDialogTitle>
+          <AlertDialogDescription className="text-adm-muted">{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>{cancelLabel}</AlertDialogCancel>
-          <AlertDialogAction variant={destructive ? "destructive" : "default"} disabled={busy} onClick={confirm}>
+          <AlertDialogCancel disabled={pending} className={`${KIT_BUTTON} border-adm-border text-adm-text`}>
+            {cancelLabel}
+          </AlertDialogCancel>
+          <AlertDialogAction
+            variant={destructive ? "destructive" : "default"}
+            disabled={busy}
+            onClick={confirm}
+            className={destructive ? KIT_BUTTON : `${KIT_BUTTON} bg-adm-accent text-adm-on-accent hover:bg-(--adm-accent-hover)`}
+          >
             {busy ? (pendingLabel ?? confirmLabel) : confirmLabel}
           </AlertDialogAction>
         </AlertDialogFooter>

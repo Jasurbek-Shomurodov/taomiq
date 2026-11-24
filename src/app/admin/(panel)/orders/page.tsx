@@ -1,3 +1,4 @@
+import { Inbox } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getAdminDictionary } from "@/i18n/admin";
@@ -13,6 +14,9 @@ import {
   type OrderStatus,
 } from "@/lib/admin/orders";
 import { ORDERS_PAGE_SIZE, listOrders, orderCounts } from "@/lib/admin/queries";
+import { EmptyState } from "../../kit/EmptyState";
+import { Notice } from "../../kit/Notice";
+import { Panel } from "../../kit/Panel";
 import { StatusBadge } from "./StatusBadge";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -56,11 +60,10 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
 
   if (!result) {
     return (
-      <div>
-        <h1 className="font-serif text-4xl text-forest">{t.orders.title}</h1>
-        <p role="alert" className="mt-6 rounded-2xl border border-danger/30 bg-danger/5 p-6 text-danger">
+      <div className="adm-page">
+        <Notice tone="negative" retry={{ href: href(status, requestedPage), label: t.common.retry }}>
           {t.orders.loadFailed}
-        </p>
+        </Notice>
       </div>
     );
   }
@@ -69,11 +72,10 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   const all = ORDER_STATUSES.reduce((sum, s) => sum + counts[s], 0);
 
   return (
-    <div>
-      <h1 className="font-serif text-4xl text-forest">{t.orders.title}</h1>
-      <p className="mt-1 text-sm text-muted">{t.orders.lead}</p>
+    <div className="adm-page">
+      <p className="adm-muted">{t.orders.lead}</p>
 
-      <nav aria-label={t.orders.statusesAria} className="mt-6 flex gap-2 overflow-x-auto pb-1">
+      <nav aria-label={t.orders.statusesAria} className="adm-segmented self-start">
         <Tab href={href(null)} active={!status} label={t.orders.all} count={all} />
         {ORDER_STATUSES.map((s) => (
           <Tab key={s} href={href(s)} active={status === s} label={t.orders.tabs[s]} count={counts[s]} />
@@ -81,69 +83,78 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
       </nav>
 
       {orders.length === 0 ? (
-        <p className="mt-6 rounded-2xl border border-dashed border-line bg-white/60 p-10 text-center text-muted">
-          {page > 1 ? t.orders.pageEmpty : status ? t.orders.statusEmpty(t.orders.tabs[status]) : t.orders.none}
-        </p>
+        <Panel>
+          <EmptyState icon={Inbox}>
+            {page > 1 ? t.orders.pageEmpty : status ? t.orders.statusEmpty(t.orders.tabs[status]) : t.orders.none}
+          </EmptyState>
+        </Panel>
       ) : (
-        <div className="mt-4 overflow-x-auto rounded-2xl border border-line bg-white">
+        <Panel flush className="overflow-x-auto">
           <table className="w-full min-w-[52rem] text-left text-sm">
-            <thead>
-              <tr className="border-b border-line">
-                <th className="label p-3 text-muted">{t.orders.number}</th>
-                <th className="label p-3 text-muted">{t.orders.created}</th>
-                <th className="label p-3 text-muted">{t.orders.customer}</th>
-                <th className="label p-3 text-muted">{t.orders.program}</th>
-                <th className="label p-3 text-muted">{t.orders.start}</th>
-                <th className="label p-3 text-right text-muted">{t.orders.sum}</th>
-                <th className="label p-3 text-muted">{t.orders.status}</th>
+            <thead className="adm-table-head">
+              <tr>
+                <th className="px-4 py-2.5 font-medium">{t.orders.number}</th>
+                <th className="px-4 py-2.5 font-medium">{t.orders.created}</th>
+                <th className="px-4 py-2.5 font-medium">{t.orders.customer}</th>
+                <th className="px-4 py-2.5 font-medium">{t.orders.program}</th>
+                <th className="px-4 py-2.5 font-medium">{t.orders.start}</th>
+                <th className="px-4 py-2.5 text-right font-medium">{t.orders.sum}</th>
+                <th className="px-4 py-2.5 font-medium">{t.orders.status}</th>
               </tr>
             </thead>
             <tbody>
               {orders.map((order) => (
-                <tr key={order.id} className="border-b border-line last:border-0 hover:bg-ivory">
-                  <td className="p-3">
-                    <Link href={`/orders/${order.id}`} className="font-semibold tabular-nums text-forest underline-offset-4 hover:underline">
+                <tr key={order.id} className="adm-row">
+                  <td className="px-4 py-3">
+                    <Link
+                      href={`/orders/${order.id}`}
+                      className="font-semibold tabular-nums text-adm-accent-ink underline-offset-4 hover:underline"
+                    >
                       {order.number}
                     </Link>
                   </td>
-                  <td className="whitespace-nowrap p-3 tabular-nums text-muted">{formatDateTime(order.created_at, locale)}</td>
-                  <td className="p-3">
+                  <td className="whitespace-nowrap px-4 py-3 tabular-nums text-adm-muted">
+                    {formatDateTime(order.created_at, locale)}
+                  </td>
+                  <td className="px-4 py-3">
                     <Link href={`/orders/${order.id}`} className="block">
-                      <span className="block font-semibold text-forest">{order.customer_name}</span>
-                      <span className="block whitespace-nowrap text-xs tabular-nums text-muted">{formatPhone(order.phone)}</span>
+                      <span className="block font-semibold text-adm-text">{order.customer_name}</span>
+                      <span className="block whitespace-nowrap text-[13px] tabular-nums text-adm-muted">
+                        {formatPhone(order.phone)}
+                      </span>
                     </Link>
                   </td>
-                  <td className="p-3">
+                  <td className="px-4 py-3">
                     {order.program_name} / <span className="tabular-nums">{order.kcal}</span>
-                    <span className="block text-xs text-muted">
+                    <span className="block text-[13px] text-adm-muted">
                       {t.orders.daysShort(order.days)}
                       {order.weekdays_only ? t.orders.noWeekends : ""}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap p-3 tabular-nums">{formatDay(order.start_date, locale)}</td>
-                  <td className="p-3 text-right tabular-nums">{formatSum(order.total)}</td>
-                  <td className="p-3">
+                  <td className="whitespace-nowrap px-4 py-3 tabular-nums">{formatDay(order.start_date, locale)}</td>
+                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{formatSum(order.total)}</td>
+                  <td className="px-4 py-3">
                     <StatusBadge status={order.status} locale={locale} />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-        </div>
+        </Panel>
       )}
 
       {pages > 1 && (
-        <nav aria-label={t.orders.pagesAria} className="mt-4 flex items-center justify-between gap-4 text-sm">
+        <nav aria-label={t.orders.pagesAria} className="flex items-center justify-between gap-4 text-sm">
           {page > 1 ? (
-            <Link href={href(status, page - 1)} className="btn btn-outline !py-2">
+            <Link href={href(status, page - 1)} className="adm-btn adm-btn-outline">
               {t.orders.newer}
             </Link>
           ) : (
             <span />
           )}
-          <span className="tabular-nums text-muted">{t.orders.pageOf(page, pages)}</span>
+          <span className="tabular-nums text-adm-muted">{t.orders.pageOf(page, pages)}</span>
           {page < pages ? (
-            <Link href={href(status, page + 1)} className="btn btn-outline !py-2">
+            <Link href={href(status, page + 1)} className="adm-btn adm-btn-outline">
               {t.orders.older}
             </Link>
           ) : (
@@ -157,15 +168,9 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
 
 function Tab({ href, active, label, count }: { href: string; active: boolean; label: string; count: number }) {
   return (
-    <Link
-      href={href}
-      aria-current={active ? "page" : undefined}
-      className={`flex shrink-0 items-center gap-2 rounded-full border px-4 py-2 text-sm font-semibold ${
-        active ? "border-forest bg-forest text-ivory" : "border-line bg-white text-forest hover:border-forest"
-      }`}
-    >
+    <Link href={href} aria-current={active ? "page" : undefined}>
       {label}
-      <span className={`tabular-nums ${active ? "text-ivory/70" : "text-muted"}`}>{count}</span>
+      <span className="adm-count">{count}</span>
     </Link>
   );
 }

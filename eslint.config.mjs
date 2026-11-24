@@ -20,12 +20,16 @@ const eslintConfig = defineConfig([
               message: "src/components/ui is for the admin only (src/app/admin). The public site uses its own components.",
             },
             {
-              group: ["@/app/admin", "@/app/admin/**"],
-              message: "Admin components (they use src/components/ui) stay in the admin.",
+              group: ["@/app/admin", "@/app/admin/**", "**/admin/kit", "**/admin/kit/*", "**/admin/shell", "**/admin/shell/*"],
+              message: "Admin components (the admin kit and shell, src/components/ui) stay in the admin.",
             },
             {
               group: ["@base-ui/*"],
               message: "Base UI is for the admin's src/components/ui only.",
+            },
+            {
+              group: ["lucide-react", "lucide-react/*"],
+              message: "lucide-react icons are for the admin panel only (src/app/admin). The public site draws its own.",
             },
           ],
         },

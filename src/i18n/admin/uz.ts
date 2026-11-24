@@ -7,6 +7,7 @@ const uz: AdminDictionary = {
     saving: "Saqlanmoqda…",
     deleting: "Oʻchirilmoqda…",
     cancel: "Bekor qilish",
+    retry: "Qayta urinish",
     saved: "Saqlandi.",
     saveFailed: (message) => `Saqlab boʻlmadi: ${message}`,
     failed: (message) => `Xato: ${message}`,
@@ -55,6 +56,16 @@ const uz: AdminDictionary = {
     signOut: "Chiqish",
   },
   roles: { owner: "Egasi", admin: "Administrator" },
+  shell: {
+    mainNav: "Panel boʻlimlari",
+    openMenu: "Menyuni ochish",
+    closeMenu: "Menyuni yopish",
+    collapse: "Yon panelni yigʻish",
+    home: "TAOMIQ: umumiy koʻrinish",
+    groups: { sales: "Savdo", kitchen: "Oshxona", business: "Biznes" },
+    newOrders: (count) => `Yangi buyurtmalar: ${count}`,
+    loading: "Yuklanmoqda…",
+  },
   home: {
     hello: (name) => (name ? `Assalomu alaykum, ${name}` : "Assalomu alaykum"),
     newOrders: "Yangi buyurtmalar",
@@ -66,7 +77,7 @@ const uz: AdminDictionary = {
   },
   dishes: {
     title: "Taomlar",
-    add: "+ Yangi taom",
+    add: "Taom qoʻshish",
     empty: "Hozircha taomlar yoʻq. Birinchisini qoʻshing — keyin uni menyuga qoʻyish mumkin.",
     dish: "Taom",
     portion: "Porsiya, g",
@@ -80,7 +91,7 @@ const uz: AdminDictionary = {
   },
   dish: {
     title: "Taom",
-    back: "← Barcha taomlar",
+    back: "Barcha taomlar",
     newTitle: "Yangi taom",
     name: "Nomi",
     photo: "Taom rasmi",
@@ -226,7 +237,7 @@ const uz: AdminDictionary = {
   order: {
     title: "Buyurtma",
     heading: "Buyurtma №",
-    back: "← Barcha buyurtmalar",
+    back: "Barcha buyurtmalar",
     loadFailed: "Buyurtmani yuklab boʻlmadi. Bir daqiqadan keyin sahifani yangilang.",
     createdAt: (date) => `Yaratilgan: ${date}`,
     siteLanguage: (language) => `sayt tili: ${language}`,

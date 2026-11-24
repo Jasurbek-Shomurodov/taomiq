@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Manrope, Noto_Serif_Display } from "next/font/google";
 import "../globals.css";
+import "./admin.css";
 
 const serif = Noto_Serif_Display({
   variable: "--font-noto-serif-display",
@@ -17,8 +18,11 @@ export const metadata: Metadata = {
 
 export default function AdminRootLayout({ children }: LayoutProps<"/admin">) {
   return (
-    <html lang="ru" className={`${serif.variable} ${sans.variable} antialiased`}>
-      <body className="min-h-dvh">{children}</body>
+    // suppressHydrationWarning: inline scripts set data-* attributes on <html> before the first paint (the folded
+    // sidebar, shell/rail.ts), which React would otherwise report as a mismatch.
+    <html lang="ru" className={`${serif.variable} ${sans.variable} antialiased`} suppressHydrationWarning>
+      {/* .admin scopes the back-office kit tokens (--adm-* in globals.css). */}
+      <body className="admin min-h-dvh">{children}</body>
     </html>
   );
 }

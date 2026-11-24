@@ -14,6 +14,8 @@ const ru = {
     deleting: "Удаляем…",
     /** The dismiss button of a confirmation dialog. */
     cancel: "Отмена",
+    /** The link beside a failed load that loads the page again. */
+    retry: "Попробовать снова",
     saved: "Сохранено.",
     saveFailed: (message: string) => `Не удалось сохранить: ${message}`,
     failed: (message: string) => `Ошибка: ${message}`,
@@ -64,6 +66,17 @@ const ru = {
     signOut: "Выйти",
   },
   roles: { owner: "Владелец", admin: "Администратор" },
+  /** The panel frame: sidebar, drawer and top bar. */
+  shell: {
+    mainNav: "Разделы панели",
+    openMenu: "Открыть меню",
+    closeMenu: "Закрыть меню",
+    collapse: "Свернуть боковую панель",
+    home: "TAOMIQ: обзор",
+    groups: { sales: "Продажи", kitchen: "Кухня", business: "Бизнес" },
+    newOrders: (count: number) => `Новых заказов: ${count}`,
+    loading: "Загружаем…",
+  },
   home: {
     hello: (name: string) => (name ? `Здравствуйте, ${name}` : "Здравствуйте"),
     newOrders: "Новые заказы",
@@ -75,7 +88,7 @@ const ru = {
   },
   dishes: {
     title: "Блюда",
-    add: "+ Новое блюдо",
+    add: "Добавить блюдо",
     empty: "Блюд пока нет. Добавьте первое — потом его можно будет поставить в меню.",
     dish: "Блюдо",
     portion: "Порция, г",
@@ -89,7 +102,8 @@ const ru = {
   },
   dish: {
     title: "Блюдо",
-    back: "← Все блюда",
+    /** The back arrow's name in the top bar of a dish page. */
+    back: "Все блюда",
     newTitle: "Новое блюдо",
     name: "Название",
     photo: "Фото блюда",
@@ -240,7 +254,8 @@ const ru = {
   order: {
     title: "Заказ",
     heading: "Заказ №",
-    back: "← Все заказы",
+    /** The back arrow's name in the top bar of an order page. */
+    back: "Все заказы",
     loadFailed: "Не удалось загрузить заказ. Обновите страницу через минуту.",
     createdAt: (date: string) => `Создан ${date}`,
     siteLanguage: (language: string) => `язык сайта: ${language}`,

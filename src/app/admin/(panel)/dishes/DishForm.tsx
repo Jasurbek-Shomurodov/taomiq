@@ -66,22 +66,22 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
     }
   }
 
-  const label = "grid content-start gap-1.5 text-sm font-semibold text-forest";
+  const label = "adm-label";
 
   return (
     <>
-      <form action={action} className="mt-6 grid gap-6 rounded-2xl border border-line bg-white p-6">
+      <form action={action} className="adm-panel grid gap-6 sm:p-6">
         {dish && <input type="hidden" name="id" value={dish.id} />}
         <input type="hidden" name="photo_url" value={photoUrl} />
 
         <div className="grid gap-4 sm:grid-cols-3">
           <label className={label}>
             {t.dish.name} ({lang.ru})
-            <input name="name_ru" required defaultValue={dish?.name_ru} className="field font-normal" />
+            <input name="name_ru" required defaultValue={dish?.name_ru} className="adm-input" />
           </label>
           <label className={label}>
             {t.dish.name} ({lang.uz})
-            <input name="name_uz" required defaultValue={dish?.name_uz} className="field font-normal" />
+            <input name="name_uz" required defaultValue={dish?.name_uz} className="adm-input" />
           </label>
           <CyrillicField
             name="name_uzc" latinName="name_uz" label={`${t.dish.name} (${lang.uzc})`}
@@ -90,34 +90,34 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
         </div>
 
         <fieldset className="grid gap-3">
-          <legend className="text-sm font-semibold text-forest">{t.dish.photo}</legend>
+          <legend className="text-sm font-semibold text-adm-text">{t.dish.photo}</legend>
           <div className="flex flex-wrap items-center gap-4">
-            <span className="relative block h-28 w-36 overflow-hidden rounded-xl bg-ivory-deep">
+            <span className="relative block h-28 w-36 overflow-hidden rounded-adm-control bg-adm-surface-muted">
               {/* Plain <img>: the preview may be a just-uploaded file not yet known to the image optimizer. */}
               {/* eslint-disable-next-line @next/next/no-img-element */}
               {photoUrl && <img src={photoUrl} alt="" className="h-full w-full object-cover" />}
             </span>
             <div className="grid gap-2 text-sm">
               <input type="file" accept="image/*" onChange={onPhoto} disabled={uploading} />
-              <span className="text-muted">{uploading ? t.dish.uploading : t.dish.photoHint}</span>
+              <span className="text-adm-muted">{uploading ? t.dish.uploading : t.dish.photoHint}</span>
               {photoUrl && (
-                <button type="button" onClick={() => setPhotoUrl("")} className="w-fit cursor-pointer text-danger">
+                <button type="button" onClick={() => setPhotoUrl("")} className="adm-btn adm-btn-ghost adm-btn-danger adm-btn-sm w-fit -ml-3">
                   {t.dish.removePhoto}
                 </button>
               )}
-              {uploadError && <span role="alert" className="text-danger">{uploadError}</span>}
+              {uploadError && <span role="alert" className="text-adm-negative">{uploadError}</span>}
             </div>
           </div>
         </fieldset>
 
         <fieldset className="grid gap-3">
-          <legend className="text-sm font-semibold text-forest">{t.dish.nutrition}</legend>
+          <legend className="text-sm font-semibold text-adm-text">{t.dish.nutrition}</legend>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
             <label className={label}>
               {t.dish.portion}
               <input
                 name="default_weight_g" type="number" min="1" step="1" required inputMode="numeric"
-                value={weight} onChange={(e) => setWeight(e.target.value)} className="field font-normal tabular-nums"
+                value={weight} onChange={(e) => setWeight(e.target.value)} className="adm-input tabular-nums"
               />
             </label>
             {(
@@ -133,12 +133,12 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
                 <input
                   name={key} type="number" min="0" step="0.1" required inputMode="decimal"
                   value={per100[key]} onChange={(e) => setPer100({ ...per100, [key]: e.target.value })}
-                  className="field font-normal tabular-nums"
+                  className="adm-input tabular-nums"
                 />
               </label>
             ))}
           </div>
-          <p className="rounded-lg bg-ivory p-3 text-sm tabular-nums text-graphite">
+          <p className="rounded-adm-control bg-adm-surface-muted p-3 text-sm tabular-nums text-adm-text">
             {t.dish.inPortion(weight || "0")}{" "}
             <b>
               {portion(per100.kcal_100)} {t.common.kcal}
@@ -151,11 +151,11 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
         <div className="grid gap-4 sm:grid-cols-3">
           <label className={label}>
             {t.dish.ingredients} ({lang.ru})
-            <textarea name="ingredients_ru" rows={3} defaultValue={dish?.ingredients_ru} className="field font-normal" />
+            <textarea name="ingredients_ru" rows={3} defaultValue={dish?.ingredients_ru} className="adm-input" />
           </label>
           <label className={label}>
             {t.dish.ingredients} ({lang.uz})
-            <textarea name="ingredients_uz" rows={3} defaultValue={dish?.ingredients_uz} className="field font-normal" />
+            <textarea name="ingredients_uz" rows={3} defaultValue={dish?.ingredients_uz} className="adm-input" />
           </label>
           <CyrillicField
             name="ingredients_uzc" latinName="ingredients_uz" label={`${t.dish.ingredients} (${lang.uzc})`} rows={3}
@@ -164,7 +164,7 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
         </div>
 
         <fieldset>
-          <legend className="text-sm font-semibold text-forest">{t.dish.allergens}</legend>
+          <legend className="text-sm font-semibold text-adm-text">{t.dish.allergens}</legend>
           <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm">
             {ALLERGENS.map((allergen) => (
               <label key={allergen.code} className="flex items-center gap-2">
@@ -189,21 +189,21 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
           </label>
         </div>
 
-        {state.error && <p role="alert" className="rounded-lg bg-danger/10 p-3 text-sm text-danger">{state.error}</p>}
+        {state.error && <p role="alert" className="adm-notice adm-tone-negative">{state.error}</p>}
 
         <div>
-          <button type="submit" disabled={pending || uploading} className="btn btn-forest disabled:opacity-60">
+          <button type="submit" disabled={pending || uploading} aria-busy={pending || undefined} className="adm-btn adm-btn-primary">
             {pending ? t.common.saving : t.common.save}
           </button>
         </div>
       </form>
 
       {dish && (
-        <form action={deleteAction} className="mt-4">
+        <form action={deleteAction}>
           <input type="hidden" name="id" value={dish.id} />
           <ConfirmDialog
             trigger={t.dish.delete}
-            triggerClassName="cursor-pointer text-sm text-danger hover:underline"
+            triggerClassName="adm-btn adm-btn-ghost adm-btn-danger adm-btn-sm -ml-3"
             disabled={deleting}
             title={t.dish.deleteTitle(localized(dish, "name", locale))}
             description={t.dish.deleteText}
@@ -213,7 +213,7 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
             destructive
             pending={deleting}
           />
-          {deleteState.error && <p role="alert" className="mt-2 text-sm text-danger">{deleteState.error}</p>}
+          {deleteState.error && <p role="alert" className="mt-2 text-sm text-adm-negative">{deleteState.error}</p>}
         </form>
       )}
     </>

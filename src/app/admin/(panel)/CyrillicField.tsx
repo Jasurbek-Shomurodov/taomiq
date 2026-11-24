@@ -51,12 +51,12 @@ export function CyrillicField({
   }
 
   return (
-    <div ref={rootRef} className="grid content-start gap-1.5 text-sm font-semibold text-forest">
+    <div ref={rootRef} className="adm-label">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <label htmlFor={id}>{label}</label>
         <ConfirmDialog
           trigger={t.fill}
-          triggerClassName="cursor-pointer text-xs font-semibold text-forest underline underline-offset-4 hover:text-graphite"
+          triggerClassName="cursor-pointer text-[13px] font-semibold text-adm-accent-ink underline underline-offset-4 hover:text-adm-text"
           title={t.replaceTitle}
           description={t.replaceText}
           confirmLabel={t.replace}
@@ -68,15 +68,15 @@ export function CyrillicField({
       {rows ? (
         <textarea
           id={id} name={name} rows={rows} value={value} lang="uz-Cyrl"
-          onChange={(e) => setValue(e.target.value)} className="field font-normal"
+          onChange={(e) => setValue(e.target.value)} className="adm-input"
         />
       ) : (
         <input
           id={id} name={name} value={value} lang="uz-Cyrl"
-          onChange={(e) => setValue(e.target.value)} className="field font-normal"
+          onChange={(e) => setValue(e.target.value)} className="adm-input"
         />
       )}
-      <span className="text-xs font-normal text-muted">{t.emptyHint}</span>
+      <span className="text-[13px] font-normal text-adm-muted">{t.emptyHint}</span>
     </div>
   );
 }
