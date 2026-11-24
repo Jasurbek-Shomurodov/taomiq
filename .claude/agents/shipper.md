@@ -1,6 +1,6 @@
 ---
 name: shipper
-description: Ships finished, reviewed work. Runs the quality gate, applies Supabase migrations (branch first, then production), commits and pushes to main. Use after builder (and reviewer when required) are done.
+description: Ships finished, reviewed work. Runs the quality gate, applies Supabase migrations (local Postgres test first, then production), commits and pushes to main. Use after builder (and reviewer when required) are done.
 model: sonnet
 effort: low
 tools: Read, Grep, Glob, Bash, mcp__1d80e99b-3673-4b89-9e91-1c3510ff139d__*
@@ -37,10 +37,11 @@ Read each new migration file. Classify it:
 
 **Non-destructive →**
 1. Find the Taomiq project with the Supabase tools (`list_projects`).
-2. Create a Supabase branch, apply the migration there, and confirm it succeeds. Run `get_advisors` (security and performance) on the branch.
-3. If it fails or advisors report new security issues caused by this migration → stop and report. Delete the branch.
-4. Otherwise apply the same migration to production with `apply_migration` (name = file name without number prefix and `.sql`), run `get_advisors` on production, then delete the branch.
-5. If creating a branch is not available (cost confirmation or plan limits), stop and report instead of skipping straight to production.
+2. Test it on a throwaway local Postgres: run `scripts/test-migrations.sh` from the repo root. It applies every migration in order (after `supabase/local-test/stub.sql`, which stands in for Supabase's roles, `auth` and `storage`) and stops at the first error. The project is on Supabase's Free plan, which has no branches; do not try to create one.
+3. When the migration adds or changes logic or access (functions, policies, grants, triggers), run `scripts/test-migrations.sh --keep`, insert test rows in that local database and check the behaviour the plan describes, including what `anon`, a signed-in customer and each staff role can read (see the comment on `auth.uid()` in the stub). Then stop and delete the server with the command the script prints. Never insert test rows in production.
+4. If the local run or a check fails → stop and report.
+5. Otherwise apply the same migration to production with `apply_migration` (name = file name without number prefix and `.sql`), then run `get_advisors` (security and performance) on production. If advisors report a new security issue caused by this migration → stop and report before pushing code.
+6. If local Postgres is not installed (`initdb`, `pg_ctl`, `psql`), stop and report instead of skipping straight to production.
 
 Migrations go to production **before** the code that depends on them is pushed.
 

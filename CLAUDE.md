@@ -47,7 +47,7 @@ Don't run the full pipeline for something a few tool calls settle.
   `npm run build` → `npx tsc --noEmit` → `npm run lint` → `npm run test:e2e` (build first: it generates the route types `tsc` needs; the smoke suite builds its own demo-mode copy in `.next-e2e`).
 - Migrations live in `supabase/migrations/NNNN_snake_name.sql` (next number in sequence). They are written by `builder` and applied only by `shipper`.
 - **Migration policy (shipper):**
-  - Non-destructive (new tables/columns/indexes/policies/functions, additive changes): test on a Supabase **branch** first, check advisors, then apply to production automatically.
+  - Non-destructive (new tables/columns/indexes/policies/functions, additive changes): test on a throwaway **local Postgres** first (`scripts/test-migrations.sh`; the project is on Supabase's Free plan, which has no branches), then apply to production automatically and check advisors there.
   - Destructive (`DROP`, `TRUNCATE`, `DELETE`/`UPDATE` of existing rows, column type changes, renames, `NOT NULL` on existing columns, disabling RLS): **stop and ask the user** before production.
   - Apply the migration to production **before** pushing code that depends on it.
 - Never commit secrets (`.env*` except `.env.example`).
