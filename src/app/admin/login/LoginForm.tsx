@@ -14,8 +14,9 @@ type T = AdminDictionary["login"];
 /**
  * Sign-in for staff. With Google switched on (ADMIN_GOOGLE_LOGIN, src/lib/admin/google.ts): the Google button
  * first, an "or" divider, then email and password. Switched off: the email and password form alone.
- * Two separate forms, since forms cannot nest. Google never grants access by itself: the callback checks the
- * staff table and sends anyone else back here with ?error=not-staff.
+ * Two separate forms, since forms cannot nest. Neither path grants access by itself: both check the staff table,
+ * record anyone else as an access request and send them back here with ?error=requested (or ?error=not-staff when
+ * they were declined or the request could not be stored).
  */
 export function LoginForm({ locale, turnstileKey, google }: { locale: Locale; turnstileKey: string; google: boolean }) {
   const [state, action, pending] = useActionState<FormState, FormData>(signIn, {});
@@ -136,18 +137,33 @@ function PasswordField({ t }: { t: T }) {
 
 function RedirectNotice({ t }: { t: T }) {
   const error = useSearchParams().get("error");
+  if (error === "requested") return <Notice text={t.requested} tone="info" />;
   if (error === "not-staff") return <Notice text={t.notStaff} />;
   if (error === "google") return <Notice text={t.googleFailed} />;
   return null;
 }
 
-function Notice({ text }: { text: string }) {
+/** An error (red, announced at once) or, with tone "info", a neutral note such as "request sent". */
+function Notice({ text, tone = "error" }: { text: string; tone?: "error" | "info" }) {
+  const info = tone === "info";
   return (
-    <p role="alert" className="flex items-start gap-2.5 rounded-xl bg-danger/10 p-3 text-sm text-danger">
+    <p
+      role={info ? "status" : "alert"}
+      className={`flex items-start gap-2.5 rounded-xl p-3 text-sm ${info ? "bg-forest/8 text-forest" : "bg-danger/10 text-danger"}`}
+    >
       <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-px shrink-0">
         <circle cx="12" cy="12" r="9.5" />
-        <path d="M12 7.5v5.5" strokeLinecap="round" />
-        <circle cx="12" cy="16.5" r="0.6" fill="currentColor" />
+        {info ? (
+          <>
+            <path d="M12 11v5.5" strokeLinecap="round" />
+            <circle cx="12" cy="7.5" r="0.6" fill="currentColor" />
+          </>
+        ) : (
+          <>
+            <path d="M12 7.5v5.5" strokeLinecap="round" />
+            <circle cx="12" cy="16.5" r="0.6" fill="currentColor" />
+          </>
+        )}
       </svg>
       <span>{text}</span>
     </p>

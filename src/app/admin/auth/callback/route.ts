@@ -1,4 +1,5 @@
 import type { NextRequest } from "next/server";
+import { recordAccessRequest } from "@/lib/admin/access";
 import { isAdminGoogleLoginOn } from "@/lib/admin/google";
 import { rememberStaffLocale } from "@/lib/admin/locale";
 import { createSessionClient } from "@/lib/supabase/server";
@@ -9,8 +10,8 @@ import { createSessionClient } from "@/lib/supabase/server";
  * every admin-host path under /admin. The customer callback (src/app/auth/callback) is the public host's.
  *
  * Exchanges the one-time code for a session (the PKCE verifier is in a cookie on this host), then checks the
- * staff table: Google never grants access by itself. A Google account with no staff row is signed out again on
- * the spot. Redirects stay on the host the request came to (see `to`), which is where the session cookies were set.
+ * staff table: Google never grants access by itself. A Google account with no staff row is recorded as an access
+ * request for the owner (src/lib/admin/access.ts) and signed out again on the spot. Redirects stay on the host the request came to (see `to`), which is where the session cookies were set.
  */
 export async function GET(request: NextRequest) {
   const params = request.nextUrl.searchParams;
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest) {
   // asked for. Not request.nextUrl.origin: after the proxy's rewrite that is the server's own host (localhost under
   // `next start`), which would send staff to the public site. Session cookies set through cookies() are merged into
   // this response by Next.
-  const to = (path: "/" | "/login" | "/login?error=google" | "/login?error=not-staff") =>
+  const to = (path: "/" | "/login" | "/login?error=google" | "/login?error=not-staff" | "/login?error=requested") =>
     new Response(null, { status: 303, headers: { Location: path, "Cache-Control": "no-store" } });
 
   if (!isAdminGoogleLoginOn()) return to("/login");
@@ -53,8 +54,10 @@ export async function GET(request: NextRequest) {
     return to("/login?error=google");
   }
   if (!staff) {
+    // Recorded for the owner to approve (once per account); a declined account just sees "no access".
+    const outcome = await recordAccessRequest(data.user);
     await supabase.auth.signOut({ scope: "local" });
-    return to("/login?error=not-staff");
+    return to(outcome === "requested" ? "/login?error=requested" : "/login?error=not-staff");
   }
 
   await rememberStaffLocale(staff.locale);

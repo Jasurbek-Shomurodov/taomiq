@@ -10,6 +10,7 @@ import { CYCLE_DAYS, SLOTS, type Slot } from "@/lib/data/types";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
 import { TURNSTILE_FIELD } from "@/lib/turnstile/shared";
+import { recordAccessRequest } from "./access";
 import { requireOwner, requireStaff } from "./auth";
 import { adminGoogleCallbackUrl, isAdminGoogleLoginOn } from "./google";
 import { ADMIN_LOCALE_COOKIE, ADMIN_LOCALE_COOKIE_OPTIONS, cookieLocale, rememberStaffLocale } from "./locale";
@@ -37,7 +38,20 @@ export async function signIn(_prev: FormState, form: FormData): Promise<FormStat
   });
   if (error) return { error: error.code === "captcha_failed" ? t.login.captcha : t.login.wrongCredentials };
 
-  const { data: staff } = await supabase.from("staff").select("locale").eq("user_id", data.user.id).maybeSingle();
+  const { data: staff, error: staffError } = await supabase
+    .from("staff")
+    .select("locale")
+    .eq("user_id", data.user.id)
+    .maybeSingle();
+  if (staffError) {
+    // Not taken as "no access": the panel's own check (requireStaff) decides on the next request.
+    console.error("admin: staff check after password sign-in failed", staffError.code, staffError.message);
+  } else if (!staff) {
+    // Not staff: recorded for the owner to approve (once per account), and no session stays behind.
+    const outcome = await recordAccessRequest(data.user);
+    await supabase.auth.signOut({ scope: "local" });
+    redirect(outcome === "requested" ? "/login?error=requested" : "/login?error=not-staff");
+  }
   await rememberStaffLocale(staff?.locale);
   redirect("/");
 }

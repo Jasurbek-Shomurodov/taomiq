@@ -12,7 +12,10 @@ export const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY ?? "";
 /** False until the secret key is in the environment; the order form then behaves like demo mode. */
 export const isOrderingConfigured = Boolean(supabaseUrl && supabaseSecretKey);
 
-/** Bypasses Row Level Security. Use only for submit_order() and the order alert's amount read. */
+/**
+ * Bypasses Row Level Security. Use only for submit_order(), the order alert's amount read, customer profile sync
+ * (src/lib/account/profile.ts) and recording back-office access requests (src/lib/admin/access.ts).
+ */
 export function createSecretClient() {
   return createClient(supabaseUrl, supabaseSecretKey, {
     auth: { persistSession: false, autoRefreshToken: false },

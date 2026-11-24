@@ -30,6 +30,7 @@ const uz: AdminDictionary = {
     submit: "Kirish",
     submitting: "Kirilmoqda…",
     notStaff: "Bu hisobda panelga kirish huquqi yoʻq. Egasiga murojaat qiling.",
+    requested: "Kirish soʻrovi yuborildi. Egasi uni koʻrib chiqadi — ruxsat berilgach, qayta kiring.",
     notConfigured: "Maʼlumotlar bazasi hali ulanmagan.",
     wrongCredentials: "Pochta yoki parol notoʻgʻri.",
     captcha: "Robot emasligingizni tekshirib boʻlmadi. Bir-ikki soniya kutib, qayta urinib koʻring.",
