@@ -142,7 +142,8 @@ function EmailCodeForm({ locale, next, t, turnstileKey }: { locale: Locale; next
       <input type="hidden" name="next" value={next} />
       <input type="hidden" name="email" value={state.email ?? ""} />
       <input type="hidden" name="sentAt" value={state.sentAt ?? ""} />
-      <p className="text-graphite" role="status">
+      {/* data-ph-mask: session replays never show the email address (src/lib/analytics/client.ts). */}
+      <p className="text-graphite" role="status" data-ph-mask>
         {t.codeSent.replace("{email}", state.email ?? "")}
       </p>
       <CodeInput label={t.code} />

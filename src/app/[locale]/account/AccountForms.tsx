@@ -1,10 +1,12 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 import { useFormStatus } from "react-dom";
 import type { Dictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 import { signOut, updateProfile, type ProfileState } from "@/lib/account/actions";
+import type { AuthMethod } from "@/lib/account/methods";
+import { identifyUser, resetAnalytics } from "@/lib/analytics/client";
 
 type T = Dictionary["account"];
 
@@ -42,9 +44,37 @@ export function NameForm({ locale, name, t }: { locale: Locale; name: string; t:
   );
 }
 
+/**
+ * Analytics on the account page (renders nothing): ties this browser to the customer by their user id, and sends
+ * signed_in when the browser was not this customer yet. A no-op without PostHog (src/lib/analytics/client.ts).
+ * Once per sign-in: the page kept by Next.js and shown again (browser Back) does nothing, also after a sign-out.
+ */
+export function AccountAnalytics({
+  userId,
+  signedInAt,
+  method,
+  locale,
+}: {
+  userId: string;
+  signedInAt: string;
+  method: AuthMethod | null;
+  locale: Locale;
+}) {
+  const done = useRef<string | null>(null);
+  useEffect(() => {
+    const key = `${userId}|${signedInAt}`;
+    if (done.current === key) return;
+    done.current = key;
+    identifyUser(userId, signedInAt, { method: method ?? "unknown", locale });
+  }, [userId, signedInAt, method, locale]);
+  return null;
+}
+
 export function SignOutButton({ locale, t }: { locale: Locale; t: T }) {
   return (
-    <form action={signOut.bind(null, locale)}>
+    // onSubmit runs before the action: the analytics id is forgotten on this browser, so whoever uses it next is a
+    // new anonymous visitor. Before hydration the form still signs out (the action alone).
+    <form action={signOut.bind(null, locale)} onSubmit={() => resetAnalytics()}>
       <SignOutSubmit t={t} />
     </form>
   );

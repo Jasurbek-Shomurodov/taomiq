@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { Dictionary } from "@/i18n";
 import { formatSum, type Locale } from "@/i18n/config";
+import { track } from "@/lib/analytics/client";
 import {
   ACTIVITIES,
   GOALS,
@@ -36,6 +37,23 @@ type Props = {
 
 const NUMERIC_FIELDS: readonly NumericField[] = ["age", "height", "weight"];
 
+/** calculator_used is sent once per visit (this tab); the flag survives client navigations and, if allowed, reloads. */
+const USED_KEY = "taomiq:calculator_used";
+let usedThisVisit = false;
+function markUsed(): boolean {
+  if (usedThisVisit) return false;
+  usedThisVisit = true;
+  try {
+    if (sessionStorage.getItem(USED_KEY)) return false;
+    sessionStorage.setItem(USED_KEY, "1");
+  } catch {
+    // Storage blocked: the in-memory flag alone.
+  }
+  return true;
+}
+/** The result has to stay this long before it counts, so a half-typed number is not what gets sent. */
+const SETTLED_MS = 1500;
+
 export function Calculator({ locale, t, programs, telegramUrl }: Props) {
   const [sex, setSex] = useState<Sex | null>(null);
   const [values, setValues] = useState<Record<NumericField, string>>({ age: "", height: "", weight: "" });
@@ -60,6 +78,16 @@ export function Calculator({ locale, t, programs, telegramUrl }: Props) {
   // The big number counts from the previous result to the new one; screen readers get the final
   // value only, from the live region below.
   const shownKcal = useCountUp(result?.kcal ?? null);
+
+  // Analytics: the first settled result of this visit (src/lib/analytics/client.ts; a no-op without PostHog).
+  const resultKcal = result?.kcal ?? null;
+  useEffect(() => {
+    if (resultKcal === null || usedThisVisit) return;
+    const timer = window.setTimeout(() => {
+      if (markUsed()) track("calculator_used", { kcal: resultKcal, locale });
+    }, SETTLED_MS);
+    return () => window.clearTimeout(timer);
+  }, [resultKcal, locale]);
 
   // Phones: the mini result bar shows while the result card is still further down the page, and
   // hides once the card is on screen or scrolled past (it never sits over the footer).

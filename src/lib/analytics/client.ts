@@ -113,14 +113,36 @@ export function track<E extends ClientEvent>(event: E, properties: ClientEventPr
   run((client) => client.capture(event, properties));
 }
 
-/** Ties this browser to the signed-in customer, by their Supabase user id only: never a name, phone or email. */
-export function identifyUser(userId: string) {
+/**
+ * Sign-ins this page has identified, and the ones signed out since. A sign-in is the user id plus the time of that
+ * sign-in (Supabase's last_sign_in_at), so the same customer signing in again is a new one. Kept for the life of the
+ * page (until a full load): Next.js keeps visited pages hidden and shows them again on Back, and an account page
+ * shown again after a sign-out must not tie the browser, and whoever uses it next, back to that customer.
+ */
+let identified: string | null = null;
+const signedOut = new Set<string>();
+
+/**
+ * Ties this browser to the signed-in customer, by their Supabase user id only: never a name, phone or email.
+ * `signInAt` (the sign-in's time) tells a new sign-in from the same page shown again: each sign-in is identified at
+ * most once, and never after it was signed out on this page. When `signedIn` is given and the browser was not this
+ * customer yet (a new sign-in, or the first since the last sign-out), the signed_in event is sent with it, after the
+ * identify, so it lands on the customer.
+ */
+export function identifyUser(userId: string, signInAt: string, signedIn?: ClientEventProperties<"signed_in">) {
+  const key = `${userId}|${signInAt}`;
+  if (key === identified || signedOut.has(key)) return;
+  identified = key;
   run((client) => {
-    if (client.get_distinct_id() !== userId) client.identify(userId);
+    if (client.get_distinct_id() === userId) return;
+    client.identify(userId);
+    if (signedIn) client.capture("signed_in", signedIn);
   });
 }
 
 /** On sign-out: forget the customer, so the next visitor on this browser is a new anonymous one. */
 export function resetAnalytics() {
+  if (identified) signedOut.add(identified);
+  identified = null;
   run((client) => client.reset());
 }

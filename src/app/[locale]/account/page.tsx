@@ -10,7 +10,7 @@ import { isAccountEnabled } from "@/lib/account/methods";
 import { listMyOrders, type CustomerOrder } from "@/lib/account/orders";
 import { STATUS_TONES } from "@/lib/admin/orders";
 import { pageMetadata } from "@/lib/seo";
-import { NameForm, SignOutButton } from "./AccountForms";
+import { AccountAnalytics, NameForm, SignOutButton } from "./AccountForms";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/account">): Promise<Metadata> {
   const { locale } = await params;
@@ -50,7 +50,15 @@ async function AccountContent({ locale, t }: { locale: Locale; t: Dictionary }) 
 
   return (
     <div className="container-page grid max-w-3xl gap-8 py-10 md:py-14">
-      <section className="rounded-3xl bg-white p-6 md:p-8">
+      <AccountAnalytics
+        userId={customer.id}
+        signedInAt={customer.signedInAt}
+        method={customer.lastMethod}
+        locale={locale}
+      />
+      {/* data-ph-mask (both sections): session replays never show the customer's name, phone, email or orders, and
+          clicks inside them are not autocaptured (src/lib/analytics/client.ts). */}
+      <section className="rounded-3xl bg-white p-6 md:p-8" data-ph-mask>
         <h2 className="font-serif text-2xl text-forest md:text-3xl">{a.profile}</h2>
         <NameForm locale={locale} name={profile?.name ?? ""} t={a} />
 
@@ -84,7 +92,7 @@ async function AccountContent({ locale, t }: { locale: Locale; t: Dictionary }) 
         </dl>
       </section>
 
-      <section aria-labelledby="my-orders" className="rounded-3xl bg-white p-6 md:p-8">
+      <section aria-labelledby="my-orders" className="rounded-3xl bg-white p-6 md:p-8" data-ph-mask>
         <h2 id="my-orders" className="font-serif text-2xl text-forest md:text-3xl">
           {a.myOrders}
         </h2>

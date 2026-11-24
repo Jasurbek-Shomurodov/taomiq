@@ -17,6 +17,10 @@ export type Customer = {
   email: string;
   /** Linked sign-in methods, from the auth server's identities (not from user-editable metadata). */
   methods: AuthMethod[];
+  /** When the customer last signed in (the auth server's last_sign_in_at), "" when it does not say. */
+  signedInAt: string;
+  /** The method of the latest sign-in (the identity signed in with last), or null when the auth server does not say. */
+  lastMethod: AuthMethod | null;
   /** Null only if the profile row is missing (the sign-up trigger failed and the callback could not repair it). */
   profile: Profile | null;
 };
@@ -53,7 +57,18 @@ export const getCustomer = cache(async (): Promise<Customer | null> => {
     ...new Set((user.identities ?? []).map((identity) => PROVIDER_METHOD[identity.provider]).filter(Boolean)),
   ];
 
-  return { id: user.id, email: user.email ?? "", methods, profile: profile ?? null };
+  let lastMethod: AuthMethod | null = null;
+  let lastAt = "";
+  for (const identity of user.identities ?? []) {
+    const method = PROVIDER_METHOD[identity.provider];
+    const at = identity.last_sign_in_at ?? "";
+    if (method && at > lastAt) {
+      lastMethod = method;
+      lastAt = at;
+    }
+  }
+
+  return { id: user.id, email: user.email ?? "", methods, signedInAt: user.last_sign_in_at ?? "", lastMethod, profile: profile ?? null };
 });
 
 /**

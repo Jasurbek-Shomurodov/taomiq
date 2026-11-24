@@ -13,10 +13,12 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { Turnstile } from "@/components/Turnstile";
 import type { Dictionary } from "@/i18n";
 import { formatSum, plural, type Locale } from "@/i18n/config";
+import { track } from "@/lib/analytics/client";
 import { pricePerDay, type Duration } from "@/lib/data/types";
 import { submitOrder, type OrderState } from "@/lib/order/actions";
 import {
@@ -138,8 +140,14 @@ function errorsOf(errors: FieldErrors, step: OrderStep, keep: boolean): FieldErr
  */
 export function OrderForm(props: Props) {
   const [round, setRound] = useState(0);
-  const placed = useCallback(() => setRound((n) => n + 1), []);
-  return <OrderFormBody key={round} {...props} onPlaced={placed} />;
+  // Analytics: the step last sent as order_step_viewed. Kept here, across rounds: the fresh form after an order is
+  // only seen through Back, which is a page shown again, not a step viewed, so its step 1 counts as already sent.
+  const viewedStepRef = useRef<OrderStep | null>(null);
+  const placed = useCallback(() => {
+    viewedStepRef.current = 0;
+    setRound((n) => n + 1);
+  }, []);
+  return <OrderFormBody key={round} {...props} onPlaced={placed} viewedStepRef={viewedStepRef} />;
 }
 
 function OrderFormBody({
@@ -159,7 +167,8 @@ function OrderFormBody({
   initialPhone = "",
   turnstileKey,
   onPlaced,
-}: Props & { onPlaced: () => void }) {
+  viewedStepRef,
+}: Props & { onPlaced: () => void; viewedStepRef: RefObject<OrderStep | null> }) {
   const [state, formAction, pending] = useActionState<OrderState, FormData>(submitOrder, {});
 
   // Every field is controlled, so nothing typed is lost when the server returns an error.
@@ -270,6 +279,17 @@ function OrderFormBody({
     else show(FIELD_STEP[field], field);
   }
 
+  // Analytics: each step put on screen on a phone (1, 2, 3, and again after the form's Back), or the single page once
+  // from md (the step never changes there). Effects run again when Next.js shows this kept page again (browser
+  // Back); the step has not changed then, so nothing is sent.
+  useEffect(() => {
+    if (viewedStepRef.current === step) return;
+    viewedStepRef.current = step;
+    const stepped = isStepped();
+    if (!stepped && step !== 0) return;
+    track("order_step_viewed", { step: (step + 1) as 1 | 2 | 3, layout: stepped ? "steps" : "single", locale });
+  }, [step, locale, viewedStepRef]);
+
   // After a step change, keyboard and screen-reader users land on the new step's heading ("Step 2 of 3: Delivery"),
   // or on the invalid field that caused the change.
   useEffect(() => {
@@ -288,9 +308,18 @@ function OrderFormBody({
   });
   useLayoutEffect(() => () => onHide(), []);
 
+  // Analytics: the answer last sent as order_failed. The effect below runs again when the kept page is shown again;
+  // each answer is sent once.
+  const trackedAnswer = useRef<OrderState | null>(null);
+
   // Move focus to whatever the server answered (on a phone, on the step that holds the first invalid field).
   const onAnswer = useEffectEvent((answer: OrderState) => {
     sent.current = false;
+    if ((answer.fields || answer.error) && trackedAnswer.current !== answer) {
+      trackedAnswer.current = answer;
+      const reason = answer.fields ? "field-error" : answer.error === "captcha" ? "turnstile" : "server";
+      track("order_failed", { reason, locale });
+    }
     const field = answer.fields ? firstErrorField(answer.fields) : undefined;
     if (field) reveal(field);
     else if (answer.error || answer.demo) {
@@ -383,6 +412,14 @@ function OrderFormBody({
       if (referrer) formData.set("ref", referrer);
     }
     sent.current = true;
+    // Describes the order only: never the name, phone, address or comment.
+    track("order_submitted", {
+      program: program.slug,
+      kcal: variant.kcal,
+      days: duration.days,
+      weekdays_only: weekdaysOnly,
+      locale,
+    });
     startTransition(() => formAction(formData));
   }
 

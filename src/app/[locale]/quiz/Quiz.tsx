@@ -12,6 +12,7 @@ import {
 } from "react";
 import type { Dictionary } from "@/i18n";
 import { formatSum, type Locale } from "@/i18n/config";
+import { track } from "@/lib/analytics/client";
 import {
   ACTIVITIES,
   GOALS,
@@ -93,6 +94,9 @@ export function Quiz({ locale, t, c, programs, telegramUrl }: Props) {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
+  // Analytics: the answers last sent as quiz_completed, so Back and Next to the same result do not count twice.
+  const completed = useRef("");
+
   // After a step change (never on arrival), keyboard and screen-reader users land on the new question.
   useEffect(() => {
     if (moved.current) heading.current?.focus({ preventScroll: true });
@@ -101,12 +105,20 @@ export function Quiz({ locale, t, c, programs, telegramUrl }: Props) {
   function advance() {
     if (!answered || step === 3) return;
     const next = (step + 1) as Step;
+    // Analytics: sent from the Next that opens the result, never from the browser's Back / Forward through the steps
+    // or a kept page shown again. Once per set of answers; the goal and the matched program only.
+    const answers = JSON.stringify([goal, activity, sex, age, height, weight]);
+    if (next === 3 && goal && completed.current !== answers) {
+      completed.current = answers;
+      track("quiz_completed", { goal, program: plan?.program.slug ?? "none", locale });
+    }
     history.pushState(null, "", location.pathname + location.search + HASH[next]);
     show(next);
   }
 
   function restart() {
     const back = step;
+    completed.current = "";
     setGoal(null);
     setActivity(null);
     setSex(null);

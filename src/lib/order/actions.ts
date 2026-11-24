@@ -3,9 +3,13 @@
 import { createHash } from "node:crypto";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { isLocale } from "@/i18n/config";
 import { getCustomerId } from "@/lib/account/auth";
+import { captureServerEvent } from "@/lib/analytics/server";
+import type { ServerEventProperties } from "@/lib/analytics/events";
 import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog";
+import { pricePerDay } from "@/lib/data/types";
 import { createSecretClient, isOrderingConfigured, supabaseSecretKey } from "@/lib/supabase/secret";
 import { TURNSTILE_FIELD } from "@/lib/turnstile/shared";
 import { verifyTurnstile } from "@/lib/turnstile/verify";
@@ -48,6 +52,18 @@ const DB_ERRORS: Record<string, OrderState> = {
   too_long: { fields: { comment: "too_long" } },
   rate_limited: { error: "rate_limited" },
 };
+
+/**
+ * The order_placed analytics event, sent after the response (after()), so it never delays or fails the order.
+ * Describes the order only, never the customer (no name, phone, address or comment). A no-op without the PostHog key.
+ */
+function scheduleOrderPlaced(properties: ServerEventProperties<"order_placed">, userId: string | null): void {
+  try {
+    after(() => captureServerEvent("order_placed", properties, { userId: userId ?? undefined }));
+  } catch (error) {
+    console.error("analytics: order_placed not scheduled", error instanceof Error ? error.message : error);
+  }
+}
 
 /** The first X-Forwarded-For address (on Vercel, the visitor's), or "" when there is none. */
 async function clientIp(): Promise<string> {
@@ -119,6 +135,8 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
       if (value) source[key] = value.slice(0, SOURCE_VALUE_MAX);
     }
 
+    // The signed-in customer, from the session on the server (never from the form); null when signed out.
+    const customerId = await getCustomerId();
     const { data, error } = await createSecretClient().rpc("submit_order", {
       p_variant_id: input.variantId,
       p_days: input.days,
@@ -133,8 +151,7 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
       p_locale: locale,
       p_source: source,
       p_ip_hash: await clientIpHash(),
-      // The signed-in customer, from the session on the server (never from the form); null when signed out.
-      p_user_id: await getCustomerId(),
+      p_user_id: customerId,
     });
 
     if (error) {
@@ -165,6 +182,19 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
       window: input.window,
       locale,
     });
+    const duration = durations.find((d) => d.days === input.days);
+    scheduleOrderPlaced(
+      {
+        program: program?.slug ?? "",
+        kcal: variant?.kcal ?? 0,
+        days: input.days,
+        // The price the form showed, by the same formula as submit_order().
+        total_uzs: variant && duration ? pricePerDay(variant.price_per_day, duration.markup_pct) * input.days : 0,
+        order_number: number,
+        locale,
+      },
+      customerId,
+    );
     return number;
   } catch (error) {
     console.error("submitOrder failed", error);
