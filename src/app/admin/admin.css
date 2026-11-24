@@ -934,3 +934,37 @@
     border-bottom: 0.75pt solid #000;
   }
 }
+
+/* ---------- Print: delivery sheet (docs/plans/kitchen-day-sheet.md, slice 2) ----------
+   Same rules as above, outside the layers. On screen the rows are a table from the tablet width up and stacked cards
+   on a phone; on paper (narrower than the tablet breakpoint) always the table, with a tick box per row. */
+.adm-print-cell {
+  display: none;
+}
+
+@media print {
+  .adm-sheet .adm-delivery-table {
+    display: table;
+  }
+  .adm-sheet .adm-delivery-cards {
+    display: none;
+  }
+  .adm-sheet .adm-print-cell {
+    display: table-cell;
+  }
+  .adm-sheet .adm-tick-cell {
+    width: 18pt;
+    vertical-align: top;
+  }
+  .adm-sheet .adm-tick {
+    display: inline-block;
+    width: 10pt;
+    height: 10pt;
+    border: 1pt solid #000;
+  }
+  .adm-sheet .adm-delivery-table .adm-badge {
+    padding: 0 3pt;
+    border: 0.75pt solid #000;
+    font-size: 9pt;
+  }
+}
