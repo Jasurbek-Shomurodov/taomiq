@@ -1,146 +1,237 @@
 "use client";
 
-import { useActionState } from "react";
+import { CircleCheck, LoaderCircle, TriangleAlert } from "lucide-react";
+import { useActionState, useId, useState, type ReactNode } from "react";
 import { getAdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { saveDurations, saveProgram, type FormState } from "@/lib/admin/actions";
 import type { Duration, Program } from "@/lib/data/types";
+import { Panel } from "../../kit/Panel";
 import { CyrillicField } from "../CyrillicField";
 
-function Result({ state }: { state: FormState }) {
-  if (state.ok) return <span role="status" className="text-sm text-adm-positive">{state.ok}</span>;
-  if (state.error) return <span role="alert" className="text-sm text-adm-negative">{state.error}</span>;
-  return null;
+/**
+ * One settings row: the label (and a hint) on the left, the control on the right. On phones the control drops
+ * under its label at full width. `htmlFor` ties the label to a single control; without it the row is a group named
+ * by its label (several fields, each with its own short label).
+ */
+function Row({ label, hint, htmlFor, children }: { label: ReactNode; hint?: ReactNode; htmlFor?: string; children: ReactNode }) {
+  const labelId = useId();
+  const group = htmlFor ? {} : { role: "group", "aria-labelledby": labelId };
+  return (
+    <div {...group} className="adm-row flex flex-wrap items-start gap-x-6 gap-y-3 px-4 py-4 sm:px-5">
+      <div className="min-w-0 basis-full sm:basis-48 sm:shrink-0 sm:pt-2.5">
+        {htmlFor ? (
+          <label htmlFor={htmlFor} className="block text-sm font-semibold text-adm-text">
+            {label}
+          </label>
+        ) : (
+          <p id={labelId} className="text-sm font-semibold text-adm-text">
+            {label}
+          </p>
+        )}
+        {hint && <p className="adm-caption mt-0.5">{hint}</p>}
+      </div>
+      <div className="min-w-0 flex-1 basis-full sm:basis-0">{children}</div>
+    </div>
+  );
 }
 
-const label = "adm-label";
+/**
+ * The foot of a panel: what the last save did (saved / failed, in words with an icon) and the panel's Save, which
+ * shows the busy state while the write runs. "Saved" goes away as soon as a field changes again.
+ */
+function SaveFoot({
+  state,
+  pending,
+  changed,
+  label,
+  savingLabel,
+}: {
+  state: FormState;
+  pending: boolean;
+  changed: boolean;
+  label: string;
+  savingLabel: string;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 border-t border-adm-border bg-adm-page px-4 py-3 sm:px-5">
+      {!pending && state.error && (
+        <span role="alert" className="mr-auto inline-flex items-center gap-1.5 text-[13px] font-medium text-adm-negative">
+          <TriangleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+          {state.error}
+        </span>
+      )}
+      {!pending && state.ok && !changed && (
+        <span role="status" className="mr-auto inline-flex items-center gap-1.5 text-[13px] font-medium text-adm-positive">
+          <CircleCheck aria-hidden="true" className="size-3.5 shrink-0" />
+          {state.ok}
+        </span>
+      )}
+      <button type="submit" disabled={pending} aria-busy={pending || undefined} className="adm-btn adm-btn-primary">
+        {pending && <LoaderCircle aria-hidden="true" className="animate-spin" />}
+        {pending ? savingLabel : label}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Whether the form changed after the last save started, so "Saved" never shows for a form that has moved on
+ * (an edit while the save was running, or after it). Typing and "Fill from Latin" both count.
+ */
+function useChangedSinceSubmit() {
+  const [edits, setEdits] = useState(0);
+  const [editsAtSubmit, setEditsAtSubmit] = useState(0);
+  return {
+    changed: edits !== editsAtSubmit,
+    markEdited: () => setEdits((n) => n + 1),
+    markSubmitted: () => setEditsAtSubmit(edits),
+  };
+}
 
 export function ProgramForm({ program, locale }: { program: Program; locale: Locale }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveProgram, {});
+  const { changed, markEdited, markSubmitted } = useChangedSinceSubmit();
   const t = getAdminDictionary(locale);
+  const p = t.programs;
   const lang = t.common.fieldLang;
+  const id = program.id;
 
   return (
-    <form action={action} className="adm-panel sm:p-6">
-      <input type="hidden" name="id" value={program.id} />
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h2 className="adm-heading flex items-center gap-3 text-lg">
-          <span className="h-7 w-1.5 rounded-full" style={{ background: program.tag_color }} />
-          {program.name}
-        </h2>
-        <label className="flex min-h-11 items-center gap-2 text-sm">
-          <input type="checkbox" name="active" defaultChecked={program.active} />
-          {t.programs.showOnSite}
-        </label>
-      </div>
+    <Panel
+      flush
+      title={
+        <span className="flex min-w-0 items-center gap-3">
+          {/* The program's own tag colour, from the database. */}
+          <span aria-hidden="true" className="h-6 w-1.5 shrink-0 rounded-full" style={{ background: program.tag_color }} />
+          <span className="min-w-0 truncate">{program.name}</span>
+        </span>
+      }
+    >
+      <form action={action} onChange={markEdited} onSubmit={markSubmitted}>
+        <input type="hidden" name="id" value={program.id} />
+        <div>
+          <Row label={p.showOnSite} hint={p.showOnSiteHint} htmlFor={`program-active-${id}`}>
+            <span className="flex min-h-11 items-center">
+              <input id={`program-active-${id}`} type="checkbox" name="active" defaultChecked={program.active} className="size-4" />
+            </span>
+          </Row>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-3">
-        <label className={label}>
-          {t.programs.tagline} ({lang.ru})
-          <input name="tagline_ru" defaultValue={program.tagline_ru} className="adm-input" />
-        </label>
-        <label className={label}>
-          {t.programs.tagline} ({lang.uz})
-          <input name="tagline_uz" defaultValue={program.tagline_uz} className="adm-input" />
-        </label>
-        <CyrillicField
-          name="tagline_uzc" latinName="tagline_uz" label={`${t.programs.tagline} (${lang.uzc})`}
-          defaultValue={program.tagline_uzc ?? ""} t={t.cyrillic}
-        />
-        <label className={label}>
-          {t.programs.description} ({lang.ru})
-          <textarea name="description_ru" rows={3} defaultValue={program.description_ru} className="adm-input" />
-        </label>
-        <label className={label}>
-          {t.programs.description} ({lang.uz})
-          <textarea name="description_uz" rows={3} defaultValue={program.description_uz} className="adm-input" />
-        </label>
-        <CyrillicField
-          name="description_uzc" latinName="description_uz" label={`${t.programs.description} (${lang.uzc})`} rows={3}
-          defaultValue={program.description_uzc ?? ""} t={t.cyrillic}
-        />
-      </div>
+          <Row label={p.tagline}>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <label className="adm-label">
+                {lang.ru}
+                <input name="tagline_ru" defaultValue={program.tagline_ru} className="adm-input" />
+              </label>
+              <label className="adm-label">
+                {lang.uz}
+                <input name="tagline_uz" defaultValue={program.tagline_uz} className="adm-input" />
+              </label>
+              <CyrillicField
+                name="tagline_uzc" latinName="tagline_uz" label={lang.uzc}
+                defaultValue={program.tagline_uzc ?? ""} t={t.cyrillic} onFill={markEdited}
+              />
+            </div>
+          </Row>
 
-      <div className="-mx-4 mt-5 overflow-x-auto sm:-mx-6">
-        <table className="w-full min-w-[30rem] text-left text-sm">
-          <thead className="adm-table-head">
-            <tr>
-              <th className="px-4 py-2.5 font-medium sm:px-6">{t.programs.kcal}</th>
-              <th className="px-4 py-2.5 font-medium">{t.programs.pricePerDay}</th>
-              <th className="px-4 py-2.5 font-medium">{t.programs.meals}</th>
-              <th className="px-4 py-2.5 font-medium sm:pr-6">{t.programs.onSite}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {program.variants.map((variant) => (
-              <tr key={variant.id} className="adm-row">
-                <td className="whitespace-nowrap px-4 py-2 font-semibold tabular-nums sm:px-6">
-                  <input type="hidden" name="variant_id" value={variant.id} />
+          <Row label={p.description}>
+            <div className="grid gap-4 lg:grid-cols-3">
+              <label className="adm-label">
+                {lang.ru}
+                <textarea name="description_ru" rows={3} defaultValue={program.description_ru} className="adm-input" />
+              </label>
+              <label className="adm-label">
+                {lang.uz}
+                <textarea name="description_uz" rows={3} defaultValue={program.description_uz} className="adm-input" />
+              </label>
+              <CyrillicField
+                name="description_uzc" latinName="description_uz" label={lang.uzc} rows={3}
+                defaultValue={program.description_uzc ?? ""} t={t.cyrillic} onFill={markEdited}
+              />
+            </div>
+          </Row>
+        </div>
+
+        {/* Calorie levels: one row each, price per day, meals and whether the site shows it. */}
+        <h3 className="adm-table-head border-t border-adm-border px-4 py-2.5 sm:px-5">{p.variantsTitle}</h3>
+        <div>
+          {program.variants.map((variant) => (
+            <Row
+              key={variant.id}
+              label={
+                <span className="tabular-nums">
                   {variant.kcal} {t.common.kcal}
-                </td>
-                <td className="px-4 py-2">
+                </span>
+              }
+            >
+              <input type="hidden" name="variant_id" value={variant.id} />
+              <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+                <label className="adm-label w-40">
+                  <span className="adm-caption font-medium">{p.pricePerDay}</span>
                   <input
-                    aria-label={t.programs.priceAria(variant.kcal)}
+                    aria-label={p.priceAria(variant.kcal)}
                     name={`price_${variant.id}`} type="number" min="0" step="1000" required
-                    defaultValue={variant.price_per_day} className="adm-input max-w-40 tabular-nums"
+                    defaultValue={variant.price_per_day} className="adm-input tabular-nums"
                   />
-                </td>
-                <td className="px-4 py-2">
+                </label>
+                <label className="adm-label w-28">
+                  <span className="adm-caption font-medium">{p.meals}</span>
                   <input
-                    aria-label={t.programs.mealsAria(variant.kcal)}
+                    aria-label={p.mealsAria(variant.kcal)}
                     name={`meals_${variant.id}`} type="number" min="1" max="5" required
-                    defaultValue={variant.meals_per_day} className="adm-input max-w-24 tabular-nums"
+                    defaultValue={variant.meals_per_day} className="adm-input tabular-nums"
                   />
-                </td>
-                <td className="px-4 py-2 sm:pr-6">
+                </label>
+                <label className="flex min-h-11 items-center gap-2 text-sm text-adm-text">
                   <input
-                    aria-label={t.programs.showAria(variant.kcal)}
-                    type="checkbox" name={`active_${variant.id}`} defaultChecked={variant.active}
+                    aria-label={p.showAria(variant.kcal)}
+                    type="checkbox" name={`active_${variant.id}`} defaultChecked={variant.active} className="size-4"
                   />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                  {p.onSite}
+                </label>
+              </div>
+            </Row>
+          ))}
+        </div>
 
-      <div className="mt-5 flex items-center gap-4">
-        <button type="submit" disabled={pending} aria-busy={pending || undefined} className="adm-btn adm-btn-primary">
-          {pending ? t.common.saving : t.common.save}
-        </button>
-        <Result state={state} />
-      </div>
-    </form>
+        <SaveFoot state={state} pending={pending} changed={changed} label={p.saveProgram} savingLabel={t.common.saving} />
+      </form>
+    </Panel>
   );
 }
 
 export function DurationsForm({ durations, locale }: { durations: Duration[]; locale: Locale }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveDurations, {});
+  const { changed, markEdited, markSubmitted } = useChangedSinceSubmit();
   const t = getAdminDictionary(locale);
+  const p = t.programs;
 
   return (
-    <form action={action} className="adm-panel sm:p-6">
-      <div className="grid gap-4 sm:grid-cols-4">
-        {durations.map((d) => (
-          <label key={d.days} className={label}>
-            <input type="hidden" name="days" value={d.days} />
-            {`${t.programs.days(d.days)}${d.is_trial ? t.programs.trial : ""}`}
-            <span className="flex items-center gap-2 font-normal text-adm-muted">
-              <input
-                name={`markup_${d.days}`} type="number" step="0.5" required
-                defaultValue={d.markup_pct} className="adm-input tabular-nums"
-              />
-              %
-            </span>
-          </label>
-        ))}
-      </div>
-      <div className="mt-5 flex items-center gap-4">
-        <button type="submit" disabled={pending} aria-busy={pending || undefined} className="adm-btn adm-btn-primary">
-          {pending ? t.common.saving : t.common.save}
-        </button>
-        <Result state={state} />
-      </div>
-    </form>
+    <Panel flush title={p.durations} description={p.durationsHint}>
+
+      <form action={action} onChange={markEdited} onSubmit={markSubmitted}>
+        <div>
+          {durations.map((d) => {
+            const period = `${p.days(d.days)}${d.is_trial ? p.trial : ""}`;
+            return (
+              <Row key={d.days} label={period} htmlFor={`markup-${d.days}`}>
+                <input type="hidden" name="days" value={d.days} />
+                <span className="flex w-36 items-center gap-2 text-sm text-adm-muted">
+                  <input
+                    id={`markup-${d.days}`}
+                    aria-label={p.markupAria(period)}
+                    name={`markup_${d.days}`} type="number" step="0.5" required
+                    defaultValue={d.markup_pct} className="adm-input tabular-nums"
+                  />
+                  %
+                </span>
+              </Row>
+            );
+          })}
+        </div>
+
+        <SaveFoot state={state} pending={pending} changed={changed} label={p.saveDurations} savingLabel={t.common.saving} />
+      </form>
+    </Panel>
   );
 }

@@ -17,6 +17,7 @@ export function CyrillicField({
   defaultValue,
   rows,
   t,
+  onFill,
 }: {
   /** Form field name, e.g. "name_uzc". */
   name: string;
@@ -27,6 +28,8 @@ export function CyrillicField({
   /** Rows for a textarea; a single-line input when omitted. */
   rows?: number;
   t: AdminDictionary["cyrillic"];
+  /** Called after "Fill from Latin" changed the value (a change no input event reports). */
+  onFill?: () => void;
 }) {
   const id = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -47,7 +50,10 @@ export function CyrillicField({
 
   function fill() {
     const next = converted();
-    if (next !== null) setValue(next);
+    if (next !== null && next !== value) {
+      setValue(next);
+      onFill?.();
+    }
   }
 
   return (
