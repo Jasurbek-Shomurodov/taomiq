@@ -25,6 +25,9 @@ export const DISH_LIST = "grid gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3";
 export const DISH_CARD =
   "flex gap-3 overflow-hidden rounded-2xl border border-line bg-white p-3 sm:flex-col sm:gap-0 sm:p-0";
 
+/** Dish card without a photo: no image frame, just the bordered body with its padding. */
+export const DISH_CARD_BARE = "flex flex-col rounded-2xl border border-line bg-white p-4";
+
 export const DISH_IMAGE =
   "relative size-28 shrink-0 overflow-hidden rounded-xl bg-ivory-deep sm:aspect-[4/3] sm:size-auto sm:w-full sm:rounded-none";
 

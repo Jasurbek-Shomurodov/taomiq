@@ -1,11 +1,9 @@
-import { Monogram } from "./Logo";
-
 /**
  * Pieces shared by the dish card (server, MenuDay) and the dish detail sheet (client, DishSheet).
  * Plain module without hooks, so both sides import it.
  */
 
-export type ChipLabels = {
+export type NutritionLabels = {
   kcal: string;
   weight: string;
   protein: string;
@@ -16,65 +14,61 @@ export type ChipLabels = {
   carbsFull: string;
 };
 
-const CHIP = "inline-flex h-6 items-center rounded-full px-2 text-xs leading-none tabular-nums";
+type Nutrition = { kcal: number; protein: number; fat: number; carbs: number; weight: number };
 
 /**
- * kcal (prominent), then protein / fat / carbs and the portion weight. Cards show the short letters (Б 25) with
- * the full words for screen readers; the sheet shows the full words.
+ * The brandbook's data line: `297 ккал · Б 11 · Ж 8 · У 46 · 270 г`, tracked sans, kcal in forest and the rest muted.
+ * Screen readers get the full macro words; the line wraps between items, never inside one.
  */
-export function DishChips({
+export function DishDataLine({
   kcal,
   protein,
   fat,
   carbs,
   weight,
   labels,
-  full = false,
   className = "",
-}: {
-  kcal: number;
-  protein: number;
-  fat: number;
-  carbs: number;
-  weight: number;
-  labels: ChipLabels;
-  full?: boolean;
-  className?: string;
-}) {
+}: Nutrition & { labels: NutritionLabels; className?: string }) {
   const macros = [
     [labels.protein, labels.proteinFull, protein],
     [labels.fat, labels.fatFull, fat],
     [labels.carbs, labels.carbsFull, carbs],
   ] as const;
+  // The space after the dot is the line's only break opportunity: a narrow card wraps between items, never inside one.
+  const dot = (
+    <>
+      <span aria-hidden className="pl-[0.35em] text-line">
+        ·
+      </span>{" "}
+    </>
+  );
   return (
-    <ul className={`flex flex-wrap gap-1 ${className}`}>
-      <li className={`${CHIP} bg-forest font-semibold text-ivory`}>
+    <p className={`text-[0.72rem] font-medium leading-relaxed tracking-[0.12em] text-muted tabular-nums ${className}`}>
+      <span className="whitespace-nowrap font-semibold text-forest">
         {kcal} {labels.kcal}
-      </li>
+      </span>
       {macros.map(([short, long, grams]) => (
-        <li key={long} className={`${CHIP} bg-ivory-deep text-forest`}>
-          {full ? (
-            `${long} ${grams} ${labels.weight}`
-          ) : (
-            <>
-              <span aria-hidden>
-                {short} {grams}
-              </span>
-              <span className="sr-only">
-                {long} {grams} {labels.weight}
-              </span>
-            </>
-          )}
-        </li>
+        <span key={long}>
+          {dot}
+          <span className="whitespace-nowrap">
+            <span aria-hidden>
+              {short} {grams}
+            </span>
+            <span className="sr-only">
+              {long} {grams} {labels.weight}
+            </span>
+          </span>
+        </span>
       ))}
-      <li className={`${CHIP} border border-line text-muted`}>
+      {dot}
+      <span className="whitespace-nowrap">
         {weight} {labels.weight}
-      </li>
-    </ul>
+      </span>
+    </p>
   );
 }
 
-/** Data badges ("High protein", "Up to 350 kcal"): gold-tinted, smaller than the chips. */
+/** Data badges ("High protein", "Up to 350 kcal"): gold-tinted pills. */
 export function DishBadges({ badges, className = "" }: { badges: readonly string[]; className?: string }) {
   if (badges.length === 0) return null;
   return (
@@ -88,17 +82,5 @@ export function DishBadges({ badges, className = "" }: { badges: readonly string
         </li>
       ))}
     </ul>
-  );
-}
-
-/** No photo yet: a calm brand mark instead of a broken or empty frame. */
-export function DishPlaceholder({ className = "h-full" }: { className?: string }) {
-  return (
-    <div
-      className={`flex items-center justify-center bg-[radial-gradient(circle_at_30%_25%,var(--color-ivory)_0%,var(--color-ivory-deep)_70%)] ${className}`}
-      aria-hidden
-    >
-      <Monogram size={80} onDark={false} className="size-12 opacity-50 sm:size-20" />
-    </div>
   );
 }

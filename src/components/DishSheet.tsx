@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { createContext, useContext, useId, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { DishBadges, DishChips, DishPlaceholder, type ChipLabels } from "./dish-parts";
+import { DishBadges, DishDataLine, type NutritionLabels } from "./dish-parts";
 
 /** What the sheet shows for one dish: only fields the catalogue actually has. */
 export type DishDetail = {
@@ -22,7 +22,7 @@ export type DishDetail = {
   carbs: number;
 };
 
-export type DishSheetLabels = ChipLabels & { close: string; ingredients: string; allergens: string };
+export type DishSheetLabels = NutritionLabels & { close: string; ingredients: string; allergens: string };
 
 const OpenDish = createContext<((index: number, trigger: HTMLElement) => void) | null>(null);
 
@@ -46,6 +46,8 @@ export function DishSheet({
   const [index, setIndex] = useState<number | null>(null);
   const titleId = useId();
   const dish = index === null ? null : dishes[index];
+  // Without a photo the text starts at the top of the sheet: the slot and the title keep clear of the close button.
+  const clearClose = dish && !dish.photoUrl ? "pr-12" : "";
 
   function open(next: number, from: HTMLElement) {
     if (!dialog.current) return;
@@ -84,7 +86,7 @@ export function DishSheet({
               </button>
             </div>
 
-            {dish.photoUrl ? (
+            {dish.photoUrl && (
               <div className="relative aspect-[16/10] w-full overflow-hidden bg-ivory-deep">
                 <Image
                   src={dish.photoUrl}
@@ -94,28 +96,43 @@ export function DishSheet({
                   className="object-cover"
                 />
               </div>
-            ) : (
-              <DishPlaceholder className="h-32 sm:h-40" />
             )}
 
-            <div className="px-5 pt-5 sm:px-6">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <div className={`px-5 sm:px-6 ${dish.photoUrl ? "pt-5" : "pt-6"}`}>
+              <div className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${clearClose}`}>
                 <p className="label text-muted">{dish.slot}</p>
                 <DishBadges badges={dish.badges} />
               </div>
-              <h2 id={titleId} className="mt-2 font-serif text-2xl leading-snug text-forest sm:text-3xl">
+              <h2 id={titleId} className={`mt-2 font-serif text-2xl leading-snug text-forest sm:text-3xl ${clearClose}`}>
                 {dish.name}
               </h2>
-              <DishChips
+              <DishDataLine
                 kcal={dish.kcal}
                 protein={dish.protein}
                 fat={dish.fat}
                 carbs={dish.carbs}
                 weight={dish.weight}
                 labels={labels}
-                full
-                className="mt-4"
+                className="mt-2"
               />
+
+              {/* The detailed macros, in full words. */}
+              <dl className="mt-5 grid grid-cols-3 divide-x divide-line rounded-2xl border border-line bg-white">
+                {(
+                  [
+                    [labels.proteinFull, dish.protein],
+                    [labels.fatFull, dish.fat],
+                    [labels.carbsFull, dish.carbs],
+                  ] as const
+                ).map(([label, grams]) => (
+                  <div key={label} className="px-3 py-3 sm:px-4">
+                    <dt className="text-xs text-muted">{label}</dt>
+                    <dd className="mt-0.5 font-serif text-xl tabular-nums text-forest">
+                      {grams} {labels.weight}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
 
               {dish.ingredients && (
                 <section className="mt-6 border-t border-line pt-4">

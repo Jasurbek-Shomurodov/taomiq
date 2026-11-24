@@ -8,15 +8,15 @@ import { localized } from "@/lib/data/localized";
 import { portionNutrition, sumNutrition, type MenuEntry } from "@/lib/data/types";
 import { DishButton, DishSheet, type DishDetail, type DishSheetLabels } from "./DishSheet";
 import { InViewGrow } from "./InViewGrow";
-import { DishBadges, DishChips, DishPlaceholder, type ChipLabels } from "./dish-parts";
-import { DISH_BODY, DISH_CARD, DISH_IMAGE, DISH_LIST } from "./menu-styles";
+import { DishBadges, DishDataLine, type NutritionLabels } from "./dish-parts";
+import { DISH_BODY, DISH_CARD, DISH_CARD_BARE, DISH_IMAGE, DISH_LIST } from "./menu-styles";
 
 /** The card opens its sheet: the button's ::after covers it (relative), it reacts to a press and shows the focus ring. */
 const DISH_CARD_ACTION =
   "press lift relative cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold";
 
 /**
- * One day's meals as cards (kcal, Б/Ж/У and weight chips, data badges), plus the day total. All dish text is in
+ * One day's meals as cards (the kcal · Б · Ж · У · weight data line, data badges), plus the day total. All dish text is in
  * the server-rendered card; a tap on a card opens its detail sheet (DishSheet).
  */
 export function MenuDay({
@@ -59,7 +59,7 @@ export function MenuDay({
       ...n,
     };
   });
-  const chipLabels: ChipLabels = {
+  const labels: NutritionLabels = {
     kcal: t.programs.kcal,
     weight: t.menu.weight,
     protein: t.menu.protein,
@@ -70,11 +70,15 @@ export function MenuDay({
     carbsFull: t.menu.carbsFull,
   };
   const sheetLabels: DishSheetLabels = {
-    ...chipLabels,
+    ...labels,
     close: t.nav.close,
     ingredients: t.menu.ingredients,
     allergens: t.menu.allergens,
   };
+
+  // Some dishes with a photo, some without: each row aligns to the top instead of stretching the bare cards.
+  const withPhoto = details.filter((dish) => dish.photoUrl).length;
+  const mixedPhotos = withPhoto > 0 && withPhoto < details.length;
 
   const total = sumNutrition(entries);
   // Share of the day's energy from each macro (4 / 9 / 4 kcal per gram).
@@ -106,26 +110,56 @@ export function MenuDay({
   return (
     <div>
       <DishSheet dishes={details} labels={sheetLabels}>
-        <ul className={`stagger ${DISH_LIST}`}>
+        <ul className={`stagger ${DISH_LIST} ${mixedPhotos ? "sm:items-start" : ""}`}>
           {entries.map((entry, index) => {
             const dish = details[index];
             const eager = eagerFirstImage && index === 0;
+            const slot = <p className="label text-muted">{dish.slot}</p>;
+            const name = (
+              <h3 className="mt-1 font-serif text-lg leading-snug text-forest sm:mt-0 sm:text-xl">
+                <DishButton index={index}>{dish.name}</DishButton>
+              </h3>
+            );
+            const ingredients = dish.ingredients && (
+              <p className="mt-1.5 line-clamp-2 text-sm text-muted">{dish.ingredients}</p>
+            );
+            const dataLine = (
+              <DishDataLine
+                kcal={dish.kcal}
+                protein={dish.protein}
+                fat={dish.fat}
+                carbs={dish.carbs}
+                weight={dish.weight}
+                labels={labels}
+                className="mt-auto pt-3 sm:pt-4"
+              />
+            );
+
+            // No photo yet: no frame at all. The slot leads the body, then the badges, the name and the data line.
+            if (!dish.photoUrl) {
+              return (
+                <li key={entry.id} className={`${DISH_CARD_BARE} ${DISH_CARD_ACTION}`}>
+                  {slot}
+                  <DishBadges badges={dish.badges} className="mt-2" />
+                  <div className="mt-2">{name}</div>
+                  {ingredients}
+                  {dataLine}
+                </li>
+              );
+            }
+
             return (
               <li key={entry.id} className={`${DISH_CARD} ${DISH_CARD_ACTION}`}>
                 <div className={`zoom ${DISH_IMAGE}`}>
-                  {dish.photoUrl ? (
-                    <Image
-                      src={dish.photoUrl}
-                      alt={dish.name}
-                      fill
-                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 112px"
-                      loading={eager ? "eager" : undefined}
-                      fetchPriority={eager ? "high" : undefined}
-                      className="object-cover"
-                    />
-                  ) : (
-                    <DishPlaceholder />
-                  )}
+                  <Image
+                    src={dish.photoUrl}
+                    alt={dish.name}
+                    fill
+                    sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 112px"
+                    loading={eager ? "eager" : undefined}
+                    fetchPriority={eager ? "high" : undefined}
+                    className="object-cover"
+                  />
                   <span className="label absolute left-3 top-3 hidden rounded-full bg-forest px-3 py-1.5 text-ivory sm:inline-block">
                     {dish.slot}
                   </span>
@@ -135,22 +169,12 @@ export function MenuDay({
                   <div
                     className={`flex flex-wrap items-center gap-x-2 gap-y-1 ${dish.badges.length > 0 ? "sm:mb-2" : "sm:hidden"}`}
                   >
-                    <p className="label text-muted sm:hidden">{dish.slot}</p>
+                    <div className="sm:hidden">{slot}</div>
                     <DishBadges badges={dish.badges} />
                   </div>
-                  <h3 className="mt-1 font-serif text-lg leading-snug text-forest sm:mt-0 sm:text-xl">
-                    <DishButton index={index}>{dish.name}</DishButton>
-                  </h3>
-                  {dish.ingredients && <p className="mt-1.5 line-clamp-2 text-sm text-muted">{dish.ingredients}</p>}
-                  <DishChips
-                    kcal={dish.kcal}
-                    protein={dish.protein}
-                    fat={dish.fat}
-                    carbs={dish.carbs}
-                    weight={dish.weight}
-                    labels={chipLabels}
-                    className="mt-auto pt-3 sm:pt-4"
-                  />
+                  {name}
+                  {ingredients}
+                  {dataLine}
                 </div>
               </li>
             );
