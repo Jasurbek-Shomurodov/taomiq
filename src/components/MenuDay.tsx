@@ -13,7 +13,7 @@ import { DISH_BODY, DISH_CARD, DISH_IMAGE, DISH_LIST } from "./menu-styles";
 
 /** The card opens its sheet: the button's ::after covers it (relative), it reacts to a press and shows the focus ring. */
 const DISH_CARD_ACTION =
-  "press relative cursor-pointer hover:border-forest/40 has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold";
+  "press lift relative cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold";
 
 /**
  * One day's meals as cards (kcal, Б/Ж/У and weight chips, data badges), plus the day total. All dish text is in
@@ -112,7 +112,7 @@ export function MenuDay({
             const eager = eagerFirstImage && index === 0;
             return (
               <li key={entry.id} className={`${DISH_CARD} ${DISH_CARD_ACTION}`}>
-                <div className={DISH_IMAGE}>
+                <div className={`zoom ${DISH_IMAGE}`}>
                   {dish.photoUrl ? (
                     <Image
                       src={dish.photoUrl}

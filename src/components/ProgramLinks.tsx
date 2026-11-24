@@ -19,12 +19,12 @@ export function ProgramLinks({ programs, locale, t }: { programs: Program[]; loc
           <li key={program.id}>
             <Link
               href={`/${locale}/programs/${program.slug}`}
-              className="press flex h-full flex-col rounded-2xl border border-line bg-white p-5 text-forest hover:border-forest"
+              className="press lift flex h-full flex-col rounded-2xl border border-line bg-white p-5 text-forest"
             >
               <span className="h-1 w-8 rounded-full" style={{ background: program.tag_color }} aria-hidden />
               <span className="mt-3 flex items-baseline justify-between gap-3">
                 <span className="font-serif text-2xl">{program.name}</span>
-                <span aria-hidden className="text-gold">→</span>
+                <span aria-hidden className="nudge text-gold">→</span>
               </span>
               <span className="mt-1 text-sm text-muted tabular-nums">
                 {program.variants.map((v) => v.kcal).join(" · ")} {t.programs.kcal}

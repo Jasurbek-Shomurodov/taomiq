@@ -70,9 +70,9 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               {t.quiz.teaser}{" "}
               <Link
                 href={`/${locale}/quiz`}
-                className="inline-flex min-h-11 items-center font-semibold text-gold underline-offset-4 hover:underline sm:min-h-0"
+                className="link inline-flex min-h-11 items-center font-semibold text-gold sm:min-h-0"
               >
-                {t.quiz.teaserLink}&nbsp;<span aria-hidden>→</span>
+                {t.quiz.teaserLink}&nbsp;<span aria-hidden className="nudge">→</span>
               </Link>
             </p>
             {minPrice !== null && (
@@ -119,12 +119,12 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               return (
                 <li
                   key={program.id}
-                  className="press relative flex w-[85%] shrink-0 snap-start flex-col rounded-3xl bg-forest p-7 text-ivory md:w-auto"
+                  className="press lift relative flex w-[85%] shrink-0 snap-start flex-col rounded-3xl bg-forest p-7 text-ivory md:w-auto"
                 >
                   {/* The cover photo fills the top of the card, edge to edge, with the card's radius. Without one
                       the card is text only; cards stretch to one height in the row and the grid either way. */}
                   {program.photo_url && (
-                    <div className="relative -mx-7 -mt-7 mb-7 aspect-[3/2] overflow-hidden rounded-t-3xl">
+                    <div className="zoom relative -mx-7 -mt-7 mb-7 aspect-[3/2] rounded-t-3xl">
                       <Image
                         src={program.photo_url}
                         alt={`${program.name} — ${tagline}`}
@@ -215,7 +215,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           <FaqList items={t.faq.items} />
         </div>
         <Link href={`/${locale}/faq`} className="btn btn-outline mt-8 text-forest">
-          {t.faq.all} <span aria-hidden>→</span>
+          {t.faq.all} <span aria-hidden className="nudge">→</span>
         </Link>
       </section>
 

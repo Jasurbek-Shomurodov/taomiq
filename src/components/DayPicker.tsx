@@ -51,7 +51,7 @@ export function DayPicker({
               aria-current={isActive ? "true" : undefined}
               className={`press ${DAY_CIRCLE} ${
                 isActive
-                  ? "border-transparent font-semibold text-forest [scroll-initial-target:nearest]"
+                  ? "border-transparent font-semibold text-forest"
                   : "border-line bg-white text-forest hover:border-forest"
               }`}
             >

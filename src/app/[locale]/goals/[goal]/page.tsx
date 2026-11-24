@@ -199,7 +199,7 @@ export default async function GoalPage({ params }: PageProps<"/[locale]/goals/[g
           <FaqList items={faq} />
         </div>
         <Link href={`/${locale}/faq`} className="btn btn-outline mt-8 text-forest">
-          {t.faq.all} <span aria-hidden>→</span>
+          {t.faq.all} <span aria-hidden className="nudge">→</span>
         </Link>
       </section>
 

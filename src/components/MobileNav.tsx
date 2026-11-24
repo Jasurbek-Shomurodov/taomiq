@@ -5,8 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import type { Locale } from "@/i18n/config";
 import { LocaleSwitch } from "./LocaleSwitch";
-
-type NavLink = { href: string; label: string };
+import { isCurrentSection, type NavLink } from "./NavLinks";
 
 /**
  * Phones and tablets: a 44 px menu button that opens the site sections as a bottom sheet. The sheet is a
@@ -94,17 +93,25 @@ export function MobileNav({
 
           <nav className="px-5 py-2">
             <ul className="divide-y divide-ivory/10">
-              {links.map((link) => (
-                <li key={link.href}>
-                  <Link
-                    href={link.href}
-                    className="press flex min-h-14 items-center justify-between gap-4 font-serif text-2xl text-ivory"
-                  >
-                    {link.label}
-                    <span aria-hidden className="font-sans text-base text-gold">→</span>
-                  </Link>
-                </li>
-              ))}
+              {links.map((link) => {
+                const current = isCurrentSection(pathname, link);
+                return (
+                  <li key={link.href}>
+                    {/* The current section: a gold dot in the gutter to the left of the word (no shift). */}
+                    <Link
+                      href={link.href}
+                      aria-current={current ? "page" : undefined}
+                      className="press relative flex min-h-14 items-center justify-between gap-4 font-serif text-2xl text-ivory"
+                    >
+                      {current && (
+                        <span aria-hidden className="absolute -left-3.5 top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-gold" />
+                      )}
+                      {link.label}
+                      <span aria-hidden className="font-sans text-base text-gold">→</span>
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </nav>
 

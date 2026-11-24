@@ -340,6 +340,91 @@ label:active > input[type="radio"].sr-only:not(:disabled) + span {
   transition-duration: var(--duration-instant);
 }
 
+/* Hover layer (docs/plans/premium-polish.md, design rules). Pointer devices only; a keyboard focus inside shows
+   the same state. Hover in takes --duration-fast (160 ms), out 120 ms. Only translate, scale, colours and the
+   shadow change, so nothing resizes or pushes a neighbour. The movement itself waits for
+   prefers-reduced-motion: no-preference; under reduce only the colours change.
+   .lift   a linked card: rises 2 px, its border one step darker, a soft shadow.
+   .zoom   a photo frame: its img scales to 1.03 inside it (on its own hover or its .lift card's), 600 ms in, 400 ms out.
+   .link   a text link: a 1 px underline draws left to right (a background, so no layout change).
+   .nudge  an arrow inside a .lift, .link or .btn: 3 px to the right.
+   .btn    rises 1 px. */
+.lift {
+  transition-property: color, background-color, border-color, outline-color, opacity, scale, translate, box-shadow;
+  transition-duration: 120ms;
+  transition-timing-function: var(--ease-out-calm);
+}
+.zoom {
+  overflow: hidden;
+}
+.zoom img {
+  transition: scale 400ms var(--ease-out-calm);
+}
+.link {
+  background-image: linear-gradient(currentColor, currentColor);
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  background-size: 0 1px;
+  transition: background-size 120ms var(--ease-out-calm), color var(--duration-fast) var(--ease-out-calm);
+}
+.nudge {
+  display: inline-block;
+  transition: translate 120ms var(--ease-out-calm);
+}
+.btn {
+  /* The press block above lists scale; translate joins it for the 1 px hover step. */
+  transition-property: color, background-color, border-color, outline-color, opacity, scale, translate;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lift:hover {
+    border-color: color-mix(in srgb, var(--color-forest) 25%, var(--color-line));
+    box-shadow: 0 12px 24px -12px rgb(24 60 52 / 0.1);
+    transition-duration: var(--duration-fast);
+  }
+  .link:hover {
+    background-size: 100% 1px;
+    transition-duration: var(--duration-fast);
+  }
+}
+.lift:has(:focus-visible),
+.lift:focus-visible {
+  border-color: color-mix(in srgb, var(--color-forest) 25%, var(--color-line));
+  box-shadow: 0 12px 24px -12px rgb(24 60 52 / 0.1);
+}
+.link:focus-visible {
+  background-size: 100% 1px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @media (hover: hover) and (pointer: fine) {
+    .lift:hover,
+    .btn:hover:not(:disabled, [aria-disabled="true"]) {
+      translate: 0 -1px;
+      transition-duration: var(--duration-fast);
+    }
+    .lift:hover {
+      translate: 0 -2px;
+    }
+    .zoom:hover img,
+    .lift:hover .zoom img {
+      scale: 1.03;
+      transition-duration: 600ms;
+    }
+    :is(.lift, .link, .btn):hover .nudge {
+      translate: 3px 0;
+      transition-duration: var(--duration-fast);
+    }
+  }
+  .lift:has(:focus-visible),
+  .lift:focus-visible {
+    translate: 0 -2px;
+  }
+  :is(.lift, .link, .btn):is(:focus-visible, :has(:focus-visible)) .nudge {
+    translate: 3px 0;
+  }
+}
+
 /* FAQ: the answer opens and closes in 240 ms. Without ::details-content this rule is dropped
    and the answer snaps open as before; without interpolate-size it snaps too. */
 details.faq::details-content {
