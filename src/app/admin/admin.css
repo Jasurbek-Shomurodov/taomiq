@@ -322,6 +322,21 @@
   .adm-row:focus-within {
     background: color-mix(in srgb, var(--adm-surface-muted) 70%, transparent);
   }
+  /* A whole card that opens a record (the dish cards): the border darkens on hover, the focus ring sits inside. */
+  .adm-card-link {
+    color: inherit;
+    transition:
+      border-color var(--duration-fast) var(--adm-ease),
+      box-shadow var(--duration-fast) var(--adm-ease);
+  }
+  .adm-card-link:hover {
+    border-color: color-mix(in srgb, var(--adm-border) 50%, var(--adm-text-muted));
+    box-shadow: 0 4px 14px rgb(24 60 52 / 8%);
+  }
+  .adm-card-link:focus-visible {
+    outline-offset: 2px;
+  }
+
   .adm-table-head {
     border-bottom: 1px solid var(--adm-border);
     background: var(--adm-page);

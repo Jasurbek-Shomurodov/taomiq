@@ -54,14 +54,16 @@ const ORDER_LIST_COLUMNS =
   "id, number, status, program_name, kcal, days, weekdays_only, start_date, total, customer_name, phone, created_at";
 
 /**
- * One page of orders, newest first, optionally of one status.
- * No count here: the caller pages with orderCounts(), and a range past the end simply returns
- * no rows (with count: "exact" PostgREST would answer 416 / PGRST103 instead).
+ * One page of orders, newest first, optionally of one status and matching a search.
+ * `search` is an or() filter from orderSearchFilter() (lib/admin/order-search.ts), never raw input.
+ * No count here: the caller pages with orderCounts() (given the same search), and a range past the end simply
+ * returns no rows (with count: "exact" PostgREST would answer 416 / PGRST103 instead).
  */
 export async function listOrders(
   supabase: SupabaseClient,
   status: OrderStatus | null,
   page: number,
+  search: string | null = null,
 ): Promise<OrderRow[]> {
   const from = (page - 1) * ORDERS_PAGE_SIZE;
   let query = supabase
@@ -70,6 +72,7 @@ export async function listOrders(
     .order("created_at", { ascending: false })
     .range(from, from + ORDERS_PAGE_SIZE - 1);
   if (status) query = query.eq("status", status);
+  if (search) query = query.or(search);
   const { data, error } = await query;
   if (error) {
     if (error.code === "PGRST103") return [];
@@ -78,12 +81,19 @@ export async function listOrders(
   return (data ?? []) as unknown as OrderRow[];
 }
 
-/** How many orders are in each status (head-only count queries, no rows transferred). */
-export async function orderCounts(supabase: SupabaseClient): Promise<Record<OrderStatus, number>> {
+/**
+ * How many orders are in each status (head-only count queries, no rows transferred). With `search` (an
+ * orderSearchFilter() result) the counts are of the matching orders, so the tabs agree with the list.
+ */
+export async function orderCounts(
+  supabase: SupabaseClient,
+  search: string | null = null,
+): Promise<Record<OrderStatus, number>> {
   const results = await Promise.all(
-    ORDER_STATUSES.map((status) =>
-      supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", status),
-    ),
+    ORDER_STATUSES.map((status) => {
+      const query = supabase.from("orders").select("id", { count: "exact", head: true }).eq("status", status);
+      return search ? query.or(search) : query;
+    }),
   );
   const counts = {} as Record<OrderStatus, number>;
   ORDER_STATUSES.forEach((status, i) => {

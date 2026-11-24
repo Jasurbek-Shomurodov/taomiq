@@ -1,23 +1,20 @@
-import { Inbox } from "lucide-react";
+import { Inbox, SearchX } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { getAdminDictionary } from "@/i18n/admin";
-import { formatSum } from "@/i18n/config";
 import { requireOwner, requireStaff } from "@/lib/admin/auth";
-import {
-  ORDER_STATUSES,
-  formatDateTime,
-  formatDay,
-  formatPhone,
-  isOrderStatus,
-  type OrderRow,
-  type OrderStatus,
-} from "@/lib/admin/orders";
+import { ORDER_SEARCH_MAX, cutCodePoints, orderSearchFilter } from "@/lib/admin/order-search";
+import { ORDER_STATUSES, isOrderStatus, type OrderRow, type OrderStatus } from "@/lib/admin/orders";
 import { ORDERS_PAGE_SIZE, listOrders, orderCounts } from "@/lib/admin/queries";
+import { BeforeHydration } from "../../kit/BeforeHydration";
 import { EmptyState } from "../../kit/EmptyState";
 import { Notice } from "../../kit/Notice";
 import { Panel } from "../../kit/Panel";
-import { StatusBadge } from "./StatusBadge";
+import { SearchField } from "../../kit/SearchField";
+import { Skeleton } from "../../kit/Skeleton";
+import { TopBarTabs } from "../../shell/TopBarSlot";
+import { OrdersTable } from "./OrdersTable";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { staff } = await requireStaff();
@@ -28,15 +25,18 @@ function one(value: string | string[] | undefined): string {
   return (Array.isArray(value) ? value[0] : value) ?? "";
 }
 
-function href(status: OrderStatus | null, page = 1): string {
+/** The list's address: status, page and search together, so tabs and pages keep each other. */
+function href({ status, page = 1, q = "" }: { status: OrderStatus | null; page?: number; q?: string }): string {
   const params = new URLSearchParams();
   if (status) params.set("status", status);
+  if (q) params.set("q", q);
   if (page > 1) params.set("page", String(page));
   const query = params.toString();
   return query ? `/orders?${query}` : "/orders";
 }
 
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
+  // Orders hold personal data: the owner only (RLS returns nothing to anyone else either).
   const { supabase, staff } = await requireOwner();
   const { locale } = staff;
   const t = getAdminDictionary(locale);
@@ -45,116 +45,109 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   const status = isOrderStatus(statusParam) ? statusParam : null;
   const pageParam = Number(one(params.page));
   const requestedPage = Number.isSafeInteger(pageParam) && pageParam > 1 ? pageParam : 1;
+  // Links carry the term as typed (URLSearchParams encodes it), so the box keeps showing it; the query only ever
+  // sees orderSearchFilter() output: letters, digits, spaces and "+" (lib/admin/order-search.ts).
+  const typed = cutCodePoints(one(params.q), 100).trim();
+  const search = orderSearchFilter(typed);
+  const searching = search !== null;
 
-  // Counts first: they give the number of pages, so a page past the end shows the last one.
+  // Counts first: they give the number of pages, so a page past the end shows the last one. With a search on,
+  // they count the matching orders, so the tabs agree with the list.
   let result: { counts: Record<OrderStatus, number>; orders: OrderRow[]; page: number; pages: number } | null = null;
   try {
-    const counts = await orderCounts(supabase);
+    const counts = await orderCounts(supabase, search);
     const total = status ? counts[status] : ORDER_STATUSES.reduce((sum, s) => sum + counts[s], 0);
     const pages = Math.max(1, Math.ceil(total / ORDERS_PAGE_SIZE));
     const page = Math.min(requestedPage, pages);
-    result = { counts, orders: await listOrders(supabase, status, page), page, pages };
+    result = { counts, orders: await listOrders(supabase, status, page, search), page, pages };
   } catch (error) {
     console.error("orders list failed", error instanceof Error ? error.message : error);
   }
 
-  if (!result) {
-    return (
-      <div className="adm-page">
-        <Notice tone="negative" retry={{ href: href(status, requestedPage), label: t.common.retry }}>
-          {t.orders.loadFailed}
-        </Notice>
-      </div>
-    );
-  }
+  const all = result ? ORDER_STATUSES.reduce((sum, s) => sum + result.counts[s], 0) : 0;
+  const found = result ? (status ? result.counts[status] : all) : null;
 
-  const { counts, orders, page, pages } = result;
-  const all = ORDER_STATUSES.reduce((sum, s) => sum + counts[s], 0);
+  // The status tabs: counts when they loaded (with a search on, of the matching orders), none when they did not,
+  // so the tabs still work after a failed load.
+  const tabs = (
+    <nav aria-label={t.orders.statusesAria} className="adm-tabs">
+      <Tab href={href({ status: null, q: typed })} active={!status} label={t.orders.all} count={result ? all : null} />
+      {ORDER_STATUSES.map((s) => (
+        <Tab
+          key={s}
+          href={href({ status: s, q: typed })}
+          active={status === s}
+          label={t.orders.tabs[s]}
+          count={result ? result.counts[s] : null}
+        />
+      ))}
+    </nav>
+  );
 
+  // One tree for every state, so the search box keeps its place (and focus) whatever the search returns.
   return (
     <div className="adm-page">
-      <p className="adm-muted">{t.orders.lead}</p>
+      <TopBarTabs>{tabs}</TopBarTabs>
+      {/* The top bar fills only once the scripts run; until then the same tabs sit on the page. */}
+      <BeforeHydration>{tabs}</BeforeHydration>
 
-      <nav aria-label={t.orders.statusesAria} className="adm-segmented self-start">
-        <Tab href={href(null)} active={!status} label={t.orders.all} count={all} />
-        {ORDER_STATUSES.map((s) => (
-          <Tab key={s} href={href(s)} active={status === s} label={t.orders.tabs[s]} count={counts[s]} />
-        ))}
-      </nav>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Suspense fallback={<Skeleton className="h-11 w-full rounded-adm-control sm:max-w-sm" />}>
+          <SearchField
+            label={t.orders.searchLabel}
+            placeholder={t.orders.searchPlaceholder}
+            maxLength={ORDER_SEARCH_MAX}
+            className="w-full sm:max-w-sm"
+          />
+        </Suspense>
+        <p className="adm-caption tabular-nums" aria-live="polite">
+          {found !== null && searching ? t.orders.found(found) : t.orders.lead}
+        </p>
+      </div>
 
-      {orders.length === 0 ? (
+      {!result ? (
+        <Notice tone="negative" retry={{ href: href({ status, page: requestedPage, q: typed }), label: t.common.retry }}>
+          {t.orders.loadFailed}
+        </Notice>
+      ) : result.orders.length === 0 ? (
         <Panel>
-          <EmptyState icon={Inbox}>
-            {page > 1 ? t.orders.pageEmpty : status ? t.orders.statusEmpty(t.orders.tabs[status]) : t.orders.none}
-          </EmptyState>
+          {searching ? (
+            <EmptyState
+              icon={SearchX}
+              action={
+                <Link href={href({ status })} className="adm-btn adm-btn-outline">
+                  {t.orders.clearSearch}
+                </Link>
+              }
+            >
+              {status ? t.orders.searchStatusEmpty(typed, t.orders.tabs[status]) : t.orders.searchEmpty(typed)}
+            </EmptyState>
+          ) : (
+            <EmptyState icon={Inbox}>
+              {result.page > 1
+                ? t.orders.pageEmpty
+                : status
+                  ? t.orders.statusEmpty(t.orders.tabs[status])
+                  : t.orders.none}
+            </EmptyState>
+          )}
         </Panel>
       ) : (
-        <Panel flush className="overflow-x-auto">
-          <table className="w-full min-w-[52rem] text-left text-sm">
-            <thead className="adm-table-head">
-              <tr>
-                <th className="px-4 py-2.5 font-medium">{t.orders.number}</th>
-                <th className="px-4 py-2.5 font-medium">{t.orders.created}</th>
-                <th className="px-4 py-2.5 font-medium">{t.orders.customer}</th>
-                <th className="px-4 py-2.5 font-medium">{t.orders.program}</th>
-                <th className="px-4 py-2.5 font-medium">{t.orders.start}</th>
-                <th className="px-4 py-2.5 text-right font-medium">{t.orders.sum}</th>
-                <th className="px-4 py-2.5 font-medium">{t.orders.status}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {orders.map((order) => (
-                <tr key={order.id} className="adm-row">
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/orders/${order.id}`}
-                      className="font-semibold tabular-nums text-adm-accent-ink underline-offset-4 hover:underline"
-                    >
-                      {order.number}
-                    </Link>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 tabular-nums text-adm-muted">
-                    {formatDateTime(order.created_at, locale)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Link href={`/orders/${order.id}`} className="block">
-                      <span className="block font-semibold text-adm-text">{order.customer_name}</span>
-                      <span className="block whitespace-nowrap text-[13px] tabular-nums text-adm-muted">
-                        {formatPhone(order.phone)}
-                      </span>
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    {order.program_name} / <span className="tabular-nums">{order.kcal}</span>
-                    <span className="block text-[13px] text-adm-muted">
-                      {t.orders.daysShort(order.days)}
-                      {order.weekdays_only ? t.orders.noWeekends : ""}
-                    </span>
-                  </td>
-                  <td className="whitespace-nowrap px-4 py-3 tabular-nums">{formatDay(order.start_date, locale)}</td>
-                  <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{formatSum(order.total)}</td>
-                  <td className="px-4 py-3">
-                    <StatusBadge status={order.status} locale={locale} />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </Panel>
+        <OrdersTable orders={result.orders} locale={locale} />
       )}
 
-      {pages > 1 && (
+      {result && result.pages > 1 && (
         <nav aria-label={t.orders.pagesAria} className="flex items-center justify-between gap-4 text-sm">
-          {page > 1 ? (
-            <Link href={href(status, page - 1)} className="adm-btn adm-btn-outline">
+          {result.page > 1 ? (
+            <Link href={href({ status, page: result.page - 1, q: typed })} className="adm-btn adm-btn-outline">
               {t.orders.newer}
             </Link>
           ) : (
             <span />
           )}
-          <span className="tabular-nums text-adm-muted">{t.orders.pageOf(page, pages)}</span>
-          {page < pages ? (
-            <Link href={href(status, page + 1)} className="adm-btn adm-btn-outline">
+          <span className="tabular-nums text-adm-muted">{t.orders.pageOf(result.page, result.pages)}</span>
+          {result.page < result.pages ? (
+            <Link href={href({ status, page: result.page + 1, q: typed })} className="adm-btn adm-btn-outline">
               {t.orders.older}
             </Link>
           ) : (
@@ -166,11 +159,22 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
   );
 }
 
-function Tab({ href, active, label, count }: { href: string; active: boolean; label: string; count: number }) {
+function Tab({
+  href,
+  active,
+  label,
+  count,
+}: {
+  href: string;
+  active: boolean;
+  label: string;
+  /** null when the counts could not be read: no pill rather than a made-up 0. */
+  count: number | null;
+}) {
   return (
-    <Link href={href} aria-current={active ? "page" : undefined}>
+    <Link href={href} aria-current={active ? "page" : undefined} scroll={false}>
       {label}
-      <span className="adm-count">{count}</span>
+      {count !== null && <span className="adm-count">{count}</span>}
     </Link>
   );
 }

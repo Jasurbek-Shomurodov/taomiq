@@ -33,3 +33,29 @@ export function matchesDishStatus(
 export function dishesHref(filter?: DishStatusFilter): string {
   return filter ? `/dishes?status=${filter}` : "/dishes";
 }
+
+/**
+ * The dishes list's view, kept in a cookie so the server renders the one the person chose last time. Anything
+ * but "list" (no cookie, an old value) is the photo cards.
+ */
+export const DISH_VIEW_COOKIE = "admin_dishes_view";
+export const DISH_VIEWS = ["cards", "list"] as const;
+export type DishView = (typeof DISH_VIEWS)[number];
+
+export function parseDishView(value: string | undefined): DishView {
+  return value === "list" ? "list" : "cards";
+}
+
+/**
+ * Text folded for the dishes search: lower case, ё as е, and no apostrophes of any kind, so "oʻrik", "o'rik",
+ * "o‘rik" and "orik" all find the same dish. Runs of spaces become one.
+ */
+export function foldSearchText(text: string): string {
+  return text
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/ё/g, "е")
+    .replace(/[ʻʼ'‘’`´]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}

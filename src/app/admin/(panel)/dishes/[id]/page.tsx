@@ -12,7 +12,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: getAdminDictionary(staff.locale).dish.title };
 }
 
-/** `/dishes/new` creates a dish; `/dishes/<id>` edits one. */
+/** `/dishes/new` creates a dish; `/dishes/<id>` edits one. A full page: back to the list and Save in the top bar. */
 export default async function DishPage({ params }: PageProps<"/admin/dishes/[id]">) {
   const { id } = await params;
   const { supabase, staff } = await requireStaff();
@@ -31,9 +31,8 @@ export default async function DishPage({ params }: PageProps<"/admin/dishes/[id]
       <TopBarTitle>
         <span className="adm-truncate">{dish ? localized(dish, "name", staff.locale) : t.dish.newTitle}</span>
       </TopBarTitle>
-      <div className="grid w-full max-w-4xl gap-4">
-        <DishForm dish={dish} locale={staff.locale} />
-      </div>
+      {/* The editor: panels (names, nutrition, photo, visibility), Save in the top bar, delete underneath. */}
+      <DishForm dish={dish} locale={staff.locale} />
     </div>
   );
 }

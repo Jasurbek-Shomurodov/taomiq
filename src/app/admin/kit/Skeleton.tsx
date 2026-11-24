@@ -129,29 +129,63 @@ function DashboardSkeleton() {
   );
 }
 
+/** A list with a search box over it (orders). */
 function TableSkeleton() {
   return (
     <>
-      <Skeleton className="h-4 w-72 max-w-full" />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Skeleton className="h-11 w-full rounded-adm-control sm:max-w-sm" />
+        <Skeleton className="h-3.5 w-56 max-w-full" />
+      </div>
       <Rows count={8} />
     </>
   );
 }
 
-function CardsSkeleton() {
+/** A list screen's toolbar panel: the search box and two controls. */
+function ToolbarSkeleton() {
   return (
-    <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(14rem,1fr))]">
+    <div className="adm-panel flex flex-wrap items-center gap-3">
+      <Skeleton className="h-11 w-full rounded-adm-control sm:w-auto sm:min-w-56 sm:flex-1" />
+      <Skeleton className="h-11 w-44 rounded-adm-control max-sm:flex-1" />
+      <Skeleton className="h-11 w-36 rounded-xl" />
+    </div>
+  );
+}
+
+function CardGrid() {
+  return (
+    <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(9.5rem,1fr))] sm:gap-4 sm:[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]">
       {Array.from({ length: 8 }, (_, i) => (
         <div key={i} className="adm-panel adm-panel-flush">
           <Skeleton className="aspect-[4/3] w-full rounded-none" />
-          <div className="grid gap-2 p-4">
+          <div className="grid gap-2 p-3 sm:p-4">
             <Skeleton className="h-4 w-3/4" />
             <Skeleton className="h-3 w-1/2" />
+            <Skeleton className="mt-1 h-3 w-2/3" />
+            <Skeleton className="mt-2 h-5 w-20 rounded-full" />
           </div>
         </div>
       ))}
     </div>
   );
+}
+
+/** The dishes list (also inside the page, behind its <Suspense>): toolbar, count line, then cards or table rows. */
+export function DishesSkeleton({ view }: { view: "cards" | "list" }) {
+  return (
+    <>
+      <ToolbarSkeleton />
+      <div className="flex min-h-10 items-center">
+        <Skeleton className="h-3.5 w-24" />
+      </div>
+      {view === "cards" ? <CardGrid /> : <Rows count={8} />}
+    </>
+  );
+}
+
+function CardsSkeleton() {
+  return <DishesSkeleton view="cards" />;
 }
 
 function FormSkeleton() {
@@ -180,7 +214,7 @@ function DetailSkeleton() {
   return (
     <>
       <Skeleton className="h-4 w-80 max-w-full" />
-      <div className="grid gap-5 lg:grid-cols-[1fr_20rem]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
         <div className="grid content-start gap-5">
           {Array.from({ length: 3 }, (_, i) => (
             <div key={i} className="adm-panel grid gap-3">

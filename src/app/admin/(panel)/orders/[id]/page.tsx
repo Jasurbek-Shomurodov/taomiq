@@ -60,13 +60,15 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
         </span>
         <StatusBadge status={order.status} locale={locale} />
       </TopBarTitle>
-      <p className="adm-muted">
+      <p className="adm-muted tabular-nums">
         {t.order.createdAt(formatDateTime(order.created_at, locale))} · {t.order.siteLanguage(siteLanguage)}
         {order.updated_at !== order.created_at && <> · {t.order.updatedAt(formatDateTime(order.updated_at, locale))}</>}
       </p>
 
-      <div className="grid w-full max-w-5xl gap-5 lg:grid-cols-[1fr_20rem]">
-        <div className="grid content-start gap-5">
+      {/* Phones: the customer, then what to do (status, note), then the details. From xl: details on the left and
+          the status column on the right, sticky while the details scroll (main is the scroll container). */}
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem] xl:grid-rows-[auto_1fr]">
+        <div className="grid min-w-0 content-start gap-5">
           <Card title={t.order.customer}>
             <p className="text-lg font-semibold text-adm-text">{order.customer_name}</p>
             <p className="mt-1 tabular-nums">{formatPhone(order.phone)}</p>
@@ -75,7 +77,17 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
               {t.order.call}
             </a>
           </Card>
+        </div>
 
+        <aside
+          aria-label={t.order.status}
+          className="grid min-w-0 content-start gap-5 xl:sticky xl:top-6 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:self-start"
+        >
+          <StatusControls id={order.id} status={order.status} locale={locale} />
+          <NoteForm id={order.id} note={order.staff_note} locale={locale} />
+        </aside>
+
+        <div className="grid min-w-0 content-start gap-5 xl:col-start-1 xl:row-start-2">
           <Card title={t.order.programPayment}>
             <Rows
               rows={[
@@ -100,7 +112,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
           </Card>
 
           <Card title={t.order.exclusions}>
-            <p className="whitespace-pre-line">{order.exclusions || t.order.noExclusions}</p>
+            <p className="whitespace-pre-line break-words">{order.exclusions || t.order.noExclusions}</p>
           </Card>
 
           <Card title={t.order.source}>
@@ -111,11 +123,6 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
             )}
             <p className="adm-caption mt-3">{t.order.consent(formatDateTime(order.consent_at, locale))}</p>
           </Card>
-        </div>
-
-        <div className="grid content-start gap-5">
-          <StatusControls id={order.id} status={order.status} locale={locale} />
-          <NoteForm id={order.id} note={order.staff_note} locale={locale} />
         </div>
       </div>
     </div>
