@@ -4,7 +4,14 @@ import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { requireOwner, requireStaff } from "@/lib/admin/auth";
 import { formatDateTime } from "@/lib/admin/orders";
-import { isStaffRole, listAccessRequests, listTeam, type AccessRequest, type TeamMember } from "@/lib/admin/team";
+import {
+  formatDate,
+  isStaffRole,
+  listAccessRequests,
+  listTeam,
+  type AccessRequest,
+  type TeamMember,
+} from "@/lib/admin/team";
 import { Badge } from "../../kit/Badge";
 import { EmptyState } from "../../kit/EmptyState";
 import { Notice } from "../../kit/Notice";
@@ -14,11 +21,6 @@ import { RemoveAction, RequestActions } from "./TeamControls";
 export async function generateMetadata(): Promise<Metadata> {
   const { staff } = await requireStaff();
   return { title: getAdminDictionary(staff.locale).team.title };
-}
-
-/** Day only, Tashkent time: "23.11.2026". */
-function day(iso: string, locale: Locale): string {
-  return formatDateTime(iso, locale).split(",")[0] ?? iso;
 }
 
 /**
@@ -32,10 +34,10 @@ export default async function TeamPage() {
   const { locale } = staff;
   const t = getAdminDictionary(locale);
 
-  let data: { requests: AccessRequest[]; team: TeamMember[] } | null = null;
+  let data: { waiting: AccessRequest[]; declined: AccessRequest[]; team: TeamMember[] } | null = null;
   try {
     const [requests, team] = await Promise.all([listAccessRequests(supabase), listTeam(supabase)]);
-    data = { requests, team };
+    data = { ...requests, team };
   } catch (error) {
     console.error("team page failed", error instanceof Error ? error.message : error);
   }
@@ -50,8 +52,7 @@ export default async function TeamPage() {
     );
   }
 
-  const waiting = data.requests.filter((request) => request.status === "pending");
-  const declined = data.requests.filter((request) => request.status === "declined");
+  const { waiting, declined } = data;
 
   return (
     <div className="adm-page">
@@ -82,7 +83,7 @@ export default async function TeamPage() {
               <div className="min-w-0 flex-1" data-ph-mask>
                 <p className="adm-truncate font-semibold text-adm-text">{member.email || t.team.noEmail}</p>
                 <p className="adm-caption">
-                  {[member.name, t.team.since(day(member.created_at, locale))].filter(Boolean).join(" · ")}
+                  {[member.name, t.team.since(formatDate(member.created_at, locale))].filter(Boolean).join(" · ")}
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-3 sm:justify-end">

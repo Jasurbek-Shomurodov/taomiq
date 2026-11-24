@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { htmlLang, type Locale } from "@/i18n/config";
 
 /**
  * Back-office roles, highest first. The database check (staff_role_check, migration 0003) holds the same list:
@@ -27,15 +28,42 @@ export type TeamMember = { user_id: string; name: string; role: string; email: s
 // All three read through the owner's session client: RLS and the functions' own owner check return nothing (or
 // raise) for anyone else. Each throws on failure so the page can show its error notice.
 
-/** Waiting and declined requests, oldest first (the longest wait on top). */
-export async function listAccessRequests(supabase: SupabaseClient): Promise<AccessRequest[]> {
-  const { data, error } = await supabase
-    .from("staff_requests")
-    .select("user_id, email, name, status, created_at")
-    .order("created_at", { ascending: true })
-    .limit(500);
-  if (error) throw new Error(error.message);
-  return (data ?? []) as AccessRequest[];
+const REQUEST_COLUMNS = "user_id, email, name, status, created_at";
+/** Declined history shown on the page; the waiting list is never cut (the write side caps it at 200). */
+const DECLINED_LIMIT = 500;
+
+/**
+ * Waiting requests, all of them, oldest first (the longest wait on top), and declined ones, newest first and
+ * capped. Two reads, so a long declined history can never push a waiting request off the page.
+ */
+export async function listAccessRequests(
+  supabase: SupabaseClient,
+): Promise<{ waiting: AccessRequest[]; declined: AccessRequest[] }> {
+  const [waiting, declined] = await Promise.all([
+    supabase.from("staff_requests").select(REQUEST_COLUMNS).eq("status", "pending").order("created_at", { ascending: true }),
+    supabase
+      .from("staff_requests")
+      .select(REQUEST_COLUMNS)
+      .eq("status", "declined")
+      .order("created_at", { ascending: false })
+      .limit(DECLINED_LIMIT),
+  ]);
+  if (waiting.error) throw new Error(waiting.error.message);
+  if (declined.error) throw new Error(declined.error.message);
+  return { waiting: (waiting.data ?? []) as AccessRequest[], declined: (declined.data ?? []) as AccessRequest[] };
+}
+
+/** Same date locales as formatDateTime in orders.ts. */
+const DATE_LOCALE: Record<Locale, string> = { ...htmlLang, ru: "ru-RU" };
+
+/** A day in Tashkent time, without the time: "23.11.2026" (ru). */
+export function formatDate(iso: string, locale: Locale): string {
+  return new Date(iso).toLocaleDateString(DATE_LOCALE[locale], {
+    timeZone: "Asia/Tashkent",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 }
 
 /** Everyone with access, in the order they joined. */
