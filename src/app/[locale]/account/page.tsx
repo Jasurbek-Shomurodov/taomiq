@@ -6,7 +6,7 @@ import { PageTransition } from "@/components/PageTransition";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { formatSum, isLocale, plural, type Locale } from "@/i18n/config";
 import { requireCustomer } from "@/lib/account/auth";
-import { isAccountEnabled } from "@/lib/account/methods";
+import { authMethods, isAccountEnabled } from "@/lib/account/methods";
 import { listMyOrders, type CustomerOrder } from "@/lib/account/orders";
 import { STATUS_TONES } from "@/lib/admin/orders";
 import { pageMetadata } from "@/lib/seo";
@@ -115,6 +115,8 @@ async function AccountContent({ locale, t }: { locale: Locale; t: Dictionary }) 
 async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
   const a = t.account;
   const o = t.order;
+  // The note promises that earlier orders appear after a Telegram sign-in: say it only when that method is on.
+  const telegramOn = authMethods.includes("telegram");
 
   let orders: CustomerOrder[];
   try {
@@ -135,7 +137,7 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
         <Link href={`/${locale}/order`} className="btn btn-gold mt-5 min-h-12">
           {a.orderCta}
         </Link>
-        <p className="mt-5 text-sm text-muted">{a.ordersNote}</p>
+        {telegramOn && <p className="mt-5 text-sm text-muted">{a.ordersNote}</p>}
       </div>
     );
   }
@@ -175,7 +177,7 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
           </li>
         ))}
       </ul>
-      <p className="mt-5 text-sm text-muted">{a.ordersNote}</p>
+      {telegramOn && <p className="mt-5 text-sm text-muted">{a.ordersNote}</p>}
     </>
   );
 }
