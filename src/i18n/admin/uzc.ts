@@ -39,6 +39,7 @@ const uzc: AdminDictionary = {
     or: "ёки",
     redirecting: "Ўтилмоқда…",
     googleFailed: "Google орқали кириб бўлмади. Қайта уриниб кўринг.",
+    failed: "Кириб бўлмади. Қайта уриниб кўринг.",
     showPassword: "Паролни кўрсатиш",
     hidePassword: "Паролни яшириш",
   },

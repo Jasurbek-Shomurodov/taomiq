@@ -50,6 +50,7 @@ const ru = {
     or: "или",
     redirecting: "Переходим…",
     googleFailed: "Не удалось войти через Google. Попробуйте ещё раз.",
+    failed: "Не удалось войти. Попробуйте ещё раз.",
     showPassword: "Показать пароль",
     hidePassword: "Скрыть пароль",
   },

@@ -44,15 +44,18 @@ export async function signIn(_prev: FormState, form: FormData): Promise<FormStat
     .eq("user_id", data.user.id)
     .maybeSingle();
   if (staffError) {
-    // Not taken as "no access": the panel's own check (requireStaff) decides on the next request.
+    // Access cannot be confirmed: no session stays behind (same as the Google callback).
     console.error("admin: staff check after password sign-in failed", staffError.code, staffError.message);
-  } else if (!staff) {
+    await supabase.auth.signOut({ scope: "local" });
+    return { error: t.login.failed };
+  }
+  if (!staff) {
     // Not staff: recorded for the owner to approve (once per account), and no session stays behind.
     const outcome = await recordAccessRequest(data.user);
     await supabase.auth.signOut({ scope: "local" });
     redirect(outcome === "requested" ? "/login?error=requested" : "/login?error=not-staff");
   }
-  await rememberStaffLocale(staff?.locale);
+  await rememberStaffLocale(staff.locale);
   redirect("/");
 }
 

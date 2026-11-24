@@ -15,7 +15,8 @@ function displayName(user: User): string {
   const metadata = user.user_metadata ?? {};
   for (const key of ["full_name", "name"]) {
     const value = metadata[key];
-    if (typeof value === "string" && value.trim()) return value.trim().slice(0, NAME_MAX);
+    // Cut by code points, not UTF-16 units: a split surrogate pair would fail the insert.
+    if (typeof value === "string" && value.trim()) return Array.from(value.trim()).slice(0, NAME_MAX).join("");
   }
   return "";
 }
@@ -38,6 +39,8 @@ export async function recordAccessRequest(user: User): Promise<AccessOutcome> {
       console.error("admin: SUPABASE_SECRET_KEY is not set; access request not recorded");
       return "declined";
     }
+    // Only a confirmed email identifies the account to the owner.
+    if (!user.email_confirmed_at) return "declined";
     const email = (user.email ?? "").trim();
     if (!email || email.length > EMAIL_MAX) return "declined";
 

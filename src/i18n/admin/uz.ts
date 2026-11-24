@@ -39,6 +39,7 @@ const uz: AdminDictionary = {
     or: "yoki",
     redirecting: "Oʻtilmoqda…",
     googleFailed: "Google orqali kirib boʻlmadi. Qayta urinib koʻring.",
+    failed: "Kirib boʻlmadi. Qayta urinib koʻring.",
     showPassword: "Parolni koʻrsatish",
     hidePassword: "Parolni yashirish",
   },
