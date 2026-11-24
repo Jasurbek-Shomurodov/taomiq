@@ -1,8 +1,8 @@
 import { LoadingStatus } from "../shell/ShellLocale";
 
 /** One shimmering block. Size and shape come from className (h-*, w-*, rounded-*). */
-export function Skeleton({ className = "" }: { className?: string }) {
-  return <span aria-hidden="true" className={`adm-skeleton ${className}`} />;
+export function Skeleton({ className = "", style }: { className?: string; style?: React.CSSProperties }) {
+  return <span aria-hidden="true" className={`adm-skeleton ${className}`} style={style} />;
 }
 
 export type PageSkeletonLayout = "dashboard" | "table" | "cards" | "form" | "detail";
@@ -54,18 +54,77 @@ function Rows({ count }: { count: number }) {
   );
 }
 
-function DashboardSkeleton() {
+function TileRow() {
+  return (
+    <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]">
+      {Array.from({ length: 4 }, (_, i) => (
+        <div key={i} className="adm-panel grid gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="size-8 rounded-adm-control" />
+          </div>
+          <Skeleton className="h-8 w-20" />
+          <Skeleton className="h-3.5 w-32" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The overview's order figures (owner): KPI tiles, the 30-day chart and the breakdown panels. */
+export function DashboardOrdersSkeleton() {
+  // Fixed heights, so the shimmer does not depend on Math.random during render.
+  const bars = [40, 55, 30, 65, 50, 45, 70, 35, 60, 50, 75, 45, 55, 40, 80, 60, 50, 65, 45, 70, 55, 85, 60, 50, 65, 75, 55, 70, 60, 90];
   return (
     <>
-      <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]">
-        {Array.from({ length: 4 }, (_, i) => (
-          <div key={i} className="adm-panel grid gap-3">
-            <Skeleton className="h-3.5 w-28" />
-            <Skeleton className="h-8 w-20" />
+      <TileRow />
+      <div className="adm-panel grid gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="grid gap-2">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-3.5 w-56" />
+          </div>
+          <Skeleton className="h-10 w-48 rounded-xl" />
+        </div>
+        <div className="flex h-40 items-end gap-[3px] sm:h-48">
+          {bars.map((height, i) => (
+            <Skeleton key={i} className="min-w-0 flex-1 rounded-b-none" style={{ height: `${height}%` }} />
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        {Array.from({ length: 2 }, (_, i) => (
+          <div key={i} className="adm-panel grid gap-4">
+            <Skeleton className="h-4 w-36" />
+            {Array.from({ length: 3 }, (_, j) => (
+              <div key={j} className="grid gap-2">
+                <Skeleton className="h-3.5 w-full" />
+                <Skeleton className="h-1.5 w-full rounded-full" />
+              </div>
+            ))}
           </div>
         ))}
       </div>
+    </>
+  );
+}
+
+/** The overview's catalogue part (everyone): dish tiles and the menu-readiness rows. */
+export function DashboardCatalogueSkeleton() {
+  return (
+    <>
+      <TileRow />
       <Rows count={4} />
+    </>
+  );
+}
+
+function DashboardSkeleton() {
+  return (
+    <>
+      <Skeleton className="h-4 w-48" />
+      <DashboardOrdersSkeleton />
+      <DashboardCatalogueSkeleton />
     </>
   );
 }

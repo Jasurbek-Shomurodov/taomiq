@@ -1,10 +1,11 @@
-import { Plus, UtensilsCrossed } from "lucide-react";
+import { Filter, Plus, UtensilsCrossed, X } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { getAdminDictionary } from "@/i18n/admin";
 import { htmlLang } from "@/i18n/config";
 import { requireStaff } from "@/lib/admin/auth";
+import { isDishStatusFilter, matchesDishStatus } from "@/lib/admin/dish-status";
 import { listDishes } from "@/lib/admin/queries";
 import { localized } from "@/lib/data/localized";
 import { Badge } from "../../kit/Badge";
@@ -17,14 +18,19 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: getAdminDictionary(staff.locale).dishes.title };
 }
 
-export default async function DishesPage() {
+export default async function DishesPage({ searchParams }: PageProps<"/admin/dishes">) {
   const { supabase, staff } = await requireStaff();
   const t = getAdminDictionary(staff.locale);
+  // ?status= from the overview's dish tiles (lib/admin/dish-status.ts); an unknown value is no filter. Slice 3 of
+  // docs/plans/admin-portal-upgrade.md replaces this line with the full toolbar.
+  const { status: statusParam } = await searchParams;
+  const filter = typeof statusParam === "string" && isDishStatusFilter(statusParam) ? statusParam : null;
   // listDishes() sorts by the Russian name; sort by the name shown in the panel's language instead.
   const collator = new Intl.Collator(htmlLang[staff.locale]);
   const dishes = (await listDishes(supabase))
     .map((dish) => ({ ...dish, title: localized(dish, "name", staff.locale) }))
     .sort((a, b) => collator.compare(a.title, b.title));
+  const shown = filter ? dishes.filter((dish) => matchesDishStatus(dish, filter)) : dishes;
 
   const addDish = (
     <Link href="/dishes/new" className="adm-btn adm-btn-primary">
@@ -37,10 +43,36 @@ export default async function DishesPage() {
     <div className="adm-page">
       <TopBarActions>{addDish}</TopBarActions>
 
+      {filter && dishes.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <Badge tone="info" icon={<Filter aria-hidden="true" />}>
+            {t.dishes.filterOn}: {t.dishes.filters[filter]}
+          </Badge>
+          <span className="adm-caption tabular-nums">{t.dishes.count(shown.length)}</span>
+          <Link href="/dishes" className="adm-btn adm-btn-ghost adm-btn-sm">
+            <X aria-hidden="true" />
+            {t.dishes.clearFilter}
+          </Link>
+        </div>
+      )}
+
       {dishes.length === 0 ? (
         <Panel>
           <EmptyState icon={UtensilsCrossed} action={addDish}>
             {t.dishes.empty}
+          </EmptyState>
+        </Panel>
+      ) : shown.length === 0 ? (
+        <Panel>
+          <EmptyState
+            icon={Filter}
+            action={
+              <Link href="/dishes" className="adm-btn adm-btn-outline">
+                {t.dishes.clearFilter}
+              </Link>
+            }
+          >
+            {t.dishes.filteredEmpty}
           </EmptyState>
         </Panel>
       ) : (
@@ -56,7 +88,7 @@ export default async function DishesPage() {
               </tr>
             </thead>
             <tbody>
-              {dishes.map((dish) => (
+              {shown.map((dish) => (
                 <tr key={dish.id} className="adm-row">
                   <td className="px-4 py-3">
                     <Link href={`/dishes/${dish.id}`} className="flex items-center gap-3">

@@ -8,7 +8,7 @@ import { Badge, type Tone } from "../../kit/Badge";
  * accent, being delivered is positive, finished is neutral, cancelled is negative. The word is always shown.
  * (lib/admin/orders.ts STATUS_TONES keeps the brand classes for the customer's account page.)
  */
-const TONES: Record<OrderStatus, Tone> = {
+export const ORDER_STATUS_TONES: Record<OrderStatus, Tone> = {
   new: "caution",
   confirmed: "info",
   paid: "accent",
@@ -19,7 +19,7 @@ const TONES: Record<OrderStatus, Tone> = {
 
 export function StatusBadge({ status, locale }: { status: OrderStatus; locale: Locale }) {
   return (
-    <Badge status tone={TONES[status]}>
+    <Badge status tone={ORDER_STATUS_TONES[status]}>
       {getAdminDictionary(locale).orders.statuses[status]}
     </Badge>
   );

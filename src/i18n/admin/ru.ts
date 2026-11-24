@@ -1,4 +1,5 @@
 import { plural, type Locale } from "@/i18n/config";
+import type { DishStatusFilter } from "@/lib/admin/dish-status";
 import type { ForwardStatus, OrderStatus } from "@/lib/admin/orders";
 import type { Slot } from "@/lib/data/types";
 
@@ -85,6 +86,42 @@ const ru = {
     noPhoto: "Без фотографии",
     menuTitle: "Заполнение меню",
     menuLead: (days: number) => `Сколько из ${days} дней заполнено по каждой калорийности.`,
+    // Order figures (owner only)
+    waitingHint: "Ждут звонка",
+    ordersToday: "Заказов сегодня",
+    valueToday: "Сумма заказов сегодня",
+    activeSubscriptions: "Активные подписки",
+    paidWaiting: (count: string) => `Оплачены, ждут старта: ${count}`,
+    yesterdaySoFar: (value: string) => `Вчера к этому времени: ${value}`,
+    ordersCount: (count: number) => `${count} ${plural(count, ["заказ", "заказа", "заказов"])}`,
+    chartTitle: "Заказы за 30 дней",
+    chartModes: "Что показывает график",
+    chartOrders: "Количество",
+    chartValue: "Сумма",
+    chartMax: (value: string) => `Максимум за день: ${value}`,
+    chartCaption: "Заказы по дням за последние 30 дней",
+    chartDay: "День",
+    today: "Сегодня",
+    vsPrevious: "к предыдущим 30 дням",
+    noOrders: "За последние 30 дней заказов не было.",
+    byStatus: "По статусам",
+    byStatusLead: "Заказы за 30 дней по их статусу сейчас.",
+    byProgram: "По программам",
+    byProgramLead: "Заказы за 30 дней по программе и калорийности.",
+    sources: "Откуда приходят заказы",
+    sourcesLead: "По метке utm_source или ref в ссылке, с которой пришёл клиент.",
+    direct: "Без метки",
+    otherSources: "Остальные",
+    share: (percent: string) => `${percent} заказов`,
+    valueNote:
+      "Сумма — без отменённых заказов. Дни считаются по времени Ташкента. Сравнение — с тем же временем: сегодня с вчера к этому часу, 30 дней с предыдущими 30 днями к этому же часу.",
+    ordersFailed: "Не удалось загрузить заказы для обзора.",
+    partial: (cap: string) => `Учтены последние ${cap} заказов: за самые ранние дни цифры неполные.`,
+    // Catalogue
+    visible: "Видно на сайте",
+    hiddenCount: (count: number) => `Скрыто: ${count}`,
+    dishesFailed: "Не удалось загрузить блюда.",
+    menuFailed: "Не удалось загрузить заполнение меню.",
   },
   dishes: {
     title: "Блюда",
@@ -99,6 +136,17 @@ const ru = {
     verified: "Проверено",
     noCard: "Без техкарты",
     noPhoto: "Нет фото",
+    /** The ?status= filter of the list (lib/admin/dish-status.ts), named as on the overview tiles. */
+    filters: {
+      visible: "Видно на сайте",
+      hidden: "Скрытые",
+      "no-card": "Без проверенной техкарты",
+      "no-photo": "Без фотографии",
+    } satisfies Record<DishStatusFilter, string>,
+    filterOn: "Фильтр",
+    count: (count: number) => `${count} ${plural(count, ["блюдо", "блюда", "блюд"])}`,
+    clearFilter: "Показать все блюда",
+    filteredEmpty: "Под этот фильтр блюд нет.",
   },
   dish: {
     title: "Блюдо",
