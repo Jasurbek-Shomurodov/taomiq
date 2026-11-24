@@ -1,6 +1,6 @@
 // Builds and starts the app for the Playwright smoke suite (playwright.config.ts → webServer).
 //
-// Demo mode: the Supabase and Telegram variables are forced to empty strings below. Next's env loader
+// Demo mode: the Supabase, Telegram, Turnstile and PostHog variables are forced to empty strings below. Next's env loader
 // (@next/env, processEnv) fills a variable from .env.local only when it is undefined in the process
 // environment, and an empty string is not undefined, so the empty value wins over the real keys in .env.local,
 // both for `next build` (NEXT_PUBLIC_* values are inlined then) and for `next start`. The app then serves the demo
@@ -28,6 +28,8 @@ const DEMO_ENV = {
   // No bot check: the Turnstile widget is not rendered and the server check passes.
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: "",
   TURNSTILE_SECRET_KEY: "",
+  // No analytics: PostHog is not loaded and its first-party path is not routed.
+  NEXT_PUBLIC_POSTHOG_KEY: "",
 };
 
 const env = {

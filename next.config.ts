@@ -1,4 +1,10 @@
 import type { NextConfig } from "next";
+import {
+  ANALYTICS_PATH,
+  POSTHOG_API_HOST,
+  POSTHOG_ASSETS_HOST,
+  isAnalyticsEnabled,
+} from "./src/lib/analytics/config";
 
 const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
@@ -29,6 +35,22 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/\\[locale\\]/order": ["./src/assets/fonts/*.ttf", "./src/assets/brand/monogram-alert.png"],
   },
+  // Analytics (src/lib/analytics, docs/plans/analytics.md): the browser sends to our own /k7r2 path and this
+  // forwards it to PostHog EU, so the SDK is first-party. Only with the key set, and only on the public host (PostHog
+  // never loads on the admin host; there the proxy sends /k7r2 under /admin, which has no such page). The proxy
+  // matcher (src/proxy.ts) skips the path, so it is never locale-redirected.
+  async rewrites() {
+    if (!isAnalyticsEnabled) return [];
+    const publicHost = { missing: [{ type: "host" as const, value: "admin\\..*" }] };
+    return [
+      { source: `${ANALYTICS_PATH}/static/:path*`, destination: `${POSTHOG_ASSETS_HOST}/static/:path*`, ...publicHost },
+      { source: `${ANALYTICS_PATH}/array/:path*`, destination: `${POSTHOG_ASSETS_HOST}/array/:path*`, ...publicHost },
+      { source: `${ANALYTICS_PATH}/:path*`, destination: `${POSTHOG_API_HOST}/:path*`, ...publicHost },
+    ];
+  },
+  // PostHog's endpoints end in a slash (/k7r2/e/); Next.js would redirect them to the slash-less path. With this off,
+  // src/proxy.ts does that redirect itself for every page (308, as Next.js did), so pages keep one URL.
+  skipTrailingSlashRedirect: true,
   // Let the admin subdomain load dev assets: http://admin.localhost:3000
   allowedDevOrigins: ["admin.localhost"],
   turbopack: {

@@ -4,6 +4,8 @@ import { demoDurations, demoPrograms } from "../src/lib/data/demo";
 import { pricePerDay } from "../src/lib/data/types";
 import { defaultLocale, formatSum, htmlLang, localeName, locales, type Locale } from "../src/i18n/config";
 import { getDictionary } from "../src/i18n";
+import { ANALYTICS_PATH } from "../src/lib/analytics/config";
+import { withoutTrailingSlash } from "../src/lib/url-path";
 import ru from "../src/i18n/ru";
 import uz from "../src/i18n/uz";
 import type { Page } from "@playwright/test";
@@ -509,6 +511,54 @@ test("host routing: no admin on the public host, noindex on the admin host", asy
   for (const path of ["/setup", "/robots.txt"]) {
     const response = await page.goto(adminURL(path));
     expect(response?.headers()["x-robots-tag"], path).toBe("noindex, nofollow");
+  }
+});
+
+test("one URL per page: a trailing slash redirects to the page without it, on both hosts", async ({
+  page,
+  request,
+  adminURL,
+}) => {
+  for (const [path, target] of [["/uz/menu/", "/uz/menu"], ["/ru/", "/ru"], ["/menu/", "/menu"]]) {
+    const response = await request.get(`${path}?day=2`, { maxRedirects: 0 });
+    expect(response.status(), path).toBe(308);
+    const location = new URL(response.headers()["location"], "http://localhost");
+    expect(location.pathname, path).toBe(target);
+    expect(location.search, path).toBe("?day=2");
+  }
+  await page.goto(adminURL("/setup/"));
+  await expect(page).toHaveURL(adminURL("/setup"));
+});
+
+test("the trailing-slash redirect never points off the site (no protocol-relative Location)", async ({
+  request,
+  baseURL,
+}) => {
+  // The rule itself, for paths a host may pass to the proxy as they came (next start collapses // first).
+  for (const [path, target] of [
+    ["//attacker.example/", "/attacker.example"],
+    ["/\\attacker.example/", "/attacker.example"],
+    ["/\\/attacker.example//x/", "/attacker.example/x"],
+    ["///", "/"],
+    ["/uz//menu/", "/uz/menu"],
+    ["/uz/menu/", "/uz/menu"],
+  ]) {
+    expect(withoutTrailingSlash(path), path).toBe(target);
+  }
+  // And through the server.
+  for (const path of ["//attacker.example/", "/%2F/attacker.example/", "/uz//menu/"]) {
+    const response = await request.get(`${baseURL}${path}`, { maxRedirects: 0 });
+    const location = response.headers()["location"] ?? "";
+    expect(location.startsWith("//"), `${path} → ${location}`).toBe(false);
+    if (location) expect(new URL(location, baseURL).host, `${path} → ${location}`).toBe(new URL(baseURL!).host);
+  }
+});
+
+test("the analytics path is never locale-redirected, and is not served without the PostHog key", async ({
+  request,
+}) => {
+  for (const path of [`${ANALYTICS_PATH}/e/`, `${ANALYTICS_PATH}/flags/?v=2`, `${ANALYTICS_PATH}/static/array.js`]) {
+    expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
   }
 });
 

@@ -3,6 +3,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { defaultLocale, isLocale, type Locale } from "@/i18n/config";
 import { isAccountEnabled } from "@/lib/account/methods";
 import { supabaseKey, supabaseUrl } from "@/lib/supabase/env";
+import { withoutTrailingSlash } from "@/lib/url-path";
 
 /** How long the proxy waits for Supabase to refresh a customer's session before letting the page render anyway. */
 const SESSION_REFRESH_TIMEOUT_MS = 3000;
@@ -100,6 +101,16 @@ export function proxy(request: NextRequest): NextResponse | Promise<NextResponse
   const { pathname } = request.nextUrl;
   const isAdminHost = host.startsWith("admin.");
 
+  // One URL per page: /uz/menu/ → /uz/menu. Next.js did this itself until skipTrailingSlashRedirect was turned on in
+  // next.config.ts for the analytics path (which this proxy never sees on the public host: see the matcher).
+  if (pathname.length > 1 && pathname.endsWith("/")) {
+    // A plain URL: a clone of nextUrl would put the request's own trailing slash back when it is formatted.
+    const url = new URL(request.url);
+    // Repeated slashes are collapsed too: //attacker.example/ must not become a protocol-relative Location.
+    url.pathname = withoutTrailingSlash(url.pathname);
+    return NextResponse.redirect(url, 308);
+  }
+
   if (isAdminHost) {
     // The back office is never indexed: say so in a header on every admin-host response,
     // including files such as /robots.txt that are served as they are (second matcher below).
@@ -142,12 +153,20 @@ export function proxy(request: NextRequest): NextResponse | Promise<NextResponse
 
 export const config = {
   matcher: [
-    // Pages on both hosts; files (a dot in the last segment), _next and api are skipped.
-    "/((?!_next/|api/|.*\\.[a-zA-Z0-9]+$).*)",
+    // Pages on both hosts; files (a dot in the last segment), _next, api and the analytics path are skipped.
+    // k7r2 is ANALYTICS_PATH (src/lib/analytics/config.ts): next.config.ts rewrites it to PostHog, and a locale
+    // redirect here would break it. A matcher must be a literal, so the name is repeated: change both together.
+    "/((?!_next/|api/|k7r2(?:/|$)|.*\\.[a-zA-Z0-9]+$).*)",
     // Files on the admin host only (robots.txt, sitemap.xml, icons), to add X-Robots-Tag.
     // The public host is not matched here, so its files never run the proxy.
     {
       source: "/((?!_next/|api/).*\\.[a-zA-Z0-9]+)",
+      has: [{ type: "host", value: "admin\\..*" }],
+    },
+    // The analytics path on the admin host, where PostHog never runs and next.config.ts does not rewrite it: the
+    // proxy sends it under /admin like any admin path (a 404 there), with the noindex header.
+    {
+      source: "/k7r2/:path*",
       has: [{ type: "host", value: "admin\\..*" }],
     },
   ],
