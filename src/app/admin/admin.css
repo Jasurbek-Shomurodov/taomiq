@@ -789,3 +789,148 @@
     }
   }
 }
+
+/* ---------- Print: day sheets (docs/plans/kitchen-day-sheet.md) ----------
+   Outside the layers on purpose: on paper these must beat the frame's own rules and the Tailwind utilities (fixed
+   shell, scrolling <main>, card surfaces). A page opts in with .adm-sheet on its .adm-page; .adm-print-only shows a
+   block on paper only, .adm-no-print hides one there. */
+.adm-print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  /* Black on white: the kit reads every colour from these tokens. */
+  .admin {
+    --adm-page: #fff;
+    --adm-surface: #fff;
+    --adm-surface-muted: #fff;
+    --adm-border: #000;
+    --adm-hairline: #000;
+    --adm-text: #000;
+    --adm-text-muted: #333;
+    --adm-accent-ink: #000;
+    --adm-shadow: none;
+    background: #fff;
+    color: #000;
+  }
+
+  /* The frame: no sidebar, drawer or top bar; the shell and <main> flow on the page instead of scrolling. */
+  .adm-rail,
+  .adm-drawer,
+  .adm-topbar,
+  .adm-no-print {
+    display: none !important;
+  }
+  .adm-shell,
+  .adm-shell > div,
+  .adm-shell main {
+    position: static;
+    display: block;
+    height: auto;
+    overflow: visible;
+  }
+  .adm-print-only {
+    display: block;
+  }
+
+  .adm-sheet {
+    max-width: none;
+    gap: 10pt;
+    padding: 0;
+    font-size: 11pt;
+  }
+  .adm-sheet .adm-print-header {
+    padding-bottom: 4pt;
+    border-bottom: 1.5pt solid #000;
+    font-size: 11pt;
+  }
+
+  /* Surfaces: no cards, shadows or tints. */
+  .adm-sheet .adm-panel {
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+  .adm-sheet .adm-panel-head,
+  .adm-sheet .adm-panel-flush > .adm-panel-head {
+    padding: 0 0 3pt;
+    border: 0;
+    break-after: avoid;
+  }
+  .adm-sheet .adm-heading {
+    font-size: 13pt;
+  }
+  .adm-sheet .adm-caption {
+    font-size: 10pt;
+  }
+  .adm-sheet [class*="adm-tone-"] {
+    background: none;
+    color: #000;
+  }
+  .adm-sheet .adm-notice {
+    border: 1pt solid #000;
+    break-inside: avoid;
+  }
+  .adm-sheet .adm-row:hover {
+    background: none;
+  }
+  .adm-sheet a {
+    color: #000;
+    text-decoration: none;
+  }
+
+  /* Figure tiles: one compact row of boxed figures, no icon chips. */
+  .adm-sheet-tiles {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 6pt;
+  }
+  .adm-sheet .adm-sheet-tiles .adm-panel {
+    padding: 5pt 7pt;
+    border: 1pt solid #000;
+  }
+  .adm-sheet-tiles .adm-panel span[class*="adm-tone-"] {
+    display: none;
+  }
+  .adm-sheet-tiles .adm-panel > p {
+    margin-top: 0;
+    font-size: 18pt;
+  }
+  .adm-sheet-tiles .adm-panel > p + div {
+    margin-top: 0;
+    font-size: 9pt;
+  }
+
+  /* Tables: ruled cells, header repeated on every page, a dish or row never split across pages. */
+  .adm-sheet table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11pt;
+  }
+  .adm-sheet thead {
+    display: table-header-group;
+  }
+  .adm-sheet th,
+  .adm-sheet td {
+    padding: 3pt 5pt;
+    border: 0.75pt solid #000;
+    color: #000;
+    font-size: 11pt;
+  }
+  .adm-sheet tr,
+  .adm-sheet tbody.adm-sheet-dish,
+  .adm-sheet .adm-sheet-line {
+    break-inside: avoid;
+  }
+  .adm-sheet .adm-sheet-line {
+    padding: 3pt 0;
+    border-bottom: 0.75pt solid #000;
+  }
+}

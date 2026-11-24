@@ -1,4 +1,4 @@
-import { CalendarDays, LayoutDashboard, ShoppingBag, Tags, Users, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import { CalendarDays, ChefHat, LayoutDashboard, ShoppingBag, Tags, Users, UtensilsCrossed, type LucideIcon } from "lucide-react";
 
 /** Sidebar groups, in display order. The overview group has no heading. */
 export const NAV_GROUPS = ["overview", "sales", "kitchen", "business"] as const;
@@ -8,6 +8,7 @@ export type NavGroup = (typeof NAV_GROUPS)[number];
 export const NAV = [
   { key: "overview", href: "/", icon: LayoutDashboard, group: "overview", ownerOnly: false },
   { key: "orders", href: "/orders", icon: ShoppingBag, group: "sales", ownerOnly: true },
+  { key: "production", href: "/kitchen", icon: ChefHat, group: "kitchen", ownerOnly: false },
   { key: "menu", href: "/menu", icon: CalendarDays, group: "kitchen", ownerOnly: false },
   { key: "dishes", href: "/dishes", icon: UtensilsCrossed, group: "kitchen", ownerOnly: false },
   { key: "programs", href: "/programs", icon: Tags, group: "business", ownerOnly: true },
