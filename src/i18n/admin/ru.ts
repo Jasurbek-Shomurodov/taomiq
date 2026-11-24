@@ -450,8 +450,9 @@ const ru = {
     changeRoleTitle: "Сменить роль?",
     changeRoleText: (email: string) => `Роль для ${email}:`,
     roleGone: "Роль этого человека нельзя изменить здесь — страница обновлена.",
-    roleNotSet:
-      "Доступ выдан с ролью «Администратор», но выбранную роль сохранить не удалось. Смените роль в списке «В команде».",
+    /** After an approval whose chosen role failed; the email when the person is in the team list, else none. */
+    roleNotSet: (email: string | null) =>
+      `${email ? `${email}: доступ` : "Доступ"} выдан с ролью «Администратор», но выбранную роль сохранить не удалось. Смените роль в списке «В команде».`,
     decline: "Отклонить",
     declining: "Отклоняем…",
     remove: "Убрать",

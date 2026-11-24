@@ -434,7 +434,13 @@ export async function saveOrderNote(_prev: FormState, form: FormData): Promise<F
  * owner too and never touches an owner. A request that was already handled (another tab), or a member who can no
  * longer be changed, comes back as P0002: the page is refreshed and says so. Errors are logged with codes only; the
  * rows hold personal data.
+ *
+ * Every success ends on a fresh, plain /team (redirect, replacing the history entry), so a "the role could not be
+ * set" notice from an earlier approval (/team?error=role&user=…) never outlives the next change. The row a success
+ * touched leaves the page or is mounted anew (team/page.tsx keys member rows by role), so no earlier error line
+ * stays beside it either.
  */
+const TEAM_PATH = "/team";
 type TeamFn = "approve_staff_request" | "decline_staff_request" | "remove_staff" | "set_staff_role";
 type AdminDict = ReturnType<typeof getAdminDictionary>;
 type OwnerClient = Awaited<ReturnType<typeof requireOwner>>["supabase"];
@@ -457,26 +463,25 @@ async function teamRpc(supabase: OwnerClient, fn: TeamFn, args: Record<string, s
 async function teamCall(
   form: FormData,
   fn: "approve_staff_request" | "decline_staff_request" | "remove_staff",
-  messages: (t: AdminDict) => { ok: string; gone: string },
+  gone: (t: AdminDict) => string,
 ): Promise<FormState> {
   const { supabase, t, userId } = await teamSession(form);
-  if (!userId) return { error: messages(t).gone };
+  if (!userId) return { error: gone(t) };
 
   const code = await teamRpc(supabase, fn, { p_user_id: userId });
   if (code === "P0002") {
     refresh();
-    return { error: messages(t).gone };
+    return { error: gone(t) };
   }
   if (code !== null) return { error: t.team.failed };
-  refresh();
-  return { ok: messages(t).ok };
+  redirect(TEAM_PATH, RedirectType.replace);
 }
 
 /**
  * Lets a waiting (or declined) account in with the role the owner picked (admin or manager). approve_staff_request
  * always grants admin; a manager is one more call, set_staff_role. If that second call fails, the person is in as an
- * admin: their request row (and with it its error line) is gone from the page, so the page itself says so
- * (/team?error=role) and the owner can switch the role in the team list.
+ * admin: their request row (and with it its error line) is gone from the page, so the page itself says so. The
+ * address carries only their user id (a uuid, never the email); the page finds the email in the team list it loads.
  */
 export async function approveAccess(_prev: FormState, form: FormData): Promise<FormState> {
   const { supabase, t, userId } = await teamSession(form);
@@ -493,15 +498,14 @@ export async function approveAccess(_prev: FormState, form: FormData): Promise<F
   if (code !== null) return { error: t.team.failed };
 
   if (role !== "admin" && (await teamRpc(supabase, "set_staff_role", { p_user_id: userId, p_role: role })) !== null) {
-    redirect("/team?error=role", RedirectType.replace);
+    redirect(`${TEAM_PATH}?${new URLSearchParams({ error: "role", user: userId })}`, RedirectType.replace);
   }
-  refresh();
-  return { ok: t.team.approved };
+  redirect(TEAM_PATH, RedirectType.replace);
 }
 
 /**
- * Switches a team member between admin and manager. On success the page is loaded again at /team: the badge shows
- * the new role, and an earlier "the role could not be set" notice goes away.
+ * Switches a team member between admin and manager. On success: a fresh /team, where the badge shows the new role
+ * and the member's controls are mounted anew (keyed by role), so an earlier error line beside them is gone.
  */
 export async function changeStaffRole(_prev: FormState, form: FormData): Promise<FormState> {
   const { supabase, t, userId } = await teamSession(form);
@@ -515,15 +519,15 @@ export async function changeStaffRole(_prev: FormState, form: FormData): Promise
     return { error: t.team.roleGone };
   }
   if (code !== null) return { error: t.team.failed };
-  redirect("/team", RedirectType.replace);
+  redirect(TEAM_PATH, RedirectType.replace);
 }
 
 export async function declineAccess(_prev: FormState, form: FormData): Promise<FormState> {
-  return teamCall(form, "decline_staff_request", (t) => ({ ok: t.team.declinedDone, gone: t.team.gone }));
+  return teamCall(form, "decline_staff_request", (t) => t.team.gone);
 }
 
 export async function removeStaff(_prev: FormState, form: FormData): Promise<FormState> {
-  return teamCall(form, "remove_staff", (t) => ({ ok: t.team.removed, gone: t.team.notRemovable }));
+  return teamCall(form, "remove_staff", (t) => t.team.notRemovable);
 }
 
 /**

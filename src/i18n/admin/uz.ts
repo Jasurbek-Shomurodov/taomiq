@@ -418,8 +418,8 @@ const uz: AdminDictionary = {
     changeRoleTitle: "Rol oʻzgartirilsinmi?",
     changeRoleText: (email) => `${email} uchun rol:`,
     roleGone: "Bu kishining rolini bu yerda oʻzgartirib boʻlmaydi — sahifa yangilandi.",
-    roleNotSet:
-      "Ruxsat «Administrator» roli bilan berildi, lekin tanlangan rolni saqlab boʻlmadi. Rolni «Jamoada» roʻyxatida oʻzgartiring.",
+    roleNotSet: (email) =>
+      `${email ? `${email}: ruxsat` : "Ruxsat"} «Administrator» roli bilan berildi, lekin tanlangan rolni saqlab boʻlmadi. Rolni «Jamoada» roʻyxatida oʻzgartiring.`,
     decline: "Rad etish",
     declining: "Rad etilmoqda…",
     remove: "Chiqarish",

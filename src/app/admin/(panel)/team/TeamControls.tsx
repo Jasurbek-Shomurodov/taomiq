@@ -8,7 +8,8 @@ import { GRANTABLE_ROLES, type GrantableRole } from "@/lib/admin/roles";
 import { ConfirmDialog } from "@/app/admin/ConfirmDialog";
 import { Notice } from "../../kit/Notice";
 
-// On success the page refreshes and the row moves or goes away, so only failures are shown here.
+// On success the actions load a fresh /team and the row moves, goes away or (a role change, keyed by role in the page)
+// is mounted anew, so only failures are shown here and none outlives the next success.
 function Failure({ state }: { state: FormState }) {
   return state.error ? <Notice tone="negative">{state.error}</Notice> : null;
 }

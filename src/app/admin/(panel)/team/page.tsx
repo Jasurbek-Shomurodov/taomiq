@@ -24,15 +24,18 @@ export async function generateMetadata(): Promise<Metadata> {
  * Waiting requests on top, then the team, then the declined ones folded away. The email identifies a person
  * everywhere here; the name is what their account says, which they can change, so it is only a secondary line.
  * Everything marked data-ph-mask is kept out of session replays, should analytics ever run on this host.
- * `?error=role`: an approval went through but the chosen role could not be set (approveAccess); the person is in as
- * an admin, and the notice says so until the next role change or navigation.
+ * `?error=role&user=<uuid>`: an approval went through but the chosen role could not be set (approveAccess); the
+ * person is in as an admin. The notice names them by the email from the team list below (the address carries only
+ * the id, never the email; an id not in the list gives the notice without one). Every successful team action ends on
+ * plain /team, so the notice goes away with the next one.
  */
 export default async function TeamPage({ searchParams }: PageProps<"/admin/team">) {
   const { supabase, staff } = await requireOwner();
   const { locale } = staff;
   const t = getAdminDictionary(locale);
-  const { error: errorParam } = await searchParams;
-  const roleNotSet = errorParam === "role";
+  const params = await searchParams;
+  const roleNotSet = params.error === "role";
+  const roleNotSetUser = typeof params.user === "string" ? params.user : null;
 
   let data: { waiting: AccessRequest[]; declined: AccessRequest[]; team: TeamMember[] } | null = null;
   try {
@@ -53,11 +56,18 @@ export default async function TeamPage({ searchParams }: PageProps<"/admin/team"
   }
 
   const { waiting, declined } = data;
+  const roleNotSetEmail = roleNotSetUser
+    ? data.team.find((member) => member.user_id === roleNotSetUser)?.email || null
+    : null;
 
   return (
     <div className="adm-page">
       <p className="adm-muted">{t.team.lead}</p>
-      {roleNotSet && <Notice tone="negative">{t.team.roleNotSet}</Notice>}
+      {roleNotSet && (
+        <Notice tone="negative">
+          <span data-ph-mask>{t.team.roleNotSet(roleNotSetEmail)}</span>
+        </Notice>
+      )}
       <Notice tone="info">{t.team.grants}</Notice>
 
       <Panel flush title={t.team.waiting} actions={waiting.length > 0 ? <Badge tone="accent">{waiting.length}</Badge> : null}>
@@ -93,7 +103,9 @@ export default async function TeamPage({ searchParams }: PageProps<"/admin/team"
                   {isStaffRole(member.role) ? t.roles[member.role] : member.role}
                 </Badge>
                 {member.role !== "owner" && (
+                  // Keyed by role: a successful change mounts the controls anew, so an earlier error line goes away.
                   <MemberActions
+                    key={`${member.user_id}:${member.role}`}
                     userId={member.user_id}
                     email={member.email || t.team.noEmail}
                     role={isGrantableRole(member.role) ? member.role : null}
