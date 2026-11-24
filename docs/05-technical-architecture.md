@@ -17,8 +17,8 @@ Stack as requested: **GitHub + Next.js on Vercel + Supabase**. This document ada
 | Payments | Payme + Click directly at launch; Uzum as third | The two buttons every Uzbek buyer expects |
 | Maps | Yandex Geosuggest + map pin at checkout; zones as PostGIS polygons | Best address data in Tashkent; zone logic stays vendor-independent |
 | Messaging | Telegram bot (order status, delivery reminders, support hand-off) | ~76% of Uzbek internet users are on Telegram |
-| Analytics | Google Analytics 4 + Yandex Metrica + Meta Pixel + Vercel Analytics | Google ≈76% and Yandex ≈22% of search |
-| Errors | Sentry | |
+| Analytics | **PostHog, EU cloud (Frankfurt)** for product analytics, funnels and session replay, through a first-party proxy path; Yandex Metrica and Meta Pixel + Conversions API added later for ad attribution; GA4 only if Google Ads are run. No Vercel Analytics | One script on phones; funnel of the order form; EU storage. Google ≈76% and Yandex ≈22% of search, covered by Search Console and Yandex Webmaster. Plan: [plans/analytics.md](plans/analytics.md) |
+| Errors | PostHog error tracking (client exceptions + server `onRequestError`). Sentry dropped | Errors sit next to the replay and funnel that led to them; one vendor, one free tier |
 
 ## 2. Hosting, latency, data law
 
@@ -159,6 +159,6 @@ The site replaces the Instagram-DM-and-spreadsheet workflow competitors run on. 
 | Supabase Pro | ~$25 |
 | `.uz` domain | a few dollars a year via a local registrar ⚠ |
 | OTP (Telegram Gateway + SMS) | ~$10–30 at a few thousand logins |
-| Sentry, analytics | free tiers |
+| PostHog (analytics, replay, errors) | free tier (1M events, 5k replays a month) |
 | Payment commission | ~2–2.5% of revenue |
 | Yandex Maps | free tier for the public checkout; paid licence only if used inside the closed admin ⚠ |

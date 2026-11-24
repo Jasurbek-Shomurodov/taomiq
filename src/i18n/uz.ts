@@ -240,7 +240,7 @@ const uz: Dictionary = {
   privacy: {
     title: "Maxfiylik siyosati",
     lead: "TAOMIQ sayt orqali qanday maʼlumotlarni oladi, nima uchun va ular qayerda saqlanadi.",
-    updated: "Yangilangan: 2026-yil 23-noyabr",
+    updated: "Yangilangan: 2026-yil 24-noyabr",
     sections: [
       {
         title: "Qanday maʼlumotlarni olamiz",
@@ -284,6 +284,17 @@ const uz: Dictionary = {
           "Telegram, Google yoki elektron pochtaga keladigan kod orqali kirish mumkin. Parollarni olmaymiz va saqlamaymiz.",
           "Akkaunt uchun ism, elektron pochta manzili, telefon raqami (agar Telegram uni ulashgan boʻlsa) va Telegram identifikatorini saqlaymiz.",
           "Bu maʼlumotlar buyurtmalaringizni koʻrsatish va buyurtma shaklini siz uchun toʻldirish uchun kerak.",
+        ],
+      },
+      {
+        title: "Sayt statistikasi va xatolar",
+        items: [
+          "Sayt qanday ishlatilayotganini tushunish va xatolarni topish uchun PostHog xizmatidan foydalanamiz. Uning maʼlumotlari Yevropa Ittifoqida, Frankfurtdagi (Germaniya) serverlarda saqlanadi.",
+          "PostHog quyidagilarni oladi: qaysi sahifalarni ochganingiz va nimalarni bosganingiz, qurilma va brauzer turi, taxminiy joylashuv (shahar yoki mamlakat), shuningdek sahifada yuz bergan xatolar.",
+          "Seans yozuvlari sahifada qanday harakatlanganingizni koʻrsatadi. Maydonlarga kiritgan hamma narsangiz va shaxsiy maʼlumotlaringiz (ism, telefon, manzil) yozuvda yashiriladi.",
+          "Akkauntga kirgan boʻlsangiz, statistika faqat akkaunt identifikatoriga bogʻlanadi — ism, telefon yoki elektron pochtaga emas.",
+          "Brauzeringizda kuzatuvni taqiqlash (Do Not Track) yoqilgan boʻlsa, sayt statistikasi va seans yozuvlari yigʻilmaydi.",
+          "Bu maʼlumotlarni sotmaymiz va reklama uchun ishlatmaymiz.",
         ],
       },
       {

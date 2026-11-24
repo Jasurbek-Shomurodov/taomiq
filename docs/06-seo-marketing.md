@@ -96,7 +96,7 @@ TikTok is deprioritised (small official reach, reported as restricted ⚠).
 
 ## 8. Measurement
 
-Tools: GA4, Yandex Metrica (with Webvisor), Meta Pixel + Conversions API, Search Console, Yandex Webmaster. UTM on every link; promo code per influencer.
+Tools: PostHog (EU) for product analytics, funnels, session replay and errors; Search Console and Yandex Webmaster for search. Later, for ad attribution: Yandex Metrica (with Webvisor) and Meta Pixel + Conversions API; GA4 only if Google Ads are run. UTM on every link; promo code per influencer.
 
 | Metric | Why it matters |
 |---|---|
