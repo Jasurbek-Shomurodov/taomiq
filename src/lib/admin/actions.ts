@@ -7,7 +7,7 @@ import { getAdminDictionary } from "@/i18n/admin";
 import { isLocale } from "@/i18n/config";
 import { CATALOG_TAG } from "@/lib/data/catalog";
 import { CYCLE_DAYS, SLOTS, type Slot } from "@/lib/data/types";
-import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { isSupabaseConfigured, supabaseUrl } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
 import { TURNSTILE_FIELD } from "@/lib/turnstile/shared";
 import { recordAccessRequest } from "./access";
@@ -273,25 +273,66 @@ export async function copyMenuFromVariant(
 
 // ---------- programs and prices ----------
 
+const PROGRAM_PHOTO_BUCKET = "program-photos";
+
+/**
+ * The start of every public URL in the program-photos bucket of this project, built the way supabase-js builds
+ * it (getPublicUrl), so a trailing slash in the environment value does not matter. Empty without a project URL.
+ */
+function programPhotoPrefix(): string {
+  const base = supabaseUrl.trim();
+  if (!base) return "";
+  try {
+    return new URL(`storage/v1/object/public/${PROGRAM_PHOTO_BUCKET}/`, base.endsWith("/") ? base : `${base}/`).href;
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * The object name of a program photo URL, or null when the URL is not a file in this project's program-photos
+ * bucket. PhotoField (src/app/admin/kit/PhotoField.tsx) names files `<uuid>.jpg`, at the bucket's top level.
+ */
+function programPhotoObject(url: string): string | null {
+  const prefix = programPhotoPrefix();
+  if (!prefix || !url.startsWith(prefix)) return null;
+  const objectName = url.slice(prefix.length);
+  return /^[A-Za-z0-9][A-Za-z0-9_-]*\.jpg$/.test(objectName) ? objectName : null;
+}
+
 export async function saveProgram(_prev: FormState, form: FormData): Promise<FormState> {
   const { supabase, staff } = await requireOwner();
   const t = getAdminDictionary(staff.locale);
   const id = text(form, "id");
 
-  const { error } = await supabase
+  // The public site renders this URL, so only a file uploaded to this project's bucket is accepted.
+  const photoUrl = text(form, "photo_url");
+  if (photoUrl && !programPhotoObject(photoUrl)) return { error: t.programs.photoInvalid };
+
+  // The photo the form was loaded with. A form left open elsewhere may be stale, so the photo is written only when
+  // this save changes it, and only if the row still holds the photo the form started from: otherwise a stale form
+  // would put an old, already removed file back and remove the current one.
+  const loadedPhoto = text(form, "photo_url_prev");
+  const photoChanged = photoUrl !== loadedPhoto;
+
+  const fields = {
+    tagline_ru: text(form, "tagline_ru"),
+    tagline_uz: text(form, "tagline_uz"),
+    description_ru: text(form, "description_ru"),
+    description_uz: text(form, "description_uz"),
+    // Optional: empty means the site converts the Latin text (src/lib/data/localized.ts).
+    tagline_uzc: text(form, "tagline_uzc"),
+    description_uzc: text(form, "description_uzc"),
+    active: form.get("active") === "on",
+  };
+  let update = supabase
     .from("programs")
-    .update({
-      tagline_ru: text(form, "tagline_ru"),
-      tagline_uz: text(form, "tagline_uz"),
-      description_ru: text(form, "description_ru"),
-      description_uz: text(form, "description_uz"),
-      // Optional: empty means the site converts the Latin text (src/lib/data/localized.ts).
-      tagline_uzc: text(form, "tagline_uzc"),
-      description_uzc: text(form, "description_uzc"),
-      active: form.get("active") === "on",
-    })
+    .update(photoChanged ? { ...fields, photo_url: photoUrl || null } : fields)
     .eq("id", id);
+  if (photoChanged) update = loadedPhoto ? update.eq("photo_url", loadedPhoto) : update.is("photo_url", null);
+  const { data: updated, error } = await update.select("id");
   if (error) return { error: t.common.saveFailed(error.message) };
+  if (photoChanged && updated.length === 0) return { error: t.programs.photoStale };
 
   for (const variantId of form.getAll("variant_id").map(String)) {
     const price = Math.round(num(form, `price_${variantId}`));
@@ -305,6 +346,17 @@ export async function saveProgram(_prev: FormState, form: FormData): Promise<For
   }
 
   updateTag(CATALOG_TAG);
+
+  // The row now points at the new photo (or none) and the site's catalogue cache is refreshed: remove the file
+  // it replaced. Only when the row update went through, and only a file of this bucket. Skipped when a price
+  // fails above, so the cached site never points at a removed file; that file and a failed removal stay as an
+  // orphan (accepted, docs/plans/program-photos.md) and do not fail the save.
+  const oldObject = photoChanged && loadedPhoto ? programPhotoObject(loadedPhoto) : null;
+  if (oldObject && updated && updated.length > 0) {
+    const { error: removeError } = await supabase.storage.from(PROGRAM_PHOTO_BUCKET).remove([oldObject]);
+    if (removeError) console.error("admin: removing the replaced program photo failed", oldObject, removeError.message);
+  }
+
   return { ok: t.common.saved };
 }
 

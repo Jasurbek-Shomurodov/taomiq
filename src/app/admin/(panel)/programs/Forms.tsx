@@ -7,6 +7,7 @@ import type { Locale } from "@/i18n/config";
 import { saveDurations, saveProgram, type FormState } from "@/lib/admin/actions";
 import type { Duration, Program } from "@/lib/data/types";
 import { Panel } from "../../kit/Panel";
+import { PhotoField } from "../../kit/PhotoField";
 import { CyrillicField } from "../CyrillicField";
 
 /**
@@ -38,18 +39,21 @@ function Row({ label, hint, htmlFor, children }: { label: ReactNode; hint?: Reac
 
 /**
  * The foot of a panel: what the last save did (saved / failed, in words with an icon) and the panel's Save, which
- * shows the busy state while the write runs. "Saved" goes away as soon as a field changes again.
+ * shows the busy state while the write runs. "Saved" goes away as soon as a field changes again. `blocked` keeps
+ * Save off while something the form needs is not ready yet (a photo still uploading).
  */
 function SaveFoot({
   state,
   pending,
   changed,
+  blocked = false,
   label,
   savingLabel,
 }: {
   state: FormState;
   pending: boolean;
   changed: boolean;
+  blocked?: boolean;
   label: string;
   savingLabel: string;
 }) {
@@ -67,7 +71,7 @@ function SaveFoot({
           {state.ok}
         </span>
       )}
-      <button type="submit" disabled={pending} aria-busy={pending || undefined} className="adm-btn adm-btn-primary">
+      <button type="submit" disabled={pending || blocked} aria-busy={pending || undefined} className="adm-btn adm-btn-primary">
         {pending && <LoaderCircle aria-hidden="true" className="animate-spin" />}
         {pending ? savingLabel : label}
       </button>
@@ -77,7 +81,8 @@ function SaveFoot({
 
 /**
  * Whether the form changed after the last save started, so "Saved" never shows for a form that has moved on
- * (an edit while the save was running, or after it). Typing and "Fill from Latin" both count.
+ * (an edit while the save was running, or after it). Typing, "Fill from Latin" and a photo uploaded or removed
+ * all count.
  */
 function useChangedSinceSubmit() {
   const [edits, setEdits] = useState(0);
@@ -92,6 +97,7 @@ function useChangedSinceSubmit() {
 export function ProgramForm({ program, locale }: { program: Program; locale: Locale }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveProgram, {});
   const { changed, markEdited, markSubmitted } = useChangedSinceSubmit();
+  const [uploading, setUploading] = useState(false);
   const t = getAdminDictionary(locale);
   const p = t.programs;
   const lang = t.common.fieldLang;
@@ -115,6 +121,27 @@ export function ProgramForm({ program, locale }: { program: Program; locale: Loc
             <span className="flex min-h-11 items-center">
               <input id={`program-active-${id}`} type="checkbox" name="active" defaultChecked={program.active} className="size-4" />
             </span>
+          </Row>
+
+          <Row label={p.photo} htmlFor={`program-photo-${id}`}>
+            {/* What this form was loaded with: saveProgram refuses to replace a photo that changed elsewhere. */}
+            <input type="hidden" name="photo_url_prev" value={program.photo_url ?? ""} />
+            <PhotoField
+              bucket="program-photos"
+              name="photo_url"
+              inputId={`program-photo-${id}`}
+              defaultUrl={program.photo_url}
+              aspect="3 / 2"
+              labels={{
+                hint: p.photoHint,
+                noPhoto: p.noPhoto,
+                uploading: p.uploading,
+                remove: p.removePhoto,
+                uploadFailed: p.uploadFailed,
+              }}
+              onUploadingChange={setUploading}
+              onChange={markEdited}
+            />
           </Row>
 
           <Row label={p.tagline}>
@@ -194,7 +221,10 @@ export function ProgramForm({ program, locale }: { program: Program; locale: Loc
           ))}
         </div>
 
-        <SaveFoot state={state} pending={pending} changed={changed} label={p.saveProgram} savingLabel={t.common.saving} />
+        <SaveFoot
+          state={state} pending={pending} changed={changed} blocked={uploading}
+          label={p.saveProgram} savingLabel={t.common.saving}
+        />
       </form>
     </Panel>
   );

@@ -43,6 +43,7 @@ const program = {
   description_uz: "Har kungi hayot uchun muvozanatli ovqatlanish.",
   description_ru: "Сбалансированное питание на каждый день.",
   description_uzc: "",
+  photo_url: null,
   sort: 1,
   active: true,
   variants: [

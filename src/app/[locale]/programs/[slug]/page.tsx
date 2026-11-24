@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ViewTransition } from "react";
@@ -54,31 +55,55 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
   const firstVariant = program.variants[0];
   const subtitle = t.programs.seo[program.slug]?.subtitle;
   const sample = firstVariant ? await getMenuDay(firstVariant.id, 1) : [];
+  const tagline = localized(program, "tagline", locale);
+
+  const intro = (
+    <>
+      <span className="block h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
+      <p className="label mt-5 text-ivory/60">TAOMIQ</p>
+      <h1 className="font-serif text-6xl md:text-7xl">
+        {/* The home card's program name grows into this heading (globals.css, .program-morph). */}
+        <ViewTransition name={`program-name-${program.slug}`} share="program-morph" default="none">
+          <span className="inline-block">{program.name}</span>
+        </ViewTransition>
+      </h1>
+      <p className="mt-2 text-xl text-gold">{tagline}</p>
+      {subtitle && <p className="mt-4 max-w-2xl text-lg font-semibold leading-snug text-ivory">{subtitle}</p>}
+      <p className={`${subtitle ? "mt-3" : "mt-5"} max-w-2xl text-lg leading-relaxed text-ivory/80`}>
+        {localized(program, "description", locale)}
+      </p>
+      {/* .hero-cta: the phone call-to-action bar waits until this button scrolls away. */}
+      <Link href={`/${locale}/order?program=${program.slug}`} className="hero-cta btn btn-gold mt-8">
+        {t.nav.cta}
+      </Link>
+    </>
+  );
 
   return (
     <PageTransition>
       <JsonLd data={programProduct(program, durations, locale, t.programs.kcal)} />
       <JsonLd data={breadcrumbList(locale, [{ name: program.name, path: `/programs/${program.slug}` }])} />
       <section className="bg-forest text-ivory">
-        <div className="container-page py-14 md:py-20">
-          <span className="block h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
-          <p className="label mt-5 text-ivory/60">TAOMIQ</p>
-          <h1 className="font-serif text-6xl md:text-7xl">
-            {/* The home card's program name grows into this heading (globals.css, .program-morph). */}
-            <ViewTransition name={`program-name-${program.slug}`} share="program-morph" default="none">
-              <span className="inline-block">{program.name}</span>
-            </ViewTransition>
-          </h1>
-          <p className="mt-2 text-xl text-gold">{localized(program, "tagline", locale)}</p>
-          {subtitle && <p className="mt-4 max-w-2xl text-lg font-semibold leading-snug text-ivory">{subtitle}</p>}
-          <p className={`${subtitle ? "mt-3" : "mt-5"} max-w-2xl text-lg leading-relaxed text-ivory/80`}>
-            {localized(program, "description", locale)}
-          </p>
-          {/* .hero-cta: the phone call-to-action bar waits until this button scrolls away. */}
-          <Link href={`/${locale}/order?program=${program.slug}`} className="hero-cta btn btn-gold mt-8">
-            {t.nav.cta}
-          </Link>
-        </div>
+        {program.photo_url ? (
+          // With a cover photo: above the text on phones, beside the heading from md.
+          <div className="container-page grid gap-8 py-14 md:grid-cols-[1.3fr_1fr] md:items-center md:gap-12 md:py-20">
+            <div className="relative aspect-[3/2] overflow-hidden rounded-3xl md:order-last">
+              {/* The largest element of the page: load it at once. */}
+              <Image
+                src={program.photo_url}
+                alt={`${program.name} — ${tagline}`}
+                fill
+                sizes="(min-width: 768px) 45vw, 100vw"
+                loading="eager"
+                fetchPriority="high"
+                className="object-cover"
+              />
+            </div>
+            <div>{intro}</div>
+          </div>
+        ) : (
+          <div className="container-page py-14 md:py-20">{intro}</div>
+        )}
       </section>
 
       {/* Prices by calorie level and duration */}

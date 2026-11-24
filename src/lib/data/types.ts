@@ -25,6 +25,8 @@ export type Program = {
   description_uz: string;
   description_ru: string;
   description_uzc: string;
+  /** Cover photo in the program-photos bucket; null means no photo (the site shows the text-only card). */
+  photo_url: string | null;
   sort: number;
   active: boolean;
   variants: Variant[];

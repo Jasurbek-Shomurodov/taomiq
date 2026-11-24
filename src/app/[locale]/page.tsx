@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ViewTransition } from "react";
@@ -114,11 +115,25 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           <ul className="program-row reveal -mx-5 mt-10 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:snap-none md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0 md:pb-0">
             {programs.map((program) => {
               const from = Math.min(...program.variants.map((v) => v.price_per_day));
+              const tagline = localized(program, "tagline", locale);
               return (
                 <li
                   key={program.id}
                   className="press relative flex w-[85%] shrink-0 snap-start flex-col rounded-3xl bg-forest p-7 text-ivory md:w-auto"
                 >
+                  {/* The cover photo fills the top of the card, edge to edge, with the card's radius. Without one
+                      the card is text only; cards stretch to one height in the row and the grid either way. */}
+                  {program.photo_url && (
+                    <div className="relative -mx-7 -mt-7 mb-7 aspect-[3/2] overflow-hidden rounded-t-3xl">
+                      <Image
+                        src={program.photo_url}
+                        alt={`${program.name} — ${tagline}`}
+                        fill
+                        sizes="(min-width: 768px) 33vw, 85vw"
+                        className="object-cover"
+                      />
+                    </div>
+                  )}
                   <span className="h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
                   <p className="label mt-5 text-ivory/60">TAOMIQ</p>
                   <h3 className="font-serif text-4xl">
@@ -133,7 +148,7 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
                       </ViewTransition>
                     </Link>
                   </h3>
-                  <p className="mt-1 text-gold">{localized(program, "tagline", locale)}</p>
+                  <p className="mt-1 text-gold">{tagline}</p>
                   <p className="mt-4 text-sm leading-relaxed text-ivory/75">
                     {localized(program, "description", locale)}
                   </p>

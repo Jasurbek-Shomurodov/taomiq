@@ -28,6 +28,7 @@ const program = (
   description_uz,
   description_ru,
   description_uzc: "",
+  photo_url: null, // no photo: the text-only card, as for a real row before the photo shoot
   sort,
   active: true,
   variants: variants.map(([kcal, meals_per_day, price_per_day], index) => ({

@@ -127,6 +127,8 @@ function programProductNode(program: Program, durations: Duration[], locale: Loc
     name: `${site.name} ${program.name}`,
     description: localized(program, "description", locale),
     url,
+    // The cover photo, only once the owner has uploaded one (src/app/admin/(panel)/programs).
+    ...(program.photo_url ? { image: program.photo_url } : {}),
     brand: { "@type": "Brand", name: site.name },
     ...(offers.length > 0 && {
       offers: {
