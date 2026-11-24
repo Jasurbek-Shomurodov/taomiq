@@ -4,6 +4,7 @@ import {
   PiggyBank,
   Receipt,
   Scale,
+  Settings2,
   TrendingDown,
   TrendingUp,
   UserRound,
@@ -17,19 +18,25 @@ import { formatSum, htmlLang, type Locale } from "@/i18n/config";
 import { requireOwner } from "@/lib/admin/auth";
 import { categoryIcon, isExpenseCategory } from "@/lib/admin/finance/categories";
 import {
+  breakEvenCoverage,
   categoryShares,
   changePct,
   daysCounted,
   isEmptyPeriod,
   marginPct,
+  monthEstimate,
   monthIndicators,
+  payrollSummary,
   periodFigures,
+  remainingDays,
   type FinancePeriod,
   type LargestPayment,
+  type PayrollRow,
   type PeriodFigures,
 } from "@/lib/admin/finance/math";
 import { comparisonRange, financeMonth, formatDayRange, formatEntryDay, type FinanceMonth } from "@/lib/admin/finance/month";
-import { loadPeriod, loadTotals } from "@/lib/admin/finance/queries";
+import { loadFinanceSettings, loadMonthClose, loadPayroll, loadPeriod, loadTotals } from "@/lib/admin/finance/queries";
+import { NO_FINANCE_SETTINGS, type FinanceSettings } from "@/lib/admin/finance/settings";
 import { tashkentDay } from "@/lib/admin/stats";
 import { BarChart, type ChartBar } from "../../kit/BarChart";
 import { BeforeHydration } from "../../kit/BeforeHydration";
@@ -82,6 +89,11 @@ async function settle<T>(what: string, load: () => Promise<T>): Promise<T | null
  * before (month.comparisonRange). A failed comparison read only drops the changes (the caption says so); a failed read
  * of the month itself shows one notice with a retry and no figures. In the launch month the revenue per day counts
  * from the first paid order (finance_totals); if that read fails, every day of the month counts.
+ *
+ * Slice 4: the running month gets an estimate to the month's end (math.monthEstimate, with the payroll's whole-month pay
+ * and the finance settings); a break-even target, when set, shows as a coverage figure and a line on the daily chart;
+ * a closed month says so. The settings, the payroll and the close are read on their own: a failure hides only what
+ * needs them.
  */
 export default async function FinanceMonthPage({ searchParams }: PageProps<"/admin/finance">) {
   const { supabase, staff } = await requireOwner();
@@ -96,11 +108,16 @@ export default async function FinanceMonthPage({ searchParams }: PageProps<"/adm
   const compare = comparisonRange(month, today);
   const selfHref = monthHref(month.isCurrent ? null : month.key);
 
-  const [current, previous, totals] = await Promise.all([
+  const [current, previous, totals, settings, payroll, close] = await Promise.all([
     settle("period", () => loadPeriod(supabase, month.from, to)),
     compare ? settle("comparison", () => loadPeriod(supabase, compare.from, compare.to)) : Promise.resolve(null),
     // Only for the first paid order's day (the launch month's revenue per day); without it, every day counts.
     settle("totals", () => loadTotals(supabase)),
+    // Without the settings, the estimate runs without rent plan and tax, and no break-even is shown.
+    settle("settings", () => loadFinanceSettings(supabase)),
+    // The whole month's pay, for the running month's estimate only.
+    month.isCurrent ? settle("payroll", () => loadPayroll(supabase, today)) : Promise.resolve(null),
+    month.isCurrent ? Promise.resolve(null) : settle("close", () => loadMonthClose(supabase, month.from)),
   ]);
 
   return (
@@ -127,15 +144,24 @@ export default async function FinanceMonthPage({ searchParams }: PageProps<"/adm
           {f.loadFailed}
         </Notice>
       ) : (
-        <MonthBody
-          period={current}
-          previous={previous}
-          month={month}
-          days={daysCounted(month.from, month.to, today, totals?.first_order_day ?? null)}
-          today={today}
-          locale={locale}
-          t={t}
-        />
+        <>
+          {close && (
+            <Notice tone="info">
+              {f.month.closedNote(formatEntryDay(tashkentDay(new Date(close.closed_at)) ?? month.to, locale))}
+            </Notice>
+          )}
+          <MonthBody
+            period={current}
+            previous={previous}
+            month={month}
+            days={daysCounted(month.from, month.to, today, totals?.first_order_day ?? null)}
+            today={today}
+            settings={settings ?? NO_FINANCE_SETTINGS}
+            payroll={payroll}
+            locale={locale}
+            t={t}
+          />
+        </>
       )}
     </div>
   );
@@ -147,6 +173,8 @@ function MonthBody({
   month,
   days,
   today,
+  settings,
+  payroll,
   locale,
   t,
 }: {
@@ -155,6 +183,9 @@ function MonthBody({
   month: FinanceMonth;
   days: number;
   today: string;
+  settings: FinanceSettings;
+  /** The running month's payroll (null for a past month, or when the read failed). */
+  payroll: PayrollRow[] | null;
   locale: Locale;
   t: AdminDictionary;
 }) {
@@ -162,6 +193,7 @@ function MonthBody({
   const now = periodFigures(period);
   const before = previous ? periodFigures(previous) : null;
   const indicators = monthIndicators(now, days);
+  const coverage = breakEvenCoverage(indicators.avgRevenuePerDay, settings.breakEvenDaily);
   const marginBefore = before ? marginPct(before) : null;
   const monthParam = month.isCurrent ? null : month.key;
   const expensesHref = `/finance/records?${monthParam ? `m=${monthParam}&` : ""}type=expense`;
@@ -241,6 +273,19 @@ function MonthBody({
 
       {now.investor_support > 0 && <Notice tone="info">{f.investorNote(sumText(now.investor_support, t))}</Notice>}
 
+      {month.isCurrent && (
+        <EstimatePanel
+          figures={now}
+          period={period}
+          days={days}
+          today={today}
+          settings={settings}
+          payroll={payroll}
+          locale={locale}
+          t={t}
+        />
+      )}
+
       <Panel title={f.month.indicators}>
         <dl className="grid gap-x-6 gap-y-5 [grid-template-columns:repeat(auto-fit,minmax(12rem,1fr))]">
           <Indicator
@@ -294,6 +339,16 @@ function MonthBody({
             hint={indicators.shortfall > 0 ? f.month.shortfallHint : f.month.covered}
             locale={locale}
           />
+          {settings.breakEvenDaily !== null && settings.breakEvenDaily > 0 && (
+            <Indicator
+              topic="breakEven"
+              label={f.month.breakEven}
+              value={coverage === null ? DASH : f.month.breakEvenValue(pct(coverage, locale))}
+              valueClass={coverage === null ? "" : coverage >= 100 ? "text-adm-positive" : "text-adm-negative"}
+              hint={f.month.breakEvenHint(sumText(settings.breakEvenDaily, t))}
+              locale={locale}
+            />
+          )}
         </dl>
       </Panel>
 
@@ -323,7 +378,7 @@ function MonthBody({
         </Panel>
       </div>
 
-      <RevenueChart period={period} today={today} locale={locale} t={t} />
+      <RevenueChart period={period} today={today} breakEven={settings.breakEvenDaily} locale={locale} t={t} />
 
       <p className="adm-caption">{f.month.note}</p>
     </>
@@ -406,11 +461,14 @@ function LargestRow({ entry, locale, t }: { entry: LargestPayment; locale: Local
 function RevenueChart({
   period,
   today,
+  breakEven,
   locale,
   t,
 }: {
   period: FinancePeriod;
   today: string;
+  /** The break-even revenue per day (setting), drawn as a line; null when not set. */
+  breakEven: number | null;
   locale: Locale;
   t: AdminDictionary;
 }) {
@@ -442,8 +500,128 @@ function RevenueChart({
           caption={f.chartCaption}
           headers={[f.chartDay, t.finance.revenue]}
           maxLabel={f.chartMax(`${formatSum(top)} ${t.common.currency}`)}
+          reference={
+            breakEven !== null && breakEven > 0 ? { value: breakEven, label: f.chartBreakEven(sumText(breakEven, t)) } : undefined
+          }
         />
       )}
+    </Panel>
+  );
+}
+
+/**
+ * The running month to its end (math.monthEstimate): revenue at today's pace, the spending to expect with the whole
+ * month's salaries and the rent plan, the result that gives, and the revenue a day needs from tomorrow on. The tax line
+ * is an estimate only and never enters a result. Without the payroll (a failed read) nothing is estimated.
+ */
+function EstimatePanel({
+  figures,
+  period,
+  days,
+  today,
+  settings,
+  payroll,
+  locale,
+  t,
+}: {
+  figures: PeriodFigures;
+  period: FinancePeriod;
+  days: number;
+  today: string;
+  settings: FinanceSettings;
+  payroll: PayrollRow[] | null;
+  locale: Locale;
+  t: AdminDictionary;
+}) {
+  const e = t.finance.estimate;
+  const left = remainingDays(today);
+  const settingsLink = (
+    <Link href="/finance/close#settings" className="adm-btn adm-btn-outline adm-btn-sm">
+      <Settings2 aria-hidden="true" />
+      {e.settingsLink}
+    </Link>
+  );
+
+  if (!payroll) {
+    return (
+      <Panel title={e.title} actions={settingsLink}>
+        <Notice tone="negative" retry={{ href: "/finance", label: t.common.retry }}>
+          {e.payrollFailed}
+        </Notice>
+      </Panel>
+    );
+  }
+
+  const salary = payrollSummary(payroll).monthPay;
+  const estimate = monthEstimate({
+    revenueSoFar: figures.revenue,
+    otherIncomeSoFar: figures.other_income,
+    spentSoFar: figures.spent,
+    salaryPaidSoFar: figures.salaries,
+    salaryCommitment: salary,
+    rentPlan: settings.monthlyRent,
+    rentRecorded: period.expenseByCategory.rent ?? 0,
+    daysCounted: days,
+    remainingDays: left,
+    taxRatePct: settings.taxRatePct,
+  });
+  const percent = (value: number) =>
+    new Intl.NumberFormat(htmlLang[locale], { style: "percent", maximumFractionDigits: 2 }).format(value / 100);
+
+  return (
+    <Panel title={e.title} description={left > 0 ? e.lead(left) : e.leadLastDay} actions={settingsLink}>
+      <dl className="grid gap-x-6 gap-y-5 [grid-template-columns:repeat(auto-fit,minmax(12rem,1fr))]">
+        <Indicator
+          topic="projectedRevenue"
+          label={e.projectedRevenue}
+          value={sumText(estimate.projectedRevenue, t)}
+          hint={estimate.avgDaily === null ? undefined : e.projectedRevenueHint(sumText(estimate.avgDaily, t))}
+          locale={locale}
+        />
+        <Indicator
+          topic="expectedOut"
+          label={e.expectedOut}
+          value={sumText(estimate.expectedOut, t)}
+          hint={
+            <span className="grid gap-0.5">
+              <span>{e.expectedOutHint(sumText(salary, t))}</span>
+              {estimate.rentLeft > 0 && <span>{e.rentLeft(sumText(estimate.rentLeft, t))}</span>}
+            </span>
+          }
+          locale={locale}
+        />
+        <Indicator
+          topic="projectedResult"
+          label={e.projectedResult}
+          value={sumText(estimate.projectedResult, t)}
+          valueClass={resultClass(estimate.projectedResult)}
+          hint={e.projectedResultHint}
+          locale={locale}
+        />
+        <Indicator
+          topic="requiredDaily"
+          label={e.requiredDaily}
+          value={estimate.requiredDaily === null ? DASH : sumText(estimate.requiredDaily, t)}
+          hint={
+            estimate.requiredDaily === null
+              ? e.requiredDailyLastDay
+              : estimate.requiredDaily === 0
+                ? e.requiredDailyCovered
+                : e.requiredDailyHint(left)
+          }
+          locale={locale}
+        />
+        {estimate.estimatedTax !== null && settings.taxRatePct !== null && (
+          <Indicator
+            topic="estimatedTax"
+            label={e.tax}
+            value={sumText(estimate.estimatedTax, t)}
+            valueClass="text-adm-muted"
+            hint={e.taxHint(percent(settings.taxRatePct))}
+            locale={locale}
+          />
+        )}
+      </dl>
     </Panel>
   );
 }

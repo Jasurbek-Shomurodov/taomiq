@@ -510,3 +510,179 @@ export function payrollSummary(rows: readonly PayrollRow[]): PayrollSummary {
   }
   return { due, advance, monthPay, paidMonth, active };
 }
+
+// ---------- the running month's estimate (slice 4, zarkebab monthly estimate) ----------
+
+export type EstimateInput = {
+  /** Revenue from the 1st to today. */
+  revenueSoFar: number;
+  /** Other income from the 1st to today. */
+  otherIncomeSoFar: number;
+  /** Ledger expenses plus salary payments from the 1st to today (the Month page's "spent"). */
+  spentSoFar: number;
+  /** Salary payments from the 1st to today (inside spentSoFar). */
+  salaryPaidSoFar: number;
+  /** The whole month's pay of every employee by the rates in force (finance_payroll month_pay, summed). */
+  salaryCommitment: number;
+  /** The month's rent plan (setting finance_monthly_rent); null when not set. */
+  rentPlan: number | null;
+  /** Rent recorded this month (ledger expenses of the rent category). */
+  rentRecorded: number;
+  /** The days the average is taken over (the Month page's days counted: the 1st, or the first order's day, to today). */
+  daysCounted: number;
+  /** Days of the month after today; 0 on the last day. */
+  remainingDays: number;
+  /** Estimated tax rate in percent (setting finance_tax_rate_pct); null when not set. */
+  taxRatePct: number | null;
+};
+
+export type MonthEstimate = {
+  /** revenueSoFar / daysCounted; null with no day counted. */
+  avgDaily: number | null;
+  /** revenueSoFar + avgDaily × remainingDays (the revenue so far when the average is unknown). */
+  projectedRevenue: number;
+  /** Rent still to pay: max(0, rent plan − rent recorded); 0 without a plan. */
+  rentLeft: number;
+  /**
+   * What the month is expected to spend: spent so far − salary paid so far + the whole month's salary commitment +
+   * the rent still to pay. Salary payments are replaced by the month's pay, so no salary is counted twice.
+   */
+  expectedOut: number;
+  /** projectedRevenue + other income so far − expectedOut. */
+  projectedResult: number;
+  /**
+   * Revenue a day needs from tomorrow on for income to cover expectedOut: ceil(max(0, expectedOut − income so far) /
+   * remainingDays). Null on the last day of the month (no day left).
+   */
+  requiredDaily: number | null;
+  /** projectedRevenue × tax rate / 100; null without a rate. Informational: never subtracted from a result. */
+  estimatedTax: number | null;
+};
+
+/**
+ * The running month's estimate (docs/plans/finance-investor-payroll.md, slice 4): where the month ends at today's
+ * pace, and what a day must bring in for income to cover the month's expected spending.
+ */
+export function monthEstimate(input: EstimateInput): MonthEstimate {
+  const avgDaily = input.daysCounted > 0 ? input.revenueSoFar / input.daysCounted : null;
+  const remaining = Math.max(0, input.remainingDays);
+  const projectedRevenue = input.revenueSoFar + (avgDaily ?? 0) * remaining;
+  const rentLeft = input.rentPlan !== null ? Math.max(0, input.rentPlan - input.rentRecorded) : 0;
+  const expectedOut = input.spentSoFar - input.salaryPaidSoFar + input.salaryCommitment + rentLeft;
+  const incomeSoFar = input.revenueSoFar + input.otherIncomeSoFar;
+  const projectedResult = projectedRevenue + input.otherIncomeSoFar - expectedOut;
+  const requiredDaily = remaining > 0 ? Math.ceil(Math.max(0, expectedOut - incomeSoFar) / remaining) : null;
+  const estimatedTax = input.taxRatePct !== null ? (projectedRevenue * input.taxRatePct) / 100 : null;
+  return { avgDaily, projectedRevenue, rentLeft, expectedOut, projectedResult, requiredDaily, estimatedTax };
+}
+
+/** Days of the month after `today` ("YYYY-MM-DD"): 0 on the last day. */
+export function remainingDays(today: string): number {
+  return daysInMonth(today) - Number(today.slice(8, 10));
+}
+
+/** Average revenue per day against the break-even target, in percent; null without either. */
+export function breakEvenCoverage(avgDaily: number | null, target: number | null): number | null {
+  return avgDaily !== null && target !== null && target > 0 ? (avgDaily / target) * 100 : null;
+}
+
+// ---------- month close (public.finance_close_overview, migration 0015) ----------
+
+/** One person's salary earned in a month: accrued pay + bonuses − fines. */
+export type SalaryShare = {
+  employee_id: string;
+  name: string;
+  /** Days with pay. */
+  days: number;
+  accrued: number;
+  bonuses: number;
+  fines: number;
+  earned: number;
+};
+
+/** A month's figures by the close rule: salary counted as earned, not as paid. */
+export type CloseFigures = {
+  revenue: number;
+  order_count: number;
+  other_income: number;
+  investor_support: number;
+  /** Ledger expenses only (salary payments are not in here). */
+  expenses: number;
+  salary_earned: number;
+  salary_breakdown: SalaryShare[];
+  /** revenue + other_income − expenses − salary_earned. */
+  result: number;
+};
+
+export type FrozenClose = CloseFigures & {
+  /** "YYYY-MM-01". */
+  month_start: string;
+  closed_at: string;
+  closed_by_name: string | null;
+};
+
+export type CloseStatus = "closed" | "ready" | "waiting" | "current";
+
+export type CloseMonth = {
+  /** "YYYY-MM-01". */
+  month_start: string;
+  status: CloseStatus;
+  /** Counted now; the running month up to today. */
+  live: CloseFigures;
+  closed: FrozenClose | null;
+  /** live.result − closed.result for a closed month (an order of it was cancelled since, say); null otherwise. */
+  drift: number | null;
+};
+
+export type CloseLogEntry = {
+  month_start: string;
+  action: "closed" | "reopened";
+  reason: string | null;
+  result: number;
+  actor_name: string | null;
+  at: string;
+};
+
+export type CloseOverview = {
+  /** Oldest first. */
+  months: CloseMonth[];
+  /** "YYYY-MM-01" of the month to close next, or null when none can be closed now. */
+  nextToClose: string | null;
+  /** Newest first. */
+  log: CloseLogEntry[];
+};
+
+/** Revenue plus other income: what the official result's margin is taken of. */
+export function closeIncome(figures: Pick<CloseFigures, "revenue" | "other_income">): number {
+  return figures.revenue + figures.other_income;
+}
+
+/** result / (revenue + other income) × 100, or null with no income. */
+export function closeMarginPct(figures: Pick<CloseFigures, "revenue" | "other_income" | "result">): number | null {
+  return sharePct(figures.result, closeIncome(figures));
+}
+
+export type ClosedSummary = {
+  /** Closed months. */
+  count: number;
+  /** Sum of their frozen results. */
+  total: number;
+  /** total / count; null without a closed month. */
+  average: number | null;
+  /** The highest and the lowest frozen result (the earlier month on a tie); null without a closed month. */
+  best: FrozenClose | null;
+  worst: FrozenClose | null;
+};
+
+/** The frozen results added up. `closes` oldest first. */
+export function closedSummary(closes: readonly FrozenClose[]): ClosedSummary {
+  let total = 0;
+  let best: FrozenClose | null = null;
+  let worst: FrozenClose | null = null;
+  for (const close of closes) {
+    total += close.result;
+    if (!best || close.result > best.result) best = close;
+    if (!worst || close.result < worst.result) worst = close;
+  }
+  return { count: closes.length, total, average: closes.length > 0 ? total / closes.length : null, best, worst };
+}

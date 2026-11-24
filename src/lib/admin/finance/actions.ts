@@ -13,16 +13,26 @@ import {
   isPaymentMethod,
   kindToRow,
 } from "./categories";
-import { isCalendarDay } from "./month";
+import { formatMonth, isCalendarDay } from "./month";
 import { isRateUnit, isSalaryEventKind, PAYROLL_LIMITS } from "./payroll";
+import { CLOSE_LIMITS, FINANCE_SETTING_KEYS, FINANCE_SETTING_LIMITS, type FinanceSettingName } from "./settings";
 
 /*
- * Finance ledger and payroll writes (migrations 0013 and 0014), owner only. Each action checks the owner first (requireOwner redirects
- * anyone else), then validates everything the table checks again, so a refusal from the database is the exception.
- * Database errors are logged with their code and shown as a sentence in the owner's language, never raw.
+ * Finance ledger, payroll, month close and settings writes (migrations 0013, 0014 and 0015), owner only. Each action
+ * checks the owner first (requireOwner redirects anyone else), then validates everything the table checks again, so a
+ * refusal from the database is the exception. Database errors are logged with their code and shown as a sentence in
+ * the owner's language, never raw.
  */
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * The guard of a closed month (migration 0015) refused the write: the record is dated in a closed month (or, for a
+ * rate or a leaving, changes pay there). Checked before any other error code.
+ */
+function isMonthClosed(error: { message: string }): boolean {
+  return error.message.includes("month_closed");
+}
 
 const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 /** Length as Postgres char_length counts it: code points, not UTF-16 units. */
@@ -82,6 +92,7 @@ export async function addFinanceEntry(_prev: FormState, form: FormData): Promise
   });
   if (error) {
     console.error("finance: add entry failed", error.code, error.message);
+    if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
     // 42501: a row-level security refusal (not the owner, or a date after today in Tashkent). 23514: a check.
     if (error.code === "42501") return { error: e.denied };
     if (error.code === "23514") return { error: e.invalid };
@@ -103,6 +114,7 @@ export async function deleteFinanceEntry(_prev: FormState, form: FormData): Prom
   const { data, error } = await supabase.from("finance_entries").delete().eq("id", id).select("id");
   if (error) {
     console.error("finance: delete entry failed", error.code, error.message);
+    if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
     return { error: e.deleteFailed };
   }
 
@@ -188,6 +200,7 @@ export async function addEmployee(_prev: FormState, form: FormData): Promise<For
   });
   if (error) {
     console.error("payroll: add employee failed", error.code, error.message);
+    if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
     if (error.code === "42501") return { error: e.denied };
     if (error.code === "23514") return { error: e.invalid };
     return { error: e.saveFailed };
@@ -225,6 +238,7 @@ export async function addSalaryRate(_prev: FormState, form: FormData): Promise<F
   });
   if (error) {
     console.error("payroll: add rate failed", error.code, error.message);
+    if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
     if (error.code === "23505") return { error: e.rateExists };
     if (error.code === "23503") return { error: e.gone };
     if (error.code === "42501") return { error: e.denied };
@@ -287,6 +301,7 @@ export async function addSalaryEvent(_prev: FormState, form: FormData): Promise<
   });
   if (error) {
     console.error("payroll: add event failed", error.code, error.message);
+    if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
     if (error.code === "23505") return { error: e.absentAlready };
     if (error.code === "23503") return { error: e.gone };
     if (error.code === "42501") return { error: e.denied };
@@ -327,6 +342,7 @@ export async function endEmployment(_prev: FormState, form: FormData): Promise<F
     .select("id");
   if (error) {
     console.error("payroll: end employment failed", error.code, error.message);
+    if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
     if (error.code === "42501") return { error: e.denied };
     if (error.code === "23514") return { error: e.invalid };
     return { error: e.saveFailed };
@@ -371,6 +387,7 @@ export async function resumeEmployment(_prev: FormState, form: FormData): Promis
   if (error) {
     console.error("payroll: resume employment failed", error.code, error.message);
     if (error.message.includes("resume_too_late")) return { error: e.resumeTooLate(PAYROLL_LIMITS.resumeDays) };
+    if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
     if (error.code === "42501") return { error: e.denied };
     return { error: e.saveFailed };
   }
@@ -391,6 +408,7 @@ export async function deleteSalaryEvent(_prev: FormState, form: FormData): Promi
   const { data, error } = await supabase.from("finance_salary_events").delete().eq("id", id).select("id");
   if (error) {
     console.error("payroll: delete event failed", error.code, error.message);
+    if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
     return { error: e.deleteFailed };
   }
 
@@ -413,10 +431,142 @@ export async function deleteSalaryRate(_prev: FormState, form: FormData): Promis
   const { data, error } = await supabase.from("finance_salary_rates").delete().eq("id", id).select("id");
   if (error) {
     console.error("payroll: delete rate failed", error.code, error.message);
+    if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
     return { error: e.deleteFailed };
   }
 
   refresh();
   if (!data?.length) return { error: e.eventGone };
   return { ok: t.finance.payroll.rateDeleted };
+}
+
+// ---------- month close and settings (migration 0015) ----------
+
+const MONTH_START_RE = /^\d{4}-(0[1-9]|1[0-2])-01$/;
+
+/** The month to close or reopen ("YYYY-MM-01"), or null. */
+function readMonthStart(form: FormData): string | null {
+  const month = text(form, "month_start");
+  return MONTH_START_RE.test(month) ? month : null;
+}
+
+/**
+ * Closes the month the form names. The database counts every figure itself (public.close_finance_month) and refuses a
+ * month that has not ended, one already closed, or one out of order; each refusal is said in the owner's language.
+ */
+export async function closeFinanceMonth(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase, staff } = await requireOwner();
+  const t = getAdminDictionary(staff.locale);
+  const c = t.finance.close;
+  const e = c.errors;
+  const month = readMonthStart(form);
+  if (!month) return { error: e.badMonth };
+  const name = formatMonth(month.slice(0, 7), staff.locale);
+
+  const { error } = await supabase.rpc("close_finance_month", { p_month_start: month });
+  if (error) {
+    console.error("finance: close month failed", error.code, error.message);
+    const message = error.message;
+    if (message.includes("month_already_closed")) return { error: e.alreadyClosed(name) };
+    if (message.includes("month_not_finished")) return { error: e.notFinished(name) };
+    if (message.includes("close_out_of_order")) {
+      const next = /^\d{4}-\d{2}-01$/.test(error.details ?? "") ? formatMonth(error.details.slice(0, 7), staff.locale) : null;
+      return { error: next ? e.outOfOrder(next) : e.outOfOrderPlain };
+    }
+    if (message.includes("nothing_to_close")) return { error: e.nothingToClose };
+    if (message.includes("bad_month")) return { error: e.badMonth };
+    if (error.code === "42501") return { error: e.denied };
+    return { error: e.closeFailed };
+  }
+
+  refresh();
+  return { ok: c.closedOk(name) };
+}
+
+/**
+ * Opens the latest closed month again, with the reason it is reopened (at least CLOSE_LIMITS.reasonMin characters; it
+ * goes to the close log). Only the latest closed month can be reopened.
+ */
+export async function reopenFinanceMonth(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase, staff } = await requireOwner();
+  const t = getAdminDictionary(staff.locale);
+  const c = t.finance.close;
+  const e = c.errors;
+  const month = readMonthStart(form);
+  if (!month) return { error: e.badMonth };
+  const name = formatMonth(month.slice(0, 7), staff.locale);
+  const reason = text(form, "reason");
+  if (length(reason) < CLOSE_LIMITS.reasonMin) return { error: e.reasonShort(CLOSE_LIMITS.reasonMin) };
+  if (length(reason) > CLOSE_LIMITS.reasonMax) return { error: e.reasonLong(CLOSE_LIMITS.reasonMax) };
+
+  const { error } = await supabase.rpc("reopen_finance_month", { p_month_start: month, p_reason: reason });
+  if (error) {
+    console.error("finance: reopen month failed", error.code, error.message);
+    const message = error.message;
+    if (message.includes("reopen_not_latest")) return { error: e.notLatest };
+    if (message.includes("month_not_closed")) return { error: e.notClosed(name) };
+    if (message.includes("reason_required")) return { error: e.reasonShort(CLOSE_LIMITS.reasonMin) };
+    if (message.includes("bad_month")) return { error: e.badMonth };
+    if (error.code === "42501") return { error: e.denied };
+    return { error: e.reopenFailed };
+  }
+
+  refresh();
+  return { ok: c.reopenedOk(name) };
+}
+
+/**
+ * Saves the three finance settings at once. An empty field clears that setting (its row is deleted); a filled one is
+ * written as a JSON number. Whole UZS for rent and the break-even target; a percent with up to 2 decimals for the tax.
+ */
+export async function saveFinanceSettings(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase, staff } = await requireOwner();
+  const t = getAdminDictionary(staff.locale);
+  const s = t.finance.settings;
+  const e = s.errors;
+
+  const values: Record<FinanceSettingName, number | null> = { monthlyRent: null, breakEvenDaily: null, taxRatePct: null };
+  for (const name of ["monthlyRent", "breakEvenDaily"] as const) {
+    const raw = text(form, FINANCE_SETTING_KEYS[name]).replace(/[\s  ]/g, "");
+    if (!raw) continue;
+    if (!/^\d+$/.test(raw)) return { error: e.amount(s.fields[name]) };
+    const amount = Number(raw);
+    if (!Number.isSafeInteger(amount) || amount > FINANCE_SETTING_LIMITS.amountMax) {
+      return { error: e.amountRange(s.fields[name], formatSum(FINANCE_SETTING_LIMITS.amountMax)) };
+    }
+    values[name] = amount;
+  }
+  const taxRaw = text(form, FINANCE_SETTING_KEYS.taxRatePct).replace(/\s/g, "").replace(",", ".");
+  if (taxRaw) {
+    if (!/^\d{1,3}(\.\d{1,2})?$/.test(taxRaw)) return { error: e.tax };
+    const rate = Number(taxRaw);
+    if (!(rate >= 0 && rate <= FINANCE_SETTING_LIMITS.taxMax)) return { error: e.tax };
+    values.taxRatePct = rate;
+  }
+
+  const names = Object.keys(values) as FinanceSettingName[];
+  const upserts = names.flatMap((name) =>
+    values[name] === null ? [] : [{ key: FINANCE_SETTING_KEYS[name], value: values[name] }],
+  );
+  const cleared = names.filter((name) => values[name] === null).map((name) => FINANCE_SETTING_KEYS[name]);
+
+  if (upserts.length > 0) {
+    const { error } = await supabase.from("settings").upsert(upserts, { onConflict: "key" });
+    if (error) {
+      console.error("finance: save settings failed", error.code, error.message);
+      if (error.code === "42501") return { error: e.denied };
+      if (error.code === "23514") return { error: e.invalid };
+      return { error: e.saveFailed };
+    }
+  }
+  if (cleared.length > 0) {
+    const { error } = await supabase.from("settings").delete().in("key", cleared);
+    if (error) {
+      console.error("finance: clear settings failed", error.code, error.message);
+      return { error: e.saveFailed };
+    }
+  }
+
+  refresh();
+  return { ok: s.saved };
 }

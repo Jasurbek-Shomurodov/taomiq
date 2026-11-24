@@ -1,4 +1,4 @@
-import { CalendarCheck, HandCoins, NotebookPen, Receipt, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import { CalendarCheck, HandCoins, Lock, NotebookPen, Receipt, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
@@ -9,6 +9,7 @@ import {
   payback,
   yearSummary,
   type FinanceTotals,
+  type CloseMonth,
   type Growth,
   type InvestorTotal,
   type MonthCashflow,
@@ -17,7 +18,8 @@ import {
   type YearSummary,
 } from "@/lib/admin/finance/math";
 import { formatMonth, formatMonthShort } from "@/lib/admin/finance/month";
-import { loadInvestorTotals, loadMonthlyCashflow, loadTotals } from "@/lib/admin/finance/queries";
+import { loadCloseOverview, loadInvestorTotals, loadMonthlyCashflow, loadTotals } from "@/lib/admin/finance/queries";
+import { Badge } from "../../../kit/Badge";
 import { tashkentDay } from "@/lib/admin/stats";
 import type { ChartBar } from "../../../kit/BarChart";
 import { BeforeHydration } from "../../../kit/BeforeHydration";
@@ -64,9 +66,11 @@ export default async function FinanceYearPage() {
   const today = tashkentDay(new Date())!;
   const currentMonthStart = `${today.slice(0, 7)}-01`;
 
-  const [rows, totals] = await Promise.all([
+  const [rows, totals, overview] = await Promise.all([
     settle("cashflow", () => loadMonthlyCashflow(supabase, MONTHS)),
     settle("totals", () => loadTotals(supabase)),
+    // The official (closed) results: their own card, which says so when this read fails.
+    settle("closes", () => loadCloseOverview(supabase)),
   ]);
   const investors =
     totals && totals.investor_support > 0 && totals.first_investment_day
@@ -89,16 +93,74 @@ export default async function FinanceYearPage() {
           {f.year.loadFailed}
         </Notice>
       ) : (
-        <YearBody
-          rows={rows}
-          totals={totals}
-          investors={investors}
-          currentMonthStart={currentMonthStart}
-          locale={locale}
-          t={t}
-        />
+        <>
+          <YearBody
+            rows={rows}
+            totals={totals}
+            investors={investors}
+            currentMonthStart={currentMonthStart}
+            locale={locale}
+            t={t}
+          />
+          <OfficialResults
+            closed={overview ? overview.months.filter((month) => month.closed && month.month_start >= (rows[0]?.month_start ?? "")) : null}
+            locale={locale}
+            t={t}
+          />
+        </>
       )}
     </div>
+  );
+}
+
+/**
+ * The closed months of the 12-month window with their frozen official result (salary counted as earned) and the
+ * total, next to the cash view above (salary counted when paid). `closed` is null when the read failed.
+ */
+function OfficialResults({ closed, locale, t }: { closed: CloseMonth[] | null; locale: Locale; t: AdminDictionary }) {
+  const y = t.finance.year;
+  const total = (closed ?? []).reduce((sum, month) => sum + (month.closed?.result ?? 0), 0);
+  return (
+    <Panel
+      flush
+      title={<Labeled topic="officialResults" locale={locale}>{y.officialTitle}</Labeled>}
+      description={y.officialLead}
+      actions={
+        <Link href="/finance/close" className="adm-btn adm-btn-outline adm-btn-sm">
+          {y.toClose}
+        </Link>
+      }
+    >
+      {closed === null ? (
+        <div className="p-4 sm:p-5">
+          <Notice tone="negative" retry={{ href: "/finance/year", label: t.common.retry }}>
+            {y.officialFailed}
+          </Notice>
+        </div>
+      ) : closed.length === 0 ? (
+        <EmptyState icon={Lock}>{y.officialEmpty}</EmptyState>
+      ) : (
+        <ul>
+          {closed.map((month) => (
+            <li key={month.month_start} className="adm-row flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+              <span className="flex min-w-0 flex-wrap items-center gap-2 font-medium text-adm-text">
+                {formatMonth(month.month_start.slice(0, 7), locale)}
+                {month.drift !== null && month.drift !== 0 && <Badge tone="caution">{y.officialDrift}</Badge>}
+              </span>
+              <span
+                className={`shrink-0 whitespace-nowrap font-semibold tabular-nums ${resultClass(month.closed?.result ?? 0)}`}
+              >
+                {sumText(month.closed?.result ?? 0, t)}
+              </span>
+            </li>
+          ))}
+          <li className="adm-row flex items-center justify-between gap-3 bg-adm-surface-muted px-4 py-3 font-semibold sm:px-5">
+            <span className="text-adm-text">{y.officialTotal(closed.length)}</span>
+            <span className={`shrink-0 whitespace-nowrap tabular-nums ${resultClass(total)}`}>{sumText(total, t)}</span>
+          </li>
+        </ul>
+      )}
+    </Panel>
   );
 }
 

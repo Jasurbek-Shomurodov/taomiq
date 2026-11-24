@@ -28,6 +28,7 @@ export function BarChart({
   caption,
   headers,
   maxLabel,
+  reference,
 }: {
   bars: ChartBar[];
   /** The table's caption: what the chart shows. */
@@ -36,8 +37,14 @@ export function BarChart({
   headers: [string, string];
   /** A line over the chart naming the top of the scale. */
   maxLabel?: string;
+  /**
+   * A dashed line across the chart at a target value (a break-even revenue per day), with the caption under the chart
+   * saying what it is. The scale reaches at least that value, so the line is always inside the chart.
+   */
+  reference?: { value: number; label: string };
 }) {
-  const max = Math.max(0, ...bars.map((bar) => bar.value));
+  const refValue = reference && reference.value > 0 ? reference.value : null;
+  const max = Math.max(0, refValue ?? 0, ...bars.map((bar) => bar.value));
 
   return (
     <figure className="m-0 grid gap-2">
@@ -49,7 +56,18 @@ export function BarChart({
       {/* Each column is a tab stop (and takes focus on a tap), so keyboard and touch users can read a day's figure;
           the tooltip shows on hover and on focus. Screen readers get the column's name once (the tooltip text is
           aria-hidden), and the table below for reading the series as a whole. */}
-      <div role="group" aria-label={caption} className="flex h-40 items-end gap-[3px] border-b border-adm-border sm:h-48">
+      <div
+        role="group"
+        aria-label={caption}
+        className="relative flex h-40 items-end gap-[3px] border-b border-adm-border sm:h-48"
+      >
+        {refValue !== null && max > 0 && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 z-[1] border-t-2 border-dashed border-adm-negative/70"
+            style={{ bottom: `${(refValue / max) * 100}%` }}
+          />
+        )}
         {bars.map((bar, i) => {
           const height = bar.value > 0 && max > 0 ? `${Math.max((bar.value / max) * 100, 3)}%` : "3px";
           const fill =
@@ -93,6 +111,12 @@ export function BarChart({
           </span>
         ))}
       </div>
+      {reference && refValue !== null && (
+        <p className="adm-caption flex items-center gap-2 tabular-nums">
+          <span aria-hidden="true" className="inline-block w-5 border-t-2 border-dashed border-adm-negative/70" />
+          {reference.label}
+        </p>
+      )}
       <table className="sr-only">
         <caption>{caption}</caption>
         <thead>

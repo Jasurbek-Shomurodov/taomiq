@@ -7,7 +7,7 @@ import { formatSum, type Locale } from "@/i18n/config";
 import { requireOwner } from "@/lib/admin/auth";
 import { categoryIcon, isEntryKind, isPaymentMethod, type EntryKind } from "@/lib/admin/finance/categories";
 import { financeMonth, formatEntryDay, formatMonth } from "@/lib/admin/finance/month";
-import { ENTRIES_CAP, listMonthEntries, type FinanceEntry } from "@/lib/admin/finance/queries";
+import { ENTRIES_CAP, listMonthEntries, loadLockedThrough, type FinanceEntry } from "@/lib/admin/finance/queries";
 import { addDays, tashkentDay } from "@/lib/admin/stats";
 import { BeforeHydration } from "../../../kit/BeforeHydration";
 import type { Tone } from "../../../kit/Badge";
@@ -89,11 +89,18 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
   const monthName = formatMonth(month.key, locale);
 
   let data: { entries: FinanceEntry[]; partial: boolean } | null = null;
-  try {
-    data = await listMonthEntries(supabase, month, kind);
-  } catch (error) {
-    console.error("finance records failed", error instanceof Error ? error.message : error);
-  }
+  // The last locked day (migration 0015): a month up to it is closed, so its records show no delete. Unknown (a
+  // failed read) keeps the buttons; the database refuses anyway and the action says why.
+  let lockedThrough: string | null = null;
+  const [entries, locked] = await Promise.allSettled([
+    listMonthEntries(supabase, month, kind),
+    loadLockedThrough(supabase),
+  ]);
+  if (entries.status === "fulfilled") data = entries.value;
+  else console.error("finance records failed", entries.reason instanceof Error ? entries.reason.message : entries.reason);
+  if (locked.status === "fulfilled") lockedThrough = locked.value;
+  else console.error("finance records: lock failed", locked.reason instanceof Error ? locked.reason.message : locked.reason);
+  const closed = lockedThrough !== null && month.to <= lockedThrough;
 
   const sum = (value: number) => `${formatSum(value)} ${t.common.currency}`;
   const dayTitle = (day: string) => {
@@ -132,6 +139,8 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
           className="max-w-full"
         />
       </div>
+
+      {closed && <Notice tone="info">{r.closedNotice}</Notice>}
 
       {!data ? (
         <Notice tone="negative" retry={{ href: href(monthParam, kind), label: t.common.retry }}>
@@ -177,7 +186,7 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
             >
               <ul>
                 {day.entries.map((entry) => (
-                  <EntryRow key={entry.id} entry={entry} locale={locale} t={t} sum={sum} />
+                  <EntryRow key={entry.id} entry={entry} locked={closed} locale={locale} t={t} sum={sum} />
                 ))}
               </ul>
             </Panel>
@@ -190,11 +199,14 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
 
 function EntryRow({
   entry,
+  locked,
   locale,
   t,
   sum,
 }: {
   entry: FinanceEntry;
+  /** In a closed month: no delete. */
+  locked: boolean;
   locale: Locale;
   t: AdminDictionary;
   sum: (value: number) => string;
@@ -238,7 +250,7 @@ function EntryRow({
         >
           {amountText}
         </span>
-        <DeleteEntry id={entry.id} summary={summary} locale={locale} />
+        {!locked && <DeleteEntry id={entry.id} summary={summary} locale={locale} />}
       </div>
     </li>
   );

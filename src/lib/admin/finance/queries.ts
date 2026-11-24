@@ -4,17 +4,25 @@ import { addDays, readCapped } from "../stats";
 import { rowKind, type EntryKind } from "./categories";
 import {
   mergeInvestors,
+  type CloseFigures,
+  type CloseLogEntry,
+  type CloseMonth,
+  type CloseOverview,
+  type CloseStatus,
   type FinancePeriod,
   type FinanceTotals,
+  type FrozenClose,
   type InvestorTotal,
   type MonthCashflow,
   type PayrollRow,
+  type SalaryShare,
 } from "./math";
 import type { FinanceMonth } from "./month";
 import { isSalaryEventKind, type SalaryEventKind } from "./payroll";
+import { FINANCE_SETTING_KEYS, parseFinanceSettings, type FinanceSettings } from "./settings";
 
 /*
- * Finance loaders (migrations 0013 and 0014). Each takes the signed-in owner's session client (never the secret client) and
+ * Finance loaders (migrations 0013, 0014 and 0015). Each takes the signed-in owner's session client (never the secret client) and
  * throws on a failed read, so the page decides what to show. RLS and the functions' own check return nothing to anyone
  * but the owner.
  */
@@ -305,4 +313,124 @@ export async function loadEmployeeHistory(
     events: events.rows,
     partial: events.partial,
   };
+}
+
+// ---------- month close and settings (migration 0015) ----------
+
+function salaryShares(value: unknown): SalaryShare[] {
+  return list(value).map((row) => ({
+    employee_id: String(row.employee_id ?? ""),
+    name: text(row.name) ?? "",
+    days: money(row.days),
+    accrued: money(row.accrued),
+    bonuses: money(row.bonuses),
+    fines: money(row.fines),
+    earned: money(row.earned),
+  }));
+}
+
+function closeFigures(value: unknown): CloseFigures {
+  const row = record(value);
+  return {
+    revenue: money(row.revenue),
+    order_count: money(row.order_count),
+    other_income: money(row.other_income),
+    investor_support: money(row.investor_support),
+    expenses: money(row.expenses),
+    salary_earned: money(row.salary_earned),
+    salary_breakdown: salaryShares(row.salary_breakdown),
+    result: money(row.result),
+  };
+}
+
+function frozenClose(value: unknown): FrozenClose {
+  const row = record(value);
+  return {
+    ...closeFigures(row),
+    month_start: String(row.month_start),
+    closed_at: String(row.closed_at),
+    closed_by_name: text(row.closed_by_name),
+  };
+}
+
+const CLOSE_STATUSES: readonly CloseStatus[] = ["closed", "ready", "waiting", "current"];
+
+/**
+ * Every month from the first one with activity to the running one (at most 60), each counted now by the close rule and,
+ * once closed, with its frozen figures and the drift between the two; the month to close next; the latest log rows.
+ * public.finance_close_overview().
+ */
+export async function loadCloseOverview(supabase: SupabaseClient): Promise<CloseOverview> {
+  const { data, error } = await supabase.rpc("finance_close_overview");
+  if (error) throw new Error(`finance_close_overview: ${error.code} ${error.message}`);
+  const body = record(data);
+  const months: CloseMonth[] = list(body.months).map((row) => {
+    const status = CLOSE_STATUSES.find((value) => value === row.status) ?? "waiting";
+    const closed = row.closed && typeof row.closed === "object" ? frozenClose(row.closed) : null;
+    return {
+      month_start: String(row.month_start),
+      status: closed ? "closed" : status,
+      live: closeFigures(row.live),
+      closed,
+      drift: closed && row.drift !== null && row.drift !== undefined ? money(row.drift) : null,
+    };
+  });
+  const log: CloseLogEntry[] = list(body.log).map((row) => ({
+    month_start: String(row.month_start),
+    action: row.action === "reopened" ? "reopened" : "closed",
+    reason: text(row.reason),
+    result: money(row.result),
+    actor_name: text(row.actor_name),
+    at: String(row.at),
+  }));
+  return { months, nextToClose: text(body.next_to_close), log };
+}
+
+const CLOSE_COLUMNS =
+  "month_start, revenue, order_count, other_income, investor_support, expenses, salary_earned, salary_breakdown, result, closed_at, closed_by_name";
+
+/** Every closed month, oldest first, with its frozen figures (RLS: the owner only). At most 120 rows. */
+export async function loadClosedMonths(supabase: SupabaseClient): Promise<FrozenClose[]> {
+  const { data, error } = await supabase
+    .from("finance_month_closes")
+    .select(CLOSE_COLUMNS)
+    .order("month_start", { ascending: false })
+    .limit(120);
+  if (error) throw new Error(`finance_month_closes: ${error.code} ${error.message}`);
+  return ((data ?? []) as unknown[]).map(frozenClose).reverse();
+}
+
+/** The frozen close of one month ("YYYY-MM-01"), or null while it is open (RLS: the owner only). */
+export async function loadMonthClose(supabase: SupabaseClient, monthStart: string): Promise<FrozenClose | null> {
+  const { data, error } = await supabase
+    .from("finance_month_closes")
+    .select(CLOSE_COLUMNS)
+    .eq("month_start", monthStart)
+    .maybeSingle();
+  if (error) throw new Error(`finance_month_closes: ${error.code} ${error.message}`);
+  return data ? frozenClose(data) : null;
+}
+
+/** The last day of the latest closed month ("YYYY-MM-DD"): every day up to it is locked. Null when none is closed. */
+export async function loadLockedThrough(supabase: SupabaseClient): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("finance_month_closes")
+    .select("month_start")
+    .order("month_start", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(`finance_month_closes: ${error.code} ${error.message}`);
+  if (!data) return null;
+  const [y, m] = String(data.month_start).split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
+
+/** Rent plan, break-even target and tax rate (public.settings, finance_* rows: the owner only). */
+export async function loadFinanceSettings(supabase: SupabaseClient): Promise<FinanceSettings> {
+  const { data, error } = await supabase
+    .from("settings")
+    .select("key, value")
+    .in("key", Object.values(FINANCE_SETTING_KEYS));
+  if (error) throw new Error(`settings: ${error.code} ${error.message}`);
+  return parseFinanceSettings((data ?? []) as { key: unknown; value: unknown }[]);
 }

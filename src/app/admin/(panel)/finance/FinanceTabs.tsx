@@ -6,16 +6,17 @@ import { getAdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { panelPath } from "../../shell/nav";
 
-/** The Finance sections, in order. Month close joins in a later slice of the plan. */
+/** The Finance sections, in order. */
 const TABS = [
   { key: "month", href: "/finance" },
   { key: "year", href: "/finance/year" },
   { key: "records", href: "/finance/records" },
   { key: "payroll", href: "/finance/payroll" },
+  { key: "close", href: "/finance/close" },
 ] as const;
 
 /**
- * Month · Year · Records · Payroll, as underlined tabs: in the top bar (finance/layout.tsx) and, until the bar fills after
+ * Month · Year · Records · Payroll · Month close, as underlined tabs: in the top bar (finance/layout.tsx) and, until the bar fills after
  * hydration, at the top of each Finance page. The current one carries aria-current. Month is /finance exactly; the
  * others also own their sub-paths.
  */
