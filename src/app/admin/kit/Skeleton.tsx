@@ -54,10 +54,13 @@ function Rows({ count }: { count: number }) {
   );
 }
 
-function TileRow() {
+/** `fill` keeps empty tracks, so a short row (the days-ahead tiles) has tiles as wide as a full row's. */
+function TileRow({ count = 4, fill = false }: { count?: number; fill?: boolean }) {
   return (
-    <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]">
-      {Array.from({ length: 4 }, (_, i) => (
+    <div
+      className={`grid gap-4 ${fill ? "[grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))]" : "[grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]"}`}
+    >
+      {Array.from({ length: count }, (_, i) => (
         <div key={i} className="adm-panel grid gap-3">
           <div className="flex items-start justify-between gap-3">
             <Skeleton className="h-3.5 w-28" />
@@ -110,6 +113,11 @@ export function DashboardOrdersSkeleton() {
 }
 
 /** The overview's catalogue part (everyone): dish tiles and the menu-readiness rows. */
+/** The overview's days-ahead tiles: tomorrow's rations for everyone, plus endings for the owner. */
+export function DashboardDaysSkeleton({ tiles = 2 }: { tiles?: number }) {
+  return <TileRow count={tiles} fill />;
+}
+
 export function DashboardCatalogueSkeleton() {
   return (
     <>
@@ -124,6 +132,7 @@ function DashboardSkeleton() {
     <>
       <Skeleton className="h-4 w-48" />
       <DashboardOrdersSkeleton />
+      <DashboardDaysSkeleton />
       <DashboardCatalogueSkeleton />
     </>
   );

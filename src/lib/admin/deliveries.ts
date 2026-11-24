@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { htmlLang, type Locale } from "@/i18n/config";
 import { DEFAULT_DELIVERY_WINDOWS } from "@/lib/order/rules";
 import { isFirm, type KitchenStatus } from "./kitchen";
+import { addDays } from "./stats";
 
 /*
  * The owner's delivery sheet (docs/plans/kitchen-day-sheet.md, slice 2): who gets a ration on a date, where and in
@@ -163,4 +164,45 @@ async function readWindows(supabase: SupabaseClient): Promise<string[] | null> {
 export async function loadDeliveryDay(supabase: SupabaseClient, day: string): Promise<DeliveryDay> {
   const [orders, windows] = await Promise.all([readOrders(supabase, day), readWindows(supabase)]);
   return { orders, windows };
+}
+
+// ---------- overview ----------
+
+/** The owner's "ending soon" tile looks at today and the next days: this many days in all. */
+export const ENDING_SOON_DAYS = 3;
+
+export type EndingSoon = {
+  /** Firm orders whose last delivery day is one of the days, each counted once. */
+  count: number;
+  /** The earliest of the days with such an order (the tile opens its delivery sheet); null when there is none. */
+  firstDay: string | null;
+};
+
+/** Firm orders on their last day (day_index = days) across the given days, earliest day first. Pure. */
+export function countEndingSoon(
+  days: readonly { day: string; orders: readonly Pick<DeliveryOrder, "id" | "status" | "day_index" | "days">[] }[],
+): EndingSoon {
+  const seen = new Set<string>();
+  let firstDay: string | null = null;
+  // "YYYY-MM-DD" strings sort in calendar order.
+  for (const { day, orders } of [...days].sort((a, b) => (a.day < b.day ? -1 : a.day > b.day ? 1 : 0))) {
+    for (const order of orders) {
+      if (!isFirm(order.status) || order.day_index !== order.days || seen.has(order.id)) continue;
+      seen.add(order.id);
+      firstDay ??= day;
+    }
+  }
+  return { count: seen.size, firstDay };
+}
+
+/**
+ * Firm orders ending today or in the next ENDING_SOON_DAYS - 1 days (`today` is the Tashkent day), through
+ * public.delivery_orders: owner only, so the caller must not call it for anyone else. Never throws; null when any of
+ * the day reads failed (a partial count would look like a real one).
+ */
+export async function loadEndingSoon(supabase: SupabaseClient, today: string): Promise<EndingSoon | null> {
+  const days = Array.from({ length: ENDING_SOON_DAYS }, (_, i) => addDays(today, i));
+  const reads = await Promise.all(days.map((day) => readOrders(supabase, day)));
+  if (reads.some((orders) => orders === null)) return null;
+  return countEndingSoon(days.map((day, i) => ({ day, orders: reads[i]! })));
 }

@@ -113,6 +113,12 @@ const uzc: AdminDictionary = {
     hiddenCount: (count) => `Яширин: ${count}`,
     dishesFailed: "Таомларни юклаб бўлмади.",
     menuFailed: "Менюнинг тўлдирилишини юклаб бўлмади.",
+    tomorrowRations: "Эртанги рационлар",
+    tomorrowAwaiting: (count) => `Яна тўловни кутмоқда: ${count}`,
+    endingSoon: (days) => `Яқин ${days} кун ичида тугайди`,
+    endingNext: (day) => `Энг яқин охирги кун: ${day}`,
+    tomorrowFailed: "Эртанги рационларни юклаб бўлмади.",
+    endingFailed: "Тез орада тугайдиган буюртмаларни юклаб бўлмади.",
   },
   dishes: {
     title: "Таомлар",

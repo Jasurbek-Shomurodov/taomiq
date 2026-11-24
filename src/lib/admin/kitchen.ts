@@ -369,3 +369,25 @@ export async function loadProductionDay(supabase: SupabaseClient, day: string): 
   const [orders, menuDay, variants] = await Promise.all([readOrders(supabase, day), menuPart(), readVariants(supabase)]);
   return { orders, ...menuDay, variants };
 }
+
+// ---------- overview ----------
+
+/** The overview's "tomorrow" tile: rations to cook on a day and the confirmed orders still awaiting payment. */
+export type RationCount = { firm: number; awaiting: number };
+
+/** Firm and awaiting-payment orders among the rows that deliver on a day (the same split as the sheet). Pure. */
+export function countRations(orders: readonly Pick<KitchenOrder, "status">[]): RationCount {
+  let firm = 0;
+  let awaiting = 0;
+  for (const order of orders) {
+    if (isFirm(order.status)) firm += 1;
+    else if (order.status === "confirmed") awaiting += 1;
+  }
+  return { firm, awaiting };
+}
+
+/** The ration count of one day through public.kitchen_orders (staff only). Never throws; null when the read failed. */
+export async function loadRationCount(supabase: SupabaseClient, day: string): Promise<RationCount | null> {
+  const orders = await readOrders(supabase, day);
+  return orders === null ? null : countRations(orders);
+}

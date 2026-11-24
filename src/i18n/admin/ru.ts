@@ -127,6 +127,13 @@ const ru = {
     hiddenCount: (count: number) => `Скрыто: ${count}`,
     dishesFailed: "Не удалось загрузить блюда.",
     menuFailed: "Не удалось загрузить заполнение меню.",
+    // Days ahead (production for all staff, endings for the owner)
+    tomorrowRations: "Рационов на завтра",
+    tomorrowAwaiting: (count: number) => `Ещё ждут оплаты: ${count}`,
+    endingSoon: (days: number) => `Заканчиваются в ближайшие ${days} ${plural(days, ["день", "дня", "дней"])}`,
+    endingNext: (day: string) => `Ближайший последний день: ${day}`,
+    tomorrowFailed: "Не удалось загрузить рационы на завтра.",
+    endingFailed: "Не удалось загрузить заказы, которые скоро заканчиваются.",
   },
   dishes: {
     title: "Блюда",

@@ -113,6 +113,12 @@ const uz: AdminDictionary = {
     hiddenCount: (count) => `Yashirin: ${count}`,
     dishesFailed: "Taomlarni yuklab boʻlmadi.",
     menuFailed: "Menyuning toʻldirilishini yuklab boʻlmadi.",
+    tomorrowRations: "Ertangi ratsionlar",
+    tomorrowAwaiting: (count) => `Yana toʻlovni kutmoqda: ${count}`,
+    endingSoon: (days) => `Yaqin ${days} kun ichida tugaydi`,
+    endingNext: (day) => `Eng yaqin oxirgi kun: ${day}`,
+    tomorrowFailed: "Ertangi ratsionlarni yuklab boʻlmadi.",
+    endingFailed: "Tez orada tugaydigan buyurtmalarni yuklab boʻlmadi.",
   },
   dishes: {
     title: "Taomlar",
