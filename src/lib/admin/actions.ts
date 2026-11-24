@@ -430,7 +430,7 @@ export async function saveOrderNote(_prev: FormState, form: FormData): Promise<F
 
 /**
  * Approve, decline and remove go through the functions of migration 0008, which check the owner again and fix the
- * granted role to admin; a role change (and a manager approval) goes through set_staff_role (0009), which checks the
+ * granted role to admin; a role change (and a manager approval) goes through set_staff_role (0011), which checks the
  * owner too and never touches an owner. A request that was already handled (another tab), or a member who can no
  * longer be changed, comes back as P0002: the page is refreshed and says so. Errors are logged with codes only; the
  * rows hold personal data.

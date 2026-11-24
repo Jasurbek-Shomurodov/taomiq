@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { getAdminDictionary } from "@/i18n/admin";
 import { requireStaff } from "@/lib/admin/auth";
+import { canHandleOrders } from "@/lib/admin/roles";
 import { DashboardCatalogueSkeleton, DashboardDaysSkeleton, DashboardOrdersSkeleton } from "../kit/Skeleton";
 import { CatalogueOverview } from "./CatalogueOverview";
 import { DaysAheadOverview } from "./DaysAheadOverview";
@@ -8,8 +9,8 @@ import { OrdersOverview, type ChartMode } from "./OrdersOverview";
 
 /**
  * The overview. Owners get the order figures first (orders hold personal data, so nobody else's page reads them);
- * everyone gets tomorrow's rations (the owner also the orders ending soon), then the dish tiles and the menu
- * readiness. Each part streams in its own boundary, so slow or failed figures never hold up the others.
+ * everyone gets tomorrow's rations (owners and managers also the orders ending soon), then the dish tiles and the
+ * menu readiness. Each part streams in its own boundary, so slow or failed figures never hold up the others.
  */
 export default async function AdminHome({ searchParams }: PageProps<"/admin">) {
   const { staff } = await requireStaff();
@@ -27,7 +28,7 @@ export default async function AdminHome({ searchParams }: PageProps<"/admin">) {
         </Suspense>
       )}
 
-      <Suspense fallback={<DashboardDaysSkeleton tiles={staff.role === "owner" ? 2 : 1} />}>
+      <Suspense fallback={<DashboardDaysSkeleton tiles={canHandleOrders(staff.role) ? 2 : 1} />}>
         <DaysAheadOverview locale={staff.locale} />
       </Suspense>
 

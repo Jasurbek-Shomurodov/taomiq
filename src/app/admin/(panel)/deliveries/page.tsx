@@ -2,7 +2,7 @@ import { CalendarCheck, CalendarX, Hourglass, Truck } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
-import { requireOwner } from "@/lib/admin/auth";
+import { requireOrdersAccess } from "@/lib/admin/auth";
 import { buildDeliverySheet, loadDeliveryDay, telHref, type DeliveryRow } from "@/lib/admin/deliveries";
 import { sheetDate } from "@/lib/admin/kitchen";
 import { formatDateTime, formatDay, formatPhone } from "@/lib/admin/orders";
@@ -16,7 +16,7 @@ import { StatTile } from "../../kit/StatTile";
 import { TopBarActions, TopBarTabs, TopBarTitle } from "../../shell/TopBarSlot";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const { staff } = await requireOwner();
+  const { staff } = await requireOrdersAccess();
   return { title: getAdminDictionary(staff.locale).deliveries.title };
 }
 
@@ -29,12 +29,12 @@ function one(value: string | string[] | undefined): string | undefined {
 
 /**
  * Sales → Deliveries (docs/plans/kitchen-day-sheet.md, slice 2): who gets a ration on a day, where and in which
- * window, by default tomorrow in Tashkent. Owner only: the rows carry names, phones and addresses (they come through
- * public.delivery_orders, which returns rows to the owner only). Customer text is printed as typed, as plain text.
- * A failed read prints "—" and a notice, never a made-up 0.
+ * window, by default tomorrow in Tashkent. Owners and managers only: the rows carry names, phones and addresses
+ * (they come through public.delivery_orders, which returns rows to those two roles only, migration 0011). Customer
+ * text is printed as typed, as plain text. A failed read prints "—" and a notice, never a made-up 0.
  */
 export default async function DeliveriesPage({ searchParams }: PageProps<"/admin/deliveries">) {
-  const { supabase, staff } = await requireOwner();
+  const { supabase, staff } = await requireOrdersAccess();
   const { locale } = staff;
   const t = getAdminDictionary(locale);
   const params = await searchParams;

@@ -6,12 +6,13 @@ import { isFirm, type KitchenStatus } from "./kitchen";
 import { addDays } from "./stats";
 
 /*
- * The owner's delivery sheet (docs/plans/kitchen-day-sheet.md, slice 2): who gets a ration on a date, where and in
+ * The delivery sheet (docs/plans/kitchen-day-sheet.md, slice 2): who gets a ration on a date, where and in
  * which window. Which orders deliver on a date is decided once, in SQL (public.delivery_orders, migration 0010, the
  * same rule as the kitchen's sheet); this file reads it and groups. buildDeliverySheet() is a pure function of its
  * arguments, so it can be checked without a database.
  *
- * The rows carry personal data (name, phone, address, comment): the function returns them to the owner only.
+ * The rows carry personal data (name, phone, address, comment): the function returns them to owners and managers
+ * only (private.can_handle_orders(), migration 0011).
  */
 
 // ---------- rows ----------
@@ -158,8 +159,8 @@ async function readWindows(supabase: SupabaseClient): Promise<string[] | null> {
 }
 
 /**
- * Everything the delivery sheet of one day needs, read through the owner's session: the orders through
- * public.delivery_orders (owner only), the window order from settings. Never throws; a failed part is null.
+ * Everything the delivery sheet of one day needs, read through the signed-in session: the orders through
+ * public.delivery_orders (owners and managers), the window order from settings. Never throws; a failed part is null.
  */
 export async function loadDeliveryDay(supabase: SupabaseClient, day: string): Promise<DeliveryDay> {
   const [orders, windows] = await Promise.all([readOrders(supabase, day), readWindows(supabase)]);
@@ -168,7 +169,7 @@ export async function loadDeliveryDay(supabase: SupabaseClient, day: string): Pr
 
 // ---------- overview ----------
 
-/** The owner's "ending soon" tile looks at today and the next days: this many days in all. */
+/** The "ending soon" tile (owners and managers) looks at today and the next days: this many days in all. */
 export const ENDING_SOON_DAYS = 3;
 
 export type EndingSoon = {
@@ -197,7 +198,7 @@ export function countEndingSoon(
 
 /**
  * Firm orders ending today or in the next ENDING_SOON_DAYS - 1 days (`today` is the Tashkent day), through
- * public.delivery_orders: owner only, so the caller must not call it for anyone else. Never throws; null when any of
+ * public.delivery_orders: owners and managers only, so the caller must not call it for anyone else. Never throws; null when any of
  * the day reads failed (a partial count would look like a real one).
  */
 export async function loadEndingSoon(supabase: SupabaseClient, today: string): Promise<EndingSoon | null> {

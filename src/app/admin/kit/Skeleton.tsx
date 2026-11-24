@@ -113,7 +113,7 @@ export function DashboardOrdersSkeleton() {
 }
 
 /** The overview's catalogue part (everyone): dish tiles and the menu-readiness rows. */
-/** The overview's days-ahead tiles: tomorrow's rations for everyone, plus endings for the owner. */
+/** The overview's days-ahead tiles: tomorrow's rations for everyone, plus endings for owners and managers. */
 export function DashboardDaysSkeleton({ tiles = 2 }: { tiles?: number }) {
   return <TileRow count={tiles} fill />;
 }

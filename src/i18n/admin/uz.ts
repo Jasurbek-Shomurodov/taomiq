@@ -392,7 +392,7 @@ const uz: AdminDictionary = {
     title: "Jamoa",
     lead: "Panelga kim kira oladi va kim ruxsat soʻrayapti. Soʻrov kishi ruxsatsiz kirganda paydo boʻladi.",
     grants:
-      "Rol tasdiqlashda tanlanadi. «Administrator»: taomlar va 30 kunlik menyu. «Menejer»: shular va buyurtmalar — mijozlarning ismi, telefoni va manzili bilan. Dasturlar, narxlar va jamoa — faqat egasida.",
+      "Rol tasdiqlashda tanlanadi. «Administrator»: taomlar, 30 kunlik menyu va ishlab chiqarish. «Menejer»: shular, buyurtmalar va yetkazib berish — mijozlarning ismi, telefoni va manzili bilan. Dasturlar, narxlar, tushum va jamoa — faqat egasida.",
     loadFailed: "Jamoa va soʻrovlarni yuklab boʻlmadi.",
     waiting: "Ruxsat kutmoqda",
     waitingEmpty: "Hech kim kutmayapti",
@@ -410,8 +410,8 @@ const uz: AdminDictionary = {
     approveText: (email) => `${email} panelga kira oladi. Rolni tanlang:`,
     role: "Rol",
     roleInfo: {
-      admin: "Taomlar va 30 kunlik menyu.",
-      manager: "Taomlar, menyu va buyurtmalar — mijozlarning ismi, telefoni va manzili bilan.",
+      admin: "Taomlar, 30 kunlik menyu va ishlab chiqarish.",
+      manager: "Shular, buyurtmalar va yetkazib berish — mijozlarning ismi, telefoni va manzili bilan.",
     },
     changeRole: "Rolni oʻzgartirish",
     changingRole: "Oʻzgartirilmoqda…",

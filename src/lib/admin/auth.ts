@@ -44,8 +44,9 @@ export async function requireOwner() {
 }
 
 /**
- * Orders gate (customers' names, phones and addresses): owners and managers (canHandleOrders, lib/admin/roles.ts).
- * Admins are sent back to the overview. RLS holds the same rule (private.can_handle_orders(), migration 0009).
+ * Orders and deliveries gate (customers' names, phones and addresses): owners and managers (canHandleOrders,
+ * lib/admin/roles.ts). Admins are sent back to the overview. The database holds the same rule
+ * (private.can_handle_orders(), migration 0011: the orders policies and public.delivery_orders).
  */
 export async function requireOrdersAccess() {
   const session = await requireStaff();

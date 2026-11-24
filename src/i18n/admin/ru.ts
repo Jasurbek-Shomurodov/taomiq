@@ -127,7 +127,7 @@ const ru = {
     hiddenCount: (count: number) => `Скрыто: ${count}`,
     dishesFailed: "Не удалось загрузить блюда.",
     menuFailed: "Не удалось загрузить заполнение меню.",
-    // Days ahead (production for all staff, endings for the owner)
+    // Days ahead (production for all staff, endings for owners and managers)
     tomorrowRations: "Рационов на завтра",
     tomorrowAwaiting: (count: number) => `Ещё ждут оплаты: ${count}`,
     endingSoon: (days: number) => `Заканчиваются в ближайшие ${days} ${plural(days, ["день", "дня", "дней"])}`,
@@ -422,7 +422,7 @@ const ru = {
     title: "Команда",
     lead: "Кто входит в панель и кто просит доступ. Запрос появляется, когда человек входит без доступа.",
     grants:
-      "Роль выбирается при одобрении. «Администратор»: блюда и меню на 30 дней. «Менеджер»: то же и заказы — с именами, телефонами и адресами клиентов. Программы, цены и команда — только у владельца.",
+      "Роль выбирается при одобрении. «Администратор»: блюда, меню на 30 дней и производство. «Менеджер»: то же, заказы и доставки — с именами, телефонами и адресами клиентов. Программы, цены, выручка и команда — только у владельца.",
     loadFailed: "Не удалось загрузить команду и запросы.",
     waiting: "Ждут доступа",
     waitingEmpty: "Никто не ждёт",
@@ -442,8 +442,8 @@ const ru = {
     /** The role chooser (approve and change role): one line per role the owner can give. */
     role: "Роль",
     roleInfo: {
-      admin: "Блюда и меню на 30 дней.",
-      manager: "Блюда, меню и заказы — с именами, телефонами и адресами клиентов.",
+      admin: "Блюда, меню на 30 дней и производство.",
+      manager: "То же, заказы и доставки — с именами, телефонами и адресами клиентов.",
     },
     changeRole: "Сменить роль",
     changingRole: "Меняем…",
@@ -520,7 +520,7 @@ const ru = {
     dishesFailed: "Не удалось загрузить блюда: названия не показаны.",
     catalogueFailed: "Не удалось загрузить программы: калорийности не подписаны.",
   },
-  /** Sales → Deliveries: who gets a ration on a day, owner only (docs/plans/kitchen-day-sheet.md, slice 2). */
+  /** Sales → Deliveries: who gets a ration on a day, owners and managers (docs/plans/kitchen-day-sheet.md, slice 2). */
   deliveries: {
     title: "Доставки",
     sheetName: "Лист доставки",
