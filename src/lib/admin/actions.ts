@@ -2,7 +2,7 @@
 
 import { refresh, updateTag } from "next/cache";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
+import { RedirectType, redirect } from "next/navigation";
 import { getAdminDictionary } from "@/i18n/admin";
 import { isLocale } from "@/i18n/config";
 import { CATALOG_TAG } from "@/lib/data/catalog";
@@ -11,11 +11,12 @@ import { isSupabaseConfigured, supabaseUrl } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
 import { TURNSTILE_FIELD } from "@/lib/turnstile/shared";
 import { recordAccessRequest } from "./access";
-import { requireOwner, requireStaff } from "./auth";
+import { requireOrdersAccess, requireOwner, requireStaff } from "./auth";
 import { adminGoogleCallbackUrl, isAdminGoogleLoginOn } from "./google";
 import { ADMIN_LOCALE_COOKIE, ADMIN_LOCALE_COOKIE_OPTIONS, cookieLocale, rememberStaffLocale } from "./locale";
 import { STAFF_NOTE_MAX, canMove, isOrderStatus } from "./orders";
 import { newOrderCount } from "./queries";
+import { canHandleOrders, isGrantableRole } from "./roles";
 import { pendingRequestCount } from "./team";
 
 export type FormState = { error?: string; ok?: string };
@@ -111,9 +112,9 @@ export async function setAdminLocale(form: FormData): Promise<void> {
 
 /**
  * The new-orders count for the sidebar pill, read again on each client navigation (shell/NewOrdersPill.tsx), since
- * the layout itself is not re-rendered then. Owners only, checked here like requireOwner() but without redirecting:
- * it runs in the background mid-navigation, so anyone else (or no session, or a failed read) just gets null and
- * sees no pill. RLS returns no orders to anyone but the owner either way.
+ * the layout itself is not re-rendered then. Owners and managers only, checked here like requireOrdersAccess() but
+ * without redirecting: it runs in the background mid-navigation, so anyone else (or no session, or a failed read)
+ * just gets null and sees no pill. RLS returns no orders to anyone else either way.
  */
 export async function readNewOrderCount(): Promise<number | null> {
   if (!isSupabaseConfigured) return null;
@@ -124,7 +125,7 @@ export async function readNewOrderCount(): Promise<number | null> {
     } = await supabase.auth.getUser();
     if (!user) return null;
     const { data: staff } = await supabase.from("staff").select("role").eq("user_id", user.id).maybeSingle();
-    if (staff?.role !== "owner") return null;
+    if (!canHandleOrders(staff?.role)) return null;
     return await newOrderCount(supabase);
   } catch (error) {
     console.error("new order count refresh failed", error instanceof Error ? error.message : error);
@@ -373,7 +374,7 @@ export async function saveDurations(_prev: FormState, form: FormData): Promise<F
   return { ok: t.common.saved };
 }
 
-// ---------- orders (owner only) ----------
+// ---------- orders (owners and managers) ----------
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -383,7 +384,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  * double click never skips a step.
  */
 export async function setOrderStatus(_prev: FormState, form: FormData): Promise<FormState> {
-  const { supabase, staff } = await requireOwner();
+  const { supabase, staff } = await requireOrdersAccess();
   const t = getAdminDictionary(staff.locale);
   const id = text(form, "id");
   const from = text(form, "from");
@@ -410,7 +411,7 @@ export async function setOrderStatus(_prev: FormState, form: FormData): Promise<
 }
 
 export async function saveOrderNote(_prev: FormState, form: FormData): Promise<FormState> {
-  const { supabase, staff } = await requireOwner();
+  const { supabase, staff } = await requireOrdersAccess();
   const t = getAdminDictionary(staff.locale);
   const id = text(form, "id");
   const note = text(form, "staff_note");
@@ -429,34 +430,92 @@ export async function saveOrderNote(_prev: FormState, form: FormData): Promise<F
 
 /**
  * Approve, decline and remove go through the functions of migration 0008, which check the owner again and fix the
- * granted role to admin. A request that was already handled (another tab) comes back as P0002: the page is
- * refreshed and says so. Errors are logged with codes only; the rows hold personal data.
+ * granted role to admin; a role change (and a manager approval) goes through set_staff_role (0009), which checks the
+ * owner too and never touches an owner. A request that was already handled (another tab), or a member who can no
+ * longer be changed, comes back as P0002: the page is refreshed and says so. Errors are logged with codes only; the
+ * rows hold personal data.
  */
+type TeamFn = "approve_staff_request" | "decline_staff_request" | "remove_staff" | "set_staff_role";
+type AdminDict = ReturnType<typeof getAdminDictionary>;
+type OwnerClient = Awaited<ReturnType<typeof requireOwner>>["supabase"];
+
+/** The owner's session, their texts and the account the form is about (null when the id is not a uuid). */
+async function teamSession(form: FormData): Promise<{ supabase: OwnerClient; t: AdminDict; userId: string | null }> {
+  const { supabase, staff } = await requireOwner();
+  const userId = text(form, "user_id");
+  return { supabase, t: getAdminDictionary(staff.locale), userId: UUID_RE.test(userId) ? userId : null };
+}
+
+/** One team function call: null when it worked, else the error code. */
+async function teamRpc(supabase: OwnerClient, fn: TeamFn, args: Record<string, string>): Promise<string | null> {
+  const { error } = await supabase.rpc(fn, args);
+  if (!error) return null;
+  console.error(`team: ${fn} failed`, error.code, error.message);
+  return error.code || "unknown";
+}
+
 async function teamCall(
   form: FormData,
   fn: "approve_staff_request" | "decline_staff_request" | "remove_staff",
-  messages: (t: ReturnType<typeof getAdminDictionary>) => { ok: string; gone: string },
+  messages: (t: AdminDict) => { ok: string; gone: string },
 ): Promise<FormState> {
-  const { supabase, staff } = await requireOwner();
-  const t = getAdminDictionary(staff.locale);
-  const userId = text(form, "user_id");
-  if (!UUID_RE.test(userId)) return { error: messages(t).gone };
+  const { supabase, t, userId } = await teamSession(form);
+  if (!userId) return { error: messages(t).gone };
 
-  const { error } = await supabase.rpc(fn, { p_user_id: userId });
-  if (error) {
-    console.error(`team: ${fn} failed`, error.code, error.message);
-    if (error.code === "P0002") {
-      refresh();
-      return { error: messages(t).gone };
-    }
-    return { error: t.team.failed };
+  const code = await teamRpc(supabase, fn, { p_user_id: userId });
+  if (code === "P0002") {
+    refresh();
+    return { error: messages(t).gone };
   }
+  if (code !== null) return { error: t.team.failed };
   refresh();
   return { ok: messages(t).ok };
 }
 
+/**
+ * Lets a waiting (or declined) account in with the role the owner picked (admin or manager). approve_staff_request
+ * always grants admin; a manager is one more call, set_staff_role. If that second call fails, the person is in as an
+ * admin: their request row (and with it its error line) is gone from the page, so the page itself says so
+ * (/team?error=role) and the owner can switch the role in the team list.
+ */
 export async function approveAccess(_prev: FormState, form: FormData): Promise<FormState> {
-  return teamCall(form, "approve_staff_request", (t) => ({ ok: t.team.approved, gone: t.team.gone }));
+  const { supabase, t, userId } = await teamSession(form);
+  if (!userId) return { error: t.team.gone };
+  // A page loaded before roles could be picked sends none: it meant admin, the only role then.
+  const role = text(form, "role") || "admin";
+  if (!isGrantableRole(role)) return { error: t.team.failed };
+
+  const code = await teamRpc(supabase, "approve_staff_request", { p_user_id: userId });
+  if (code === "P0002") {
+    refresh();
+    return { error: t.team.gone };
+  }
+  if (code !== null) return { error: t.team.failed };
+
+  if (role !== "admin" && (await teamRpc(supabase, "set_staff_role", { p_user_id: userId, p_role: role })) !== null) {
+    redirect("/team?error=role", RedirectType.replace);
+  }
+  refresh();
+  return { ok: t.team.approved };
+}
+
+/**
+ * Switches a team member between admin and manager. On success the page is loaded again at /team: the badge shows
+ * the new role, and an earlier "the role could not be set" notice goes away.
+ */
+export async function changeStaffRole(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase, t, userId } = await teamSession(form);
+  if (!userId) return { error: t.team.roleGone };
+  const role = text(form, "role");
+  if (!isGrantableRole(role)) return { error: t.team.failed };
+
+  const code = await teamRpc(supabase, "set_staff_role", { p_user_id: userId, p_role: role });
+  if (code === "P0002") {
+    refresh();
+    return { error: t.team.roleGone };
+  }
+  if (code !== null) return { error: t.team.failed };
+  redirect("/team", RedirectType.replace);
 }
 
 export async function declineAccess(_prev: FormState, form: FormData): Promise<FormState> {

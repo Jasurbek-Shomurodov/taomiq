@@ -2,16 +2,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { htmlLang, type Locale } from "@/i18n/config";
 
-/**
- * Back-office roles, highest first. The database check (staff_role_check, migration 0003) holds the same list:
- * a new role goes into both, plus its label in the dictionaries' `roles`.
- */
-export const STAFF_ROLES = ["owner", "admin"] as const;
-export type StaffRole = (typeof STAFF_ROLES)[number];
-
-export function isStaffRole(value: unknown): value is StaffRole {
-  return typeof value === "string" && (STAFF_ROLES as readonly string[]).includes(value);
-}
+// The role list (STAFF_ROLES, GRANTABLE_ROLES, canHandleOrders) is in ./roles, which client components import too.
 
 /** A row of staff_requests (migration 0008). `name` comes from the provider's editable metadata: a label only. */
 export type AccessRequest = {

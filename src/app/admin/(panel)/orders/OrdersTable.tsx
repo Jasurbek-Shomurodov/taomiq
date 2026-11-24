@@ -8,7 +8,7 @@ import { StatusBadge } from "./StatusBadge";
 /**
  * One page of orders: stacked blocks while the panel is narrow (phones, tablets; no sideways scroll), the table
  * once the panel itself is wide enough for it (a container query, so a folded sidebar counts). Every row opens the
- * order. Personal data: rendered only by the owner-only orders page.
+ * order. Personal data: rendered only by the orders page (owners and managers).
  */
 export function OrdersTable({ orders, locale }: { orders: OrderRow[]; locale: Locale }) {
   const t = getAdminDictionary(locale);

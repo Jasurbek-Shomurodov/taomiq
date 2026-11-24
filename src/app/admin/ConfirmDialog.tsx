@@ -28,6 +28,11 @@ const KIT_BUTTON = "rounded-adm-btn px-4 py-0 text-sm";
  *
  * `shouldAsk`, checked when the trigger is pressed, skips the dialog and runs the action at once when it returns false
  * (for a change that would lose nothing). All texts come from the caller, in the admin's language.
+ *
+ * `children` go between the text and the buttons, for a choice made in the dialog (the Team screen's role chooser).
+ * The dialog is rendered outside the form, so such controls keep their value in the caller's state and the caller
+ * puts it into the form as a hidden field; `onOpen` lets the caller reset that state each time the dialog opens, and
+ * `confirmDisabled` holds the confirm button until the choice is complete.
  */
 export function ConfirmDialog({
   trigger,
@@ -35,6 +40,7 @@ export function ConfirmDialog({
   disabled = false,
   title,
   description,
+  children,
   confirmLabel,
   pendingLabel,
   cancelLabel,
@@ -42,6 +48,8 @@ export function ConfirmDialog({
   pending: pendingProp,
   onConfirm,
   shouldAsk,
+  onOpen,
+  confirmDisabled = false,
 }: {
   trigger: ReactNode;
   triggerClassName?: string;
@@ -57,6 +65,11 @@ export function ConfirmDialog({
   pending?: boolean;
   onConfirm?: () => void;
   shouldAsk?: () => boolean;
+  /** A choice inside the dialog, shown under the description. */
+  children?: ReactNode;
+  /** Called each time the dialog opens. */
+  onOpen?: () => void;
+  confirmDisabled?: boolean;
 }) {
   // Without `pending` the action is instant: the dialog closes as soon as it has run.
   const isAsync = pendingProp !== undefined;
@@ -106,6 +119,7 @@ export function ConfirmDialog({
     if (next) {
       firedRef.current = false;
       setConfirmed(false);
+      onOpen?.();
     }
     setOpen(next);
   }
@@ -124,13 +138,14 @@ export function ConfirmDialog({
           <AlertDialogTitle className="font-sans text-lg font-semibold text-adm-text">{title}</AlertDialogTitle>
           <AlertDialogDescription className="text-adm-muted">{description}</AlertDialogDescription>
         </AlertDialogHeader>
+        {children}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending} className={`${KIT_BUTTON} border-adm-border text-adm-text`}>
             {cancelLabel}
           </AlertDialogCancel>
           <AlertDialogAction
             variant={destructive ? "destructive" : "default"}
-            disabled={busy}
+            disabled={busy || confirmDisabled}
             onClick={confirm}
             className={destructive ? KIT_BUTTON : `${KIT_BUTTON} bg-adm-accent text-adm-on-accent hover:bg-(--adm-accent-hover)`}
           >

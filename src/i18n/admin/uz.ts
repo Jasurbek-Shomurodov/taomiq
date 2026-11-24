@@ -60,7 +60,7 @@ const uz: AdminDictionary = {
     team: "Jamoa",
     signOut: "Chiqish",
   },
-  roles: { owner: "Egasi", admin: "Administrator" },
+  roles: { owner: "Egasi", manager: "Menejer", admin: "Administrator" },
   shell: {
     mainNav: "Panel boʻlimlari",
     openMenu: "Menyuni ochish",
@@ -391,7 +391,8 @@ const uz: AdminDictionary = {
   team: {
     title: "Jamoa",
     lead: "Panelga kim kira oladi va kim ruxsat soʻrayapti. Soʻrov kishi ruxsatsiz kirganda paydo boʻladi.",
-    grants: "Tasdiqlash «Administrator» rolini beradi: taomlar va 30 kunlik menyu. Buyurtmalar, dasturlar va narxlar unga yopiq.",
+    grants:
+      "Rol tasdiqlashda tanlanadi. «Administrator»: taomlar va 30 kunlik menyu. «Menejer»: shular va buyurtmalar — mijozlarning ismi, telefoni va manzili bilan. Dasturlar, narxlar va jamoa — faqat egasida.",
     loadFailed: "Jamoa va soʻrovlarni yuklab boʻlmadi.",
     waiting: "Ruxsat kutmoqda",
     waitingEmpty: "Hech kim kutmayapti",
@@ -406,8 +407,19 @@ const uz: AdminDictionary = {
     approve: "Tasdiqlash",
     approving: "Tasdiqlanmoqda…",
     approveTitle: "Panelga ruxsat berilsinmi?",
-    approveText: (email) =>
-      `${email} «Administrator» rolini oladi: taomlar va 30 kunlik menyu. Buyurtmalar, dasturlar va narxlar yopiq qoladi.`,
+    approveText: (email) => `${email} panelga kira oladi. Rolni tanlang:`,
+    role: "Rol",
+    roleInfo: {
+      admin: "Taomlar va 30 kunlik menyu.",
+      manager: "Taomlar, menyu va buyurtmalar — mijozlarning ismi, telefoni va manzili bilan.",
+    },
+    changeRole: "Rolni oʻzgartirish",
+    changingRole: "Oʻzgartirilmoqda…",
+    changeRoleTitle: "Rol oʻzgartirilsinmi?",
+    changeRoleText: (email) => `${email} uchun rol:`,
+    roleGone: "Bu kishining rolini bu yerda oʻzgartirib boʻlmaydi — sahifa yangilandi.",
+    roleNotSet:
+      "Ruxsat «Administrator» roli bilan berildi, lekin tanlangan rolni saqlab boʻlmadi. Rolni «Jamoada» roʻyxatida oʻzgartiring.",
     decline: "Rad etish",
     declining: "Rad etilmoqda…",
     remove: "Chiqarish",

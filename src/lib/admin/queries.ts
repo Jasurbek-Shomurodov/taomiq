@@ -46,7 +46,7 @@ export async function menuCounts(supabase: SupabaseClient): Promise<Map<string, 
   return new Map([...result].map(([id, v]) => [id, { items: v.items, days: v.days.size }]));
 }
 
-// ---------- orders (owner only; RLS returns nothing to other roles) ----------
+// ---------- orders (owners and managers; RLS returns nothing to other roles) ----------
 
 export const ORDERS_PAGE_SIZE = 50;
 

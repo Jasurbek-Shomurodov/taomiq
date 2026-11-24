@@ -17,7 +17,7 @@ function countFor(path: string) {
 
 /**
  * The gold pill on the Orders row. Starts from the count the layout read on the server and reads it again (server
- * action, owner-gated) whenever the path changes, because a client navigation does not re-render the layout. A
+ * action, owners and managers only) whenever the path changes, because a client navigation does not re-render the layout. A
  * fresh server count (after an order action refreshes the page) replaces it too. No pill at 0, none when unknown:
  * never a made-up 0. No polling, no realtime.
  */

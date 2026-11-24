@@ -2,9 +2,10 @@ import { Suspense } from "react";
 import { getAdminDictionary } from "@/i18n/admin";
 import { htmlLang } from "@/i18n/config";
 import { requireStaff } from "@/lib/admin/auth";
+import { canHandleOrders } from "@/lib/admin/roles";
 import { PageSkeleton } from "../kit/Skeleton";
 import { AdminShell } from "../shell/AdminShell";
-import { NAV } from "../shell/nav";
+import { navFor } from "../shell/nav";
 import { NewOrdersBadge } from "../shell/NewOrdersBadge";
 import { RailScript } from "../shell/rail";
 import { TeamRequestsBadge } from "../shell/TeamRequestsBadge";
@@ -24,11 +25,11 @@ async function Shell({ children }: { children: React.ReactNode }) {
     <AdminShell
       lang={htmlLang[staff.locale]}
       locale={staff.locale}
-      items={NAV.filter((item) => !item.ownerOnly || isOwner).map((item) => ({ key: item.key, label: t.nav[item.key] }))}
+      items={navFor(staff.role).map((item) => ({ key: item.key, label: t.nav[item.key] }))}
       badges={{
-        // Orders hold personal data: only the owner sees the row and its count. Its own boundary, so a slow or
-        // failed count never holds up the frame.
-        orders: isOwner ? (
+        // Orders hold personal data: only the roles that handle orders (owner, manager) see the row and its count.
+        // Its own boundary, so a slow or failed count never holds up the frame.
+        orders: canHandleOrders(staff.role) ? (
           <Suspense fallback={null}>
             <NewOrdersBadge />
           </Suspense>

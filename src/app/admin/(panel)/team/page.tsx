@@ -4,19 +4,15 @@ import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { requireOwner, requireStaff } from "@/lib/admin/auth";
 import { formatDateTime } from "@/lib/admin/orders";
-import {
-  formatDate,
-  isStaffRole,
-  listAccessRequests,
-  listTeam,
-  type AccessRequest,
-  type TeamMember,
-} from "@/lib/admin/team";
-import { Badge } from "../../kit/Badge";
+import { isGrantableRole, isStaffRole, type StaffRole } from "@/lib/admin/roles";
+import { formatDate, listAccessRequests, listTeam, type AccessRequest, type TeamMember } from "@/lib/admin/team";
+import { Badge, type Tone } from "../../kit/Badge";
 import { EmptyState } from "../../kit/EmptyState";
 import { Notice } from "../../kit/Notice";
 import { Panel } from "../../kit/Panel";
-import { RemoveAction, RequestActions } from "./TeamControls";
+import { MemberActions, RequestActions } from "./TeamControls";
+
+const ROLE_TONES: Record<StaffRole, Tone> = { owner: "accent", manager: "info", admin: "neutral" };
 
 export async function generateMetadata(): Promise<Metadata> {
   const { staff } = await requireStaff();
@@ -28,11 +24,15 @@ export async function generateMetadata(): Promise<Metadata> {
  * Waiting requests on top, then the team, then the declined ones folded away. The email identifies a person
  * everywhere here; the name is what their account says, which they can change, so it is only a secondary line.
  * Everything marked data-ph-mask is kept out of session replays, should analytics ever run on this host.
+ * `?error=role`: an approval went through but the chosen role could not be set (approveAccess); the person is in as
+ * an admin, and the notice says so until the next role change or navigation.
  */
-export default async function TeamPage() {
+export default async function TeamPage({ searchParams }: PageProps<"/admin/team">) {
   const { supabase, staff } = await requireOwner();
   const { locale } = staff;
   const t = getAdminDictionary(locale);
+  const { error: errorParam } = await searchParams;
+  const roleNotSet = errorParam === "role";
 
   let data: { waiting: AccessRequest[]; declined: AccessRequest[]; team: TeamMember[] } | null = null;
   try {
@@ -57,6 +57,7 @@ export default async function TeamPage() {
   return (
     <div className="adm-page">
       <p className="adm-muted">{t.team.lead}</p>
+      {roleNotSet && <Notice tone="negative">{t.team.roleNotSet}</Notice>}
       <Notice tone="info">{t.team.grants}</Notice>
 
       <Panel flush title={t.team.waiting} actions={waiting.length > 0 ? <Badge tone="accent">{waiting.length}</Badge> : null}>
@@ -88,11 +89,16 @@ export default async function TeamPage() {
               </div>
               <div className="flex flex-wrap items-center gap-3 sm:justify-end">
                 {member.user_id === staff.user_id && <span className="adm-caption">{t.team.you}</span>}
-                <Badge tone={member.role === "owner" ? "accent" : "neutral"}>
+                <Badge tone={isStaffRole(member.role) ? ROLE_TONES[member.role] : "neutral"}>
                   {isStaffRole(member.role) ? t.roles[member.role] : member.role}
                 </Badge>
                 {member.role !== "owner" && (
-                  <RemoveAction userId={member.user_id} email={member.email || t.team.noEmail} locale={locale} />
+                  <MemberActions
+                    userId={member.user_id}
+                    email={member.email || t.team.noEmail}
+                    role={isGrantableRole(member.role) ? member.role : null}
+                    locale={locale}
+                  />
                 )}
               </div>
             </li>

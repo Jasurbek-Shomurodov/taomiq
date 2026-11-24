@@ -12,7 +12,7 @@ export type OrderAlertInput = Omit<OrderAlert, "pricePerDay" | "total">;
  * Optional Telegram alert to the staff chat on each new order.
  * Off unless both variables are set. Sent as a branded card image (./alertImage); if the image cannot be
  * made or Telegram refuses it, as the plain text below. Neither carries a name, phone or address: those stay in the
- * admin, behind the owner's login. A failed alert never fails the order, and its contents are never logged.
+ * admin, behind the owner's and managers' logins. A failed alert never fails the order, and its contents are never logged.
  */
 const botToken = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const staffChatId = process.env.TELEGRAM_STAFF_CHAT_ID ?? "";

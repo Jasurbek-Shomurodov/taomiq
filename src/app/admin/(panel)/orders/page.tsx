@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
 import { getAdminDictionary } from "@/i18n/admin";
-import { requireOwner, requireStaff } from "@/lib/admin/auth";
+import { requireOrdersAccess, requireStaff } from "@/lib/admin/auth";
 import { ORDER_SEARCH_MAX, cutCodePoints, orderSearchFilter } from "@/lib/admin/order-search";
 import { ORDER_STATUSES, isOrderStatus, type OrderRow, type OrderStatus } from "@/lib/admin/orders";
 import { ORDERS_PAGE_SIZE, listOrders, orderCounts } from "@/lib/admin/queries";
@@ -36,8 +36,8 @@ function href({ status, page = 1, q = "" }: { status: OrderStatus | null; page?:
 }
 
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
-  // Orders hold personal data: the owner only (RLS returns nothing to anyone else either).
-  const { supabase, staff } = await requireOwner();
+  // Orders hold personal data: owners and managers only (RLS returns nothing to anyone else either).
+  const { supabase, staff } = await requireOrdersAccess();
   const { locale } = staff;
   const t = getAdminDictionary(locale);
   const params = await searchParams;

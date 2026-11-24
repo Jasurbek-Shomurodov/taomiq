@@ -5,8 +5,9 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { defaultAdminLocale } from "@/i18n/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
+import { canHandleOrders, type StaffRole } from "./roles";
 
-export type StaffMember = { user_id: string; name: string; role: "owner" | "admin"; email: string; locale: Locale };
+export type StaffMember = { user_id: string; name: string; role: StaffRole; email: string; locale: Locale };
 
 /**
  * Gate for every back-office page and action.
@@ -35,9 +36,19 @@ export const requireStaff = cache(async () => {
   return { supabase, staff: { ...staff, locale, email: user.email ?? "" } as StaffMember };
 });
 
-/** Owner-only gate: programs, prices and settings. Admins are sent back to the overview. */
+/** Owner-only gate: programs, prices, settings and the team. Managers and admins are sent back to the overview. */
 export async function requireOwner() {
   const session = await requireStaff();
   if (session.staff.role !== "owner") redirect("/");
+  return session;
+}
+
+/**
+ * Orders gate (customers' names, phones and addresses): owners and managers (canHandleOrders, lib/admin/roles.ts).
+ * Admins are sent back to the overview. RLS holds the same rule (private.can_handle_orders(), migration 0009).
+ */
+export async function requireOrdersAccess() {
+  const session = await requireStaff();
+  if (!canHandleOrders(session.staff.role)) redirect("/");
   return session;
 }
