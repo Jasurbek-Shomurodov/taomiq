@@ -121,7 +121,7 @@ function YearBody({
   const f = t.finance;
   const year = yearSummary(rows, currentMonthStart);
   const back = payback(totals, rows, currentMonthStart);
-  const trend = growth(rows, currentMonthStart);
+  const trend = growth(rows, currentMonthStart, totals.first_order_day);
 
   return (
     <>

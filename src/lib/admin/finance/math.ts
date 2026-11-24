@@ -77,12 +77,19 @@ export function daysInMonth(day: string): number {
 
 /**
  * The days a month's averages are taken over: every day of a past month, the days up to and including today in the
- * current one. `from` and `to` are the month's first and last day; `today` a Tashkent "YYYY-MM-DD".
+ * current one, and in the launch month only the days from the first paid order on (the days before it had no sales to
+ * average). `from` and `to` are the month's first and last day; `today` and `firstOrderDay` Tashkent "YYYY-MM-DD".
  */
-export function daysCounted(from: string, to: string, today: string): number {
+export function daysCounted(from: string, to: string, today: string, firstOrderDay: string | null = null): number {
   if (today < from) return 0;
-  if (today > to) return daysInMonth(from);
-  return Number(today.slice(8, 10));
+  const end = today > to ? to : today;
+  const start = firstOrderDay && firstOrderDay > from && firstOrderDay <= end ? firstOrderDay : from;
+  return Number(end.slice(8, 10)) - Number(start.slice(8, 10)) + 1;
+}
+
+/** The first day ("YYYY-MM-01") of the month holding a "YYYY-MM-DD" day, or null. */
+function monthOf(day: string | null): string | null {
+  return day ? `${day.slice(0, 7)}-01` : null;
 }
 
 // ---------- a period (public.finance_period) ----------
@@ -305,7 +312,10 @@ export type Payback = {
   remaining: number;
   /** generated / invested × 100, between 0 and 100; null with nothing invested. */
   paidBackPct: number | null;
-  /** Average result of the last (up to) 3 completed months the business ran; null without any. */
+  /**
+   * Average result of the last (up to) 3 completed months of operation (from the month of the first paid order on);
+   * null without a first order or without such a month yet.
+   */
   monthlyPace: number | null;
   /** How many months the pace is the average of (0..3). */
   paceMonths: number;
@@ -315,8 +325,8 @@ export type Payback = {
 
 /**
  * Payback (zarkebab buildPaybackSummary). The pace is taken over completed months only (the current month is still
- * running) and only from the first month with anything in it, so months before the business started do not pull it
- * down.
+ * running) and only from the month of the first paid order (totals.first_order_day), so a setup month with investment
+ * and equipment but no sales does not pull it down.
  */
 export function payback(totals: FinanceTotals, rows: readonly MonthCashflow[], currentMonthStart: string): Payback {
   const invested = totals.investor_support;
@@ -325,9 +335,11 @@ export function payback(totals: FinanceTotals, rows: readonly MonthCashflow[], c
   const remaining = Math.max(0, invested - earned);
   const paidBackPct = invested > 0 ? Math.min(100, (earned / invested) * 100) : null;
 
-  const first = rows.findIndex((row) => !isEmptyMonth(row));
-  const completed = (first === -1 ? [] : rows.slice(first)).filter((row) => row.month_start < currentMonthStart);
-  const recent = completed.slice(-3);
+  const launch = monthOf(totals.first_order_day);
+  const operating = launch
+    ? rows.filter((row) => row.month_start >= launch && row.month_start < currentMonthStart)
+    : [];
+  const recent = operating.slice(-3);
   const monthlyPace =
     recent.length > 0 ? recent.reduce((total, row) => total + monthResult(row).result, 0) / recent.length : null;
   const monthsLeft =
@@ -339,7 +351,7 @@ export function payback(totals: FinanceTotals, rows: readonly MonthCashflow[], c
 export type Growth = {
   /** The latest completed month ("YYYY-MM-01"), or null when the window has none. */
   latest: string | null;
-  /** Its average revenue per calendar day. */
+  /** Its average revenue per day open (calendar days; in the launch month, from the first order on). */
   latestPerDay: number | null;
   /** Revenue per day of the latest completed month against the month before it, whole percent. */
   vsPreviousPct: number | null;
@@ -348,36 +360,46 @@ export type Growth = {
   /** Revenue per day of the latest completed month against three months before it, whole percent. */
   vsThreeBackPct: number | null;
   /**
-   * Average monthly growth of revenue, ((last / first)^(1 / months between) − 1) × 100, over the completed months
-   * with revenue; null with fewer than two such months.
+   * Average monthly growth of revenue per day, ((last / first)^(1 / months between) − 1) × 100, over the completed
+   * full months of operation with revenue (the launch month is left out unless the first order came on the 1st);
+   * null with fewer than two such months.
    */
   avgMonthlyPct: number | null;
-  /** How many completed months with revenue the average is taken over. */
+  /** How many months the average is taken over. */
   avgMonths: number;
 };
 
-const perDay = (row: MonthCashflow) => row.revenue / daysInMonth(row.month_start);
-
 /**
  * Growth from finance_monthly_cashflow rows (oldest first, one row per calendar month, the last one the current
- * month). Months are compared by revenue per day, so a 28-day February is not a fall. The average monthly growth
- * spaces its root by the months between the first and the last month with revenue, which is n − 1 when no month in
- * between had none.
+ * month) and the Tashkent day of the first paid order. Months are compared by revenue per day, so a 28-day February
+ * is not a fall, and the launch month counts only the days from the first order on, so a few days of sales are not
+ * read as a weak month. The average monthly growth starts at the first full month of operation (a launch month that
+ * began after the 1st is too short a base) and spaces its root by the months between its first and last month,
+ * which is n − 1 when no month in between had no revenue.
  */
-export function growth(rows: readonly MonthCashflow[], currentMonthStart: string): Growth {
+export function growth(rows: readonly MonthCashflow[], currentMonthStart: string, firstOrderDay: string | null): Growth {
+  const launch = monthOf(firstOrderDay);
+  const perDay = (row: MonthCashflow) =>
+    row.revenue /
+    (row.month_start === launch && firstOrderDay
+      ? daysInMonth(row.month_start) - Number(firstOrderDay.slice(8, 10)) + 1
+      : daysInMonth(row.month_start));
+  const partialLaunch = launch !== null && firstOrderDay !== null && !firstOrderDay.endsWith("-01");
   const completed = rows.filter((row) => row.month_start < currentMonthStart);
   const at = (back: number) => completed[completed.length - 1 - back] ?? null;
   const latest = at(0);
   const previous = at(1);
   const threeBack = at(3);
 
-  const withRevenue = completed.map((row, index) => ({ row, index })).filter(({ row }) => row.revenue > 0);
+  const withRevenue = completed
+    .map((row, index) => ({ row, index }))
+    .filter(({ row }) => row.revenue > 0 && !(partialLaunch && row.month_start === launch));
   let avgMonthlyPct: number | null = null;
   if (withRevenue.length >= 2) {
     const first = withRevenue[0];
     const last = withRevenue[withRevenue.length - 1];
     const span = last.index - first.index;
-    avgMonthlyPct = (Math.pow(last.row.revenue / first.row.revenue, 1 / span) - 1) * 100;
+    avgMonthlyPct = (Math.pow(perDay(last.row) / perDay(first.row), 1 / span) - 1) * 100;
   }
 
   return {

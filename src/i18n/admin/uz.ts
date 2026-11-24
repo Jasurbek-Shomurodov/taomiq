@@ -562,6 +562,7 @@ const uz: AdminDictionary = {
       lead: (range) => `${range}. Kunlar Toshkent vaqti boʻyicha.`,
       compare: (range) => `Oʻzgarishlar ${range} davri bilan solishtirilgan.`,
       noCompare: "Solishtirish uchun maʼlumot yoʻq: bu hisobning birinchi oyi.",
+      compareFailed: "Oʻtgan oyni yuklab boʻlmadi, shuning uchun oʻzgarishlar koʻrsatilmagan.",
       margin: "Marja",
       was: (value) => `Bir oy oldin: ${value}`,
       indicators: "Oy koʻrsatkichlari",
@@ -607,7 +608,7 @@ const uz: AdminDictionary = {
       remaining: (sum) => `Qaytarish qoldi: ${sum}`,
       pace: "Oylik surʼat",
       paceHint: (months) => `Oxirgi ${months} oydagi oʻrtacha natija`,
-      noPace: "Hali tugagan oylar yoʻq",
+      noPace: "Buyurtmali tugagan oylar hali yoʻq",
       monthsLeft: "Qoplanishgacha",
       monthsLeftValue: (months) => `${months} oy`,
       paidOff: "Sarmoya qoplandi",
@@ -668,7 +669,7 @@ const uz: AdminDictionary = {
       },
       pace: {
         title: "Oylik surʼat",
-        body: "Ishning oxirgi uchta tugagan oyidagi oʻrtacha natija. Joriy oy hisobga olinmaydi, chunki u hali tugamagan. Qoplanish muddati shu surʼat boʻyicha hisoblanadi.",
+        body: "Ishning oxirgi uchta tugagan oyidagi oʻrtacha natija, birinchi toʻlangan buyurtma oyidan boshlab; undan oldingi tayyorgarlik oylari hisobga olinmaydi. Joriy oy ham hisobga olinmaydi, chunki u hali tugamagan. Qoplanish muddati shu surʼat boʻyicha hisoblanadi.",
       },
       monthsLeft: {
         title: "Qoplanishgacha",
@@ -708,7 +709,7 @@ const uz: AdminDictionary = {
       },
       avgPerDay: {
         title: "Kunlik tushum",
-        body: "Tushum kunlar soniga boʻlinadi. Joriy oyda 1-sanadan bugungacha boʻlgan kunlar, oʻtgan oyda esa oyning barcha kunlari olinadi. Shunday qilib turli uzunlikdagi oylarni solishtirish mumkin.",
+        body: "Tushum kunlar soniga boʻlinadi. Joriy oyda 1-sanadan bugungacha boʻlgan kunlar, oʻtgan oyda oyning barcha kunlari, ishga tushirilgan oyda esa birinchi toʻlangan buyurtmadan keyingi kunlar olinadi. Shunday qilib turli uzunlikdagi oylarni solishtirish mumkin.",
       },
       investorDependence: {
         title: "Investor puli ulushi",
@@ -720,7 +721,7 @@ const uz: AdminDictionary = {
       },
       growth: {
         title: "Oʻsish",
-        body: "Oxirgi tugagan oyning kunlik tushumi undan oldingi oy bilan va uch oy oldingi oy bilan solishtiriladi; kunlik tushum olinadi, shunda qisqa fevral pasayishdek koʻrinmaydi. Oylik oʻrtacha oʻsish — tushum boʻlgan birinchi oydan beri tushumning oydan oyga oʻrtacha oʻzgarishi. Joriy oy hisobga olinmaydi.",
+        body: "Oxirgi tugagan oyning kunlik tushumi undan oldingi oy bilan va uch oy oldingi oy bilan solishtiriladi; ishga tushirilgan oyda faqat birinchi buyurtmadan keyingi kunlar olinadi. Oylik oʻrtacha oʻsish — birinchi toʻliq ish oyidan boshlab kunlik tushumning oydan oyga oʻrtacha oʻzgarishi: toʻliq boʻlmagan ishga tushirish oyi unga kirmaydi. Joriy oy hisobga olinmaydi.",
       },
       statement: {
         title: "Oylar boʻyicha hisobot",

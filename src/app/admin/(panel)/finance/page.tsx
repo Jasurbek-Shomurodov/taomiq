@@ -19,7 +19,7 @@ import {
   type PeriodFigures,
 } from "@/lib/admin/finance/math";
 import { comparisonRange, financeMonth, formatDayRange, formatEntryDay, type FinanceMonth } from "@/lib/admin/finance/month";
-import { loadPeriod } from "@/lib/admin/finance/queries";
+import { loadPeriod, loadTotals } from "@/lib/admin/finance/queries";
 import { tashkentDay } from "@/lib/admin/stats";
 import { BarChart, type ChartBar } from "../../kit/BarChart";
 import { BeforeHydration } from "../../kit/BeforeHydration";
@@ -66,8 +66,9 @@ async function settle<T>(what: string, load: () => Promise<T>): Promise<T | null
  * Finance → Month (docs/plans/finance-investor-payroll.md, slice 2). `?m=YYYY-MM` picks the month (the current one by
  * default, never a future one). Figures come from public.finance_period over the month (the current month: up to
  * today) and are compared with the month before; while a month is still running, only with the same days of the month
- * before (month.comparisonRange). A failed comparison read only drops the changes; a failed read of the month itself
- * shows one notice with a retry and no figures.
+ * before (month.comparisonRange). A failed comparison read only drops the changes (the caption says so); a failed read
+ * of the month itself shows one notice with a retry and no figures. In the launch month the revenue per day counts
+ * from the first paid order (finance_totals); if that read fails, every day of the month counts.
  */
 export default async function FinanceMonthPage({ searchParams }: PageProps<"/admin/finance">) {
   const { supabase, staff } = await requireOwner();
@@ -82,9 +83,11 @@ export default async function FinanceMonthPage({ searchParams }: PageProps<"/adm
   const compare = comparisonRange(month, today);
   const selfHref = monthHref(month.isCurrent ? null : month.key);
 
-  const [current, previous] = await Promise.all([
+  const [current, previous, totals] = await Promise.all([
     settle("period", () => loadPeriod(supabase, month.from, to)),
     compare ? settle("comparison", () => loadPeriod(supabase, compare.from, compare.to)) : Promise.resolve(null),
+    // Only for the first paid order's day (the launch month's revenue per day); without it, every day counts.
+    settle("totals", () => loadTotals(supabase)),
   ]);
 
   return (
@@ -98,7 +101,11 @@ export default async function FinanceMonthPage({ searchParams }: PageProps<"/adm
         <FinanceMonthSwitcher month={month} today={today} locale={locale} hrefFor={monthHref} />
         <p className="adm-caption">
           {f.month.lead(formatDayRange(month.from, to, locale))}{" "}
-          {compare ? f.month.compare(formatDayRange(compare.from, compare.to, locale)) : f.month.noCompare}
+          {!compare
+            ? f.month.noCompare
+            : previous
+              ? f.month.compare(formatDayRange(compare.from, compare.to, locale))
+              : f.month.compareFailed}
         </p>
       </div>
 
@@ -111,7 +118,7 @@ export default async function FinanceMonthPage({ searchParams }: PageProps<"/adm
           period={current}
           previous={previous}
           month={month}
-          days={daysCounted(month.from, month.to, today)}
+          days={daysCounted(month.from, month.to, today, totals?.first_order_day ?? null)}
           today={today}
           locale={locale}
           t={t}
