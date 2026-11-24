@@ -81,7 +81,54 @@
   --adm-radius-card: 12px;
   --adm-radius-dialog: 16px;
   --adm-shadow: 0 1px 2px rgb(24 60 52 / 6%);
+  /* The selected segment's lift, a hovered card, and the drawer over the page. */
+  --adm-shadow-pill: 0 1px 2px rgb(18 46 40 / 18%);
+  --adm-shadow-lift: 0 4px 14px rgb(24 60 52 / 8%);
+  --adm-shadow-pop: 0 10px 40px rgb(18 46 40 / 18%);
+  /* Behind the drawer and dialogs. */
+  --adm-scrim: rgb(18 46 40 / 50%);
+  /* The skeleton's moving highlight. */
+  --adm-shimmer: color-mix(in srgb, #fff 65%, transparent);
+  /* Brand ink: forest here, ivory in the dark theme. The logo's TAOM and TQ (.adm-logo in admin.css) and the
+     sign-in screens' headings and labels. */
+  --adm-brand-ink: var(--color-forest);
   --adm-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Dark theme (shell/theme.tsx sets data-theme on <html>). Screens only: printed sheets keep the light tokens and
+   admin.css's print rules. Deep forest-black page, raised surfaces, ivory text, gold highlight; the forest accent is
+   lightened (with dark ink on its fills) and the status tones are re-tuned, so text and controls keep at least
+   4.5:1 (checked for every text/background pair, tones on their tints included). */
+@media screen {
+  :root[data-theme="dark"] .admin {
+    --adm-page: #0f1513;
+    --adm-surface: #161e1b;
+    --adm-surface-muted: #1d2723;
+    --adm-hover: #232e2a;
+    --adm-border: #2f3b36;
+    --adm-hairline: color-mix(in srgb, #2f3b36 75%, transparent);
+    --adm-text: #eee8dc;
+    --adm-text-muted: #a3a89c;
+    --adm-accent: #7cc0a3;
+    --adm-accent-hover: #95cdb5;
+    --adm-accent-ink: #8ccbb0;
+    --adm-accent-tint: color-mix(in srgb, #7cc0a3 16%, #161e1b);
+    --adm-on-accent: #0f1513;
+    --adm-highlight: #d2b578;
+    --adm-on-highlight: #13201b;
+    --adm-ring: #d2b578;
+    --adm-positive: #63c596;
+    --adm-negative: #f09a86;
+    --adm-caution: #e3b866;
+    --adm-info: #8fbbea;
+    --adm-shadow: 0 1px 2px rgb(0 0 0 / 40%);
+    --adm-shadow-pill: 0 1px 2px rgb(0 0 0 / 45%);
+    --adm-shadow-lift: 0 4px 14px rgb(0 0 0 / 35%);
+    --adm-shadow-pop: 0 10px 40px rgb(0 0 0 / 50%);
+    --adm-scrim: rgb(0 0 0 / 60%);
+    --adm-shimmer: rgb(255 255 255 / 5%);
+    --adm-brand-ink: #f6f1e8;
+  }
 }
 
 /* The kit tokens as Tailwind names (bg-adm-surface, text-adm-muted, rounded-adm-card, shadow-adm, …). Inline, so a
@@ -104,6 +151,8 @@
   --color-adm-negative: var(--adm-negative);
   --color-adm-caution: var(--adm-caution);
   --color-adm-info: var(--adm-info);
+  --color-adm-scrim: var(--adm-scrim);
+  --color-adm-brand-ink: var(--adm-brand-ink);
   --radius-adm-btn: var(--adm-radius-btn);
   --radius-adm-control: var(--adm-radius-control);
   --radius-adm-card: var(--adm-radius-card);

@@ -15,15 +15,15 @@ async function Setup() {
   return (
     <AuthCard locale={locale}>
       <div className="flex flex-col items-center text-center">
-        <Lockup onDark={false} width={132} />
-        <h1 className="mt-8 font-serif text-3xl text-forest">{t.setup.heading}</h1>
+        <Lockup onDark={false} width={132} className="adm-logo" />
+        <h1 className="mt-8 font-serif text-3xl text-adm-brand-ink">{t.setup.heading}</h1>
       </div>
-      <p className="mt-4 text-muted">{t.setup.text}</p>
-      <ul className="mt-4 grid gap-2 break-all font-mono text-xs text-graphite sm:text-sm">
+      <p className="mt-4 text-adm-muted">{t.setup.text}</p>
+      <ul className="mt-4 grid gap-2 break-all font-mono text-xs text-adm-text sm:text-sm">
         <li>NEXT_PUBLIC_SUPABASE_URL</li>
         <li>NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY</li>
       </ul>
-      <p className="mt-4 text-sm text-muted">{t.setup.more}</p>
+      <p className="mt-4 text-sm text-adm-muted">{t.setup.more}</p>
     </AuthCard>
   );
 }

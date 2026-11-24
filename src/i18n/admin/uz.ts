@@ -70,6 +70,7 @@ const uz: AdminDictionary = {
     groups: { sales: "Savdo", kitchen: "Oshxona", business: "Biznes" },
     newOrders: (count) => `Yangi buyurtmalar: ${count}`,
     loading: "Yuklanmoqda…",
+    theme: { dark: "Tungi rejim", toDark: "Tungi rejimni yoqish", toLight: "Kunduzgi rejimni yoqish" },
   },
   home: {
     hello: (name) => (name ? `Assalomu alaykum, ${name}` : "Assalomu alaykum"),

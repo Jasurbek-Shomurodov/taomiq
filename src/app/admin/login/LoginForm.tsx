@@ -37,23 +37,23 @@ export function LoginForm({ locale, turnstileKey, google }: { locale: Locale; tu
             {redirectNotice}
             <GoogleButton label={t.google} pendingLabel={t.redirecting} />
           </form>
-          <div className="label flex items-center gap-4 text-muted" aria-hidden>
-            <span className="h-px flex-1 bg-line" />
+          <div className="label flex items-center gap-4 text-adm-muted" aria-hidden>
+            <span className="h-px flex-1 bg-adm-border" />
             {t.or}
-            <span className="h-px flex-1 bg-line" />
+            <span className="h-px flex-1 bg-adm-border" />
           </div>
         </>
       )}
 
       <form action={action} className="grid gap-5">
-        <label className="grid gap-2 text-sm font-medium text-forest">
+        <label className="grid gap-2 text-sm font-medium text-adm-brand-ink">
           {t.email}
           <input
             name="email"
             type="email"
             required
             autoComplete="username"
-            className="field min-h-12 font-normal focus:ring-2 focus:ring-gold"
+            className="field min-h-12 font-normal focus:ring-2 focus:ring-adm-highlight"
           />
         </label>
         <PasswordField t={t} />
@@ -64,7 +64,7 @@ export function LoginForm({ locale, turnstileKey, google }: { locale: Locale; tu
         <div className="mt-1 grid gap-4">
           {!google && redirectNotice}
           {state.error && <Notice text={state.error} />}
-          <button type="submit" disabled={pending} className="btn btn-forest min-h-12 w-full disabled:opacity-60">
+          <button type="submit" disabled={pending} className="btn min-h-12 w-full bg-adm-accent text-adm-on-accent hover:bg-(--adm-accent-hover) disabled:opacity-60">
             {pending ? t.submitting : t.submit}
           </button>
         </div>
@@ -88,7 +88,7 @@ function GoogleButton({ label, pendingLabel }: { label: string; pendingLabel: st
     <button
       type="submit"
       disabled={pending}
-      className="btn btn-outline min-h-12 w-full border-line bg-white text-forest hover:bg-ivory-deep disabled:opacity-60"
+      className="btn btn-outline min-h-12 w-full border-adm-border bg-adm-surface text-adm-brand-ink hover:bg-adm-hover disabled:opacity-60"
     >
       <GoogleIcon />
       {pending ? pendingLabel : label}
@@ -105,7 +105,7 @@ function PasswordField({ t }: { t: T }) {
   const [visible, setVisible] = useState(false);
   return (
     <div className="grid gap-2">
-      <label htmlFor="admin-password" className="text-sm font-medium text-forest">
+      <label htmlFor="admin-password" className="text-sm font-medium text-adm-brand-ink">
         {t.password}
       </label>
       <div className="relative">
@@ -118,7 +118,7 @@ function PasswordField({ t }: { t: T }) {
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck={false}
-          className="field min-h-12 pr-13 font-normal focus:ring-2 focus:ring-gold"
+          className="field min-h-12 pr-13 font-normal focus:ring-2 focus:ring-adm-highlight"
         />
         <button
           type="button"
@@ -126,7 +126,7 @@ function PasswordField({ t }: { t: T }) {
           aria-label={t.showPassword}
           aria-pressed={visible}
           title={visible ? t.hidePassword : t.showPassword}
-          className="press absolute right-0.5 top-1/2 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-muted hover:text-forest"
+          className="press absolute right-0.5 top-1/2 flex size-11 -translate-y-1/2 cursor-pointer items-center justify-center rounded-lg text-adm-muted hover:text-adm-brand-ink"
         >
           {visible ? <EyeOffIcon /> : <EyeIcon />}
         </button>
@@ -149,7 +149,7 @@ function Notice({ text, tone = "error" }: { text: string; tone?: "error" | "info
   return (
     <p
       role={info ? "status" : "alert"}
-      className={`flex items-start gap-2.5 rounded-xl p-3 text-sm ${info ? "bg-forest/8 text-forest" : "bg-danger/10 text-danger"}`}
+      className={`flex items-start gap-2.5 rounded-xl p-3 text-sm ${info ? "bg-adm-accent/8 text-adm-accent-ink" : "bg-adm-negative/10 text-adm-negative"}`}
     >
       <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="mt-px shrink-0">
         <circle cx="12" cy="12" r="9.5" />

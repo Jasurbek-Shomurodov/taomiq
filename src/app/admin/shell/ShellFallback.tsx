@@ -22,6 +22,10 @@ export function ShellFallback({ children }: { children?: React.ReactNode }) {
           <div className="adm-topbar-lead">
             <Skeleton className="h-5 w-36" />
           </div>
+          {/* Where the theme toggle arrives. */}
+          <div className="adm-topbar-trail">
+            <Skeleton className="size-10 rounded-adm-btn" />
+          </div>
         </div>
         <main className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">{children}</main>
       </div>

@@ -9,6 +9,7 @@ import type { Locale } from "@/i18n/config";
 import { signOut } from "@/lib/admin/actions";
 import { LanguageSegmented } from "../LanguageSwitch";
 import { NAV, NAV_GROUPS, activeNavKey, type NavGroup, type NavItemView } from "./nav";
+import type { ThemeLabels } from "./ThemeToggle";
 
 export type ShellLabels = {
   mainNav: string;
@@ -19,6 +20,8 @@ export type ShellLabels = {
   signOut: string;
   switcher: string;
   groups: Record<Exclude<NavGroup, "overview">, string>;
+  /** The top bar's theme toggle (ThemeToggle.tsx). */
+  theme: ThemeLabels;
 };
 
 export type ShellAccount = { name: string; email: string; role: string };
@@ -67,7 +70,7 @@ export function Sidebar({
           aria-label={`${labels.home} (${account.role})`}
           className="flex min-h-11 min-w-0 items-center gap-2.5 rounded-adm-control"
         >
-          <Lockup layout="inline" onDark={false} markSize={28} className="text-[15px]" />
+          <Lockup layout="inline" onDark={false} markSize={28} className="adm-logo text-[15px]" />
           <span className="adm-badge adm-tone-accent truncate">{account.role}</span>
         </Link>
         <button ref={hideButtonRef} type="button" onClick={onHide} aria-label={hideLabel} title={hideLabel} className="adm-btn adm-btn-ghost adm-btn-sm adm-btn-icon">

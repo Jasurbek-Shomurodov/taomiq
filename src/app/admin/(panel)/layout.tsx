@@ -51,6 +51,7 @@ async function Shell({ children }: { children: React.ReactNode }) {
         signOut: t.nav.signOut,
         switcher: t.switcher.label,
         groups: t.shell.groups,
+        theme: t.shell.theme,
       }}
     >
       {children}

@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import type { Ref } from "react";
 import { activeNavKey, type NavKey } from "./nav";
+import { ThemeToggle, type ThemeLabels } from "./ThemeToggle";
 import { attachActionsSlot, attachBackSlot, attachTabsSlot, attachTitleSlot, useSlotFilled } from "./TopBarSlot";
 
 /** Two staggered bars, the long one over the short: the drawer's menu mark. */
@@ -17,18 +18,20 @@ function DrawerIcon() {
 
 /**
  * The one top bar (60 px): the drawer button (phones and tablets, or desktop while the rail is folded), the page's
- * back arrow, its title, its tabs, and its actions on the right. The title is the nav label of the current section
+ * back arrow, its title, its tabs, and its actions on the right, then the theme toggle. The title is the nav label of the current section
  * unless the page sets its own (<TopBarTitle>); the page fills the other slots through TopBarSlot.tsx.
  */
 export function TopBar({
   titles,
   openMenuLabel,
+  themeLabels,
   onOpenDrawer,
   drawerButtonRef,
 }: {
   /** Nav labels in the panel's language, the default titles. */
   titles: Partial<Record<NavKey, string>>;
   openMenuLabel: string;
+  themeLabels: ThemeLabels;
   onOpenDrawer: () => void;
   drawerButtonRef?: Ref<HTMLButtonElement>;
 }) {
@@ -58,7 +61,7 @@ export function TopBar({
       <div ref={attachTabsSlot} className="adm-topbar-tabs" />
       <div className="adm-topbar-trail">
         <div ref={attachActionsSlot} className="flex items-center gap-2" />
-        {/* The theme toggle goes here, after the page actions (slice 5 of the plan). */}
+        <ThemeToggle labels={themeLabels} />
       </div>
     </header>
   );

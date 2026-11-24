@@ -82,6 +82,8 @@ const ru = {
     groups: { sales: "Продажи", kitchen: "Кухня", business: "Бизнес" },
     newOrders: (count: number) => `Новых заказов: ${count}`,
     loading: "Загружаем…",
+    // The top bar's light/dark switch: one name, its state in aria-pressed; the tooltip says what a press does.
+    theme: { dark: "Тёмная тема", toDark: "Включить тёмную тему", toLight: "Включить светлую тему" },
   },
   home: {
     hello: (name: string) => (name ? `Здравствуйте, ${name}` : "Здравствуйте"),

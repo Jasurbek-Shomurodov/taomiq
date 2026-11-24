@@ -89,7 +89,13 @@ export function AdminShell({
       </MobileDrawer>
 
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <TopBar titles={titles} openMenuLabel={labels.openMenu} onOpenDrawer={openDrawer} drawerButtonRef={drawerButtonRef} />
+        <TopBar
+          titles={titles}
+          openMenuLabel={labels.openMenu}
+          themeLabels={labels.theme}
+          onOpenDrawer={openDrawer}
+          drawerButtonRef={drawerButtonRef}
+        />
         {/* relative: absolutely placed children (visually hidden text) stay inside this scroll area. */}
         <main className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
           <ShellLocaleContext value={locale}>{children}</ShellLocaleContext>

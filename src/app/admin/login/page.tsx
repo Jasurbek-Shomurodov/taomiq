@@ -18,9 +18,9 @@ async function Login() {
   return (
     <AuthCard locale={locale}>
       <div className="flex flex-col items-center text-center">
-        <Lockup onDark={false} width={132} />
-        <h1 className="mt-8 font-serif text-3xl text-forest">{t.login.heading}</h1>
-        <p className="label mt-3 text-muted">{t.login.panel}</p>
+        <Lockup onDark={false} width={132} className="adm-logo" />
+        <h1 className="mt-8 font-serif text-3xl text-adm-brand-ink">{t.login.heading}</h1>
+        <p className="label mt-3 text-adm-muted">{t.login.panel}</p>
       </div>
       <LoginForm locale={locale} turnstileKey={turnstileWidgetKey} google={isAdminGoogleLoginOn()} />
     </AuthCard>

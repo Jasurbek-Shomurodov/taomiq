@@ -182,6 +182,16 @@
     white-space: nowrap;
   }
 
+  /* The theme toggle (shell/ThemeToggle.tsx) shows the icon for the theme on <html>: a moon on light, a sun on dark,
+     right from the first paint. */
+  .adm-theme-sun,
+  html[data-theme="dark"] .adm-theme-moon {
+    display: none;
+  }
+  html[data-theme="dark"] .adm-theme-sun {
+    display: block;
+  }
+
   /* The drawer button: phones and tablets, and on desktop only while the rail is folded. Scoped to the bar so it
      outranks .adm-btn's display. */
   @media (min-width: 64rem) {
@@ -218,7 +228,7 @@
   .adm-drawer-backdrop {
     position: absolute;
     inset: 0;
-    background: rgb(18 46 40 / 45%);
+    background: var(--adm-scrim);
     opacity: 0;
     transition: opacity 300ms var(--adm-ease);
   }
@@ -229,7 +239,7 @@
     position: relative;
     height: 100dvh;
     max-width: 85vw;
-    box-shadow: 0 10px 40px rgb(18 46 40 / 18%);
+    box-shadow: var(--adm-shadow-pop);
     outline: none;
     translate: -100% 0;
     transition: translate 300ms var(--adm-ease);
@@ -331,7 +341,7 @@
   }
   .adm-card-link:hover {
     border-color: color-mix(in srgb, var(--adm-border) 50%, var(--adm-text-muted));
-    box-shadow: 0 4px 14px rgb(24 60 52 / 8%);
+    box-shadow: var(--adm-shadow-lift);
   }
   .adm-card-link:focus-visible {
     outline-offset: 2px;
@@ -394,6 +404,19 @@
     cursor: not-allowed;
   }
   .adm-input[aria-invalid="true"] {
+    border-color: var(--adm-negative);
+  }
+  /* The site's .field (globals.css) on the sign-in page, on the kit's tokens: the same white field and line border
+     in the light theme, a raised dark field in the dark one. */
+  .admin .field {
+    border-color: var(--adm-border);
+    background: var(--adm-surface);
+    color: var(--adm-text);
+  }
+  .admin .field:focus {
+    border-color: var(--adm-accent);
+  }
+  .admin .field[aria-invalid="true"] {
     border-color: var(--adm-negative);
   }
   /* Checkboxes and radios in the panel take the forest accent. */
@@ -541,7 +564,7 @@
   .adm-segmented > :is([aria-pressed="true"], [aria-current]) {
     background: var(--adm-surface);
     color: var(--adm-text);
-    box-shadow: 0 1px 2px rgb(18 46 40 / 18%);
+    box-shadow: var(--adm-shadow-pill);
   }
   .adm-segmented > :is(a, button):focus-visible {
     outline-offset: 1px;
@@ -748,12 +771,7 @@
   .adm-skeleton {
     display: block;
     border-radius: 6px;
-    background: linear-gradient(
-        90deg,
-        transparent 0%,
-        color-mix(in srgb, var(--adm-surface) 65%, transparent) 50%,
-        transparent 100%
-      )
+    background: linear-gradient(90deg, transparent 0%, var(--adm-shimmer) 50%, transparent 100%)
       0 0 / 200% 100% no-repeat,
       var(--adm-surface-muted);
     animation: adm-shimmer 1.4s linear infinite;
@@ -787,6 +805,41 @@
     .adm-tabs > :is(a, button) {
       min-height: 44px;
     }
+  }
+}
+
+/* ---------- Theme, outside the layers ----------
+   These must beat globals.css's unlayered body colours and the Tailwind utilities on the shared logo. */
+
+/* The page behind everything (overscroll, the sign-in screens' edges) follows the theme. In print the tokens are
+   white and black (below). */
+body.admin {
+  background: var(--adm-page);
+  color: var(--adm-text);
+}
+
+/* The TAOMIQ lockup (components/Logo.tsx, shared with the public site) is drawn for a light background with forest
+   TAOM and TQ: inside the admin, .adm-logo gives them the theme's ink. IQ and the ring stay gold. */
+.adm-logo .fill-forest {
+  fill: var(--adm-brand-ink);
+}
+.adm-logo .text-forest {
+  color: var(--adm-brand-ink);
+}
+
+@media screen {
+  /* Native controls follow the theme: scrollbars, select menus, date pickers, checkboxes, autofill. */
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    background-color: #0f1513;
+  }
+
+  /* Sign-in screens (AuthShell): the forest background goes deeper, the champagne glow stays. */
+  html[data-theme="dark"] .admin-auth-bg {
+    background-color: #0c1a16;
+    background-image:
+      radial-gradient(ellipse 55% 40% at 50% 45%, rgb(199 168 107 / 0.1), transparent 70%),
+      radial-gradient(ellipse 120% 95% at 50% 45%, transparent 50%, #070d0b 100%);
   }
 }
 

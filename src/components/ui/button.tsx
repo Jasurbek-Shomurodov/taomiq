@@ -1,4 +1,5 @@
-// shadcn/ui button (base-nova, Base UI), restyled with the brand's .btn shapes from globals.css.
+// shadcn/ui button (base-nova, Base UI), restyled with the brand's .btn shapes from globals.css and the back-office
+// kit colours (--adm-*, light and dark).
 // Admin only: the public site keeps its own hand-written buttons (eslint.config.mjs enforces it).
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -11,8 +12,8 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "btn-forest",
-        outline: "btn-outline text-forest",
+        default: "bg-adm-accent text-adm-on-accent hover:bg-(--adm-accent-hover)",
+        outline: "btn-outline text-adm-accent-ink",
         destructive: "bg-destructive text-ivory hover:bg-destructive/90",
       },
     },

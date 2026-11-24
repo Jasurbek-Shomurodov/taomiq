@@ -16,8 +16,9 @@ export function LanguageSwitch({
   /** Colours for a light background (login page); the default suits the dark header. */
   onLight?: boolean;
 }) {
-  const idle = onLight ? "text-muted hover:text-forest" : "text-ivory/70 hover:text-ivory";
-  const active = onLight ? "bg-forest text-ivory" : "bg-ivory/15 text-ivory";
+  // onLight follows the panel theme (kit tokens); the default sits on the sign-in screens' forest, dark in both themes.
+  const idle = onLight ? "text-adm-muted hover:text-adm-brand-ink" : "text-ivory/70 hover:text-ivory";
+  const active = onLight ? "bg-adm-accent text-adm-on-accent" : "bg-ivory/15 text-ivory";
   return (
     <form action={setAdminLocale} role="group" aria-label={label} className="flex items-center gap-0.5 text-xs font-semibold">
       {locales.map((code) => (

@@ -6,7 +6,8 @@ import { LanguageSwitch } from "./LanguageSwitch";
 
 /**
  * The page around the back office's signed-out screens (/login and /setup), so both look the same: forest with a
- * soft gold glow behind the card and darker edges (.admin-auth-bg in globals.css). The content reads the
+ * soft gold glow behind the card and darker edges (.admin-auth-bg in globals.css, deeper in the dark theme in
+ * admin.css). The card is on the kit's tokens (--adm-*), so it follows the theme. The content reads the
  * admin_locale cookie, so it streams in behind a card-sized placeholder: pass the card's usual height as
  * `placeholderClassName` (a literal Tailwind class) so nothing jumps when it arrives.
  */
@@ -16,7 +17,7 @@ export function AuthShell({ children, placeholderClassName }: { children: ReactN
       <Suspense
         fallback={
           <div
-            className={`w-full max-w-md rounded-3xl border border-gold/25 bg-ivory/95 shadow-2xl shadow-forest-deep/60 ${placeholderClassName}`}
+            className={`w-full max-w-md rounded-3xl border border-adm-highlight/25 bg-adm-page/95 shadow-2xl shadow-forest-deep/60 ${placeholderClassName}`}
           />
         }
       >
@@ -38,7 +39,7 @@ export function AuthCard({ locale, children }: { locale: Locale; children: React
       <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
         <LanguageSwitch locale={locale} label={t.switcher.label} />
       </div>
-      <div className="w-full max-w-md rounded-3xl border border-gold/25 bg-ivory p-8 shadow-2xl shadow-forest-deep/60 motion-safe:animate-rise sm:p-10">
+      <div className="w-full max-w-md rounded-3xl border border-adm-highlight/25 bg-adm-page p-8 shadow-2xl shadow-forest-deep/60 motion-safe:animate-rise sm:p-10">
         {children}
       </div>
       <p className="mt-6 text-xs">

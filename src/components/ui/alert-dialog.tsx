@@ -1,6 +1,6 @@
 "use client";
 
-// shadcn/ui alert dialog (base-nova, Base UI), restyled with the brand tokens. Admin only.
+// shadcn/ui alert dialog (base-nova, Base UI), on the back-office kit tokens (--adm-*, light and dark). Admin only.
 // Enter and exit are CSS transitions on Base UI's data-starting-style / data-ending-style with the site's motion
 // tokens, so no animation package is needed; the global reduced-motion block in globals.css zeroes them.
 import * as React from "react";
@@ -28,7 +28,7 @@ function AlertDialogOverlay({ className, ...props }: AlertDialogPrimitive.Backdr
   return (
     <AlertDialogPrimitive.Backdrop
       data-slot="alert-dialog-overlay"
-      className={cn("fixed inset-0 isolate z-50 bg-forest-deep/50", enterExit, className)}
+      className={cn("fixed inset-0 isolate z-50 bg-adm-scrim", enterExit, className)}
       {...props}
     />
   );
@@ -49,7 +49,7 @@ function AlertDialogContent({
       <AlertDialogPrimitive.Popup
         data-slot="alert-dialog-content"
         className={cn(
-          "fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-[28rem] -translate-x-1/2 -translate-y-1/2 gap-5 rounded-2xl bg-popover p-6 text-popover-foreground shadow-xl outline-none",
+          "fixed top-1/2 left-1/2 z-50 grid w-[calc(100%-2rem)] max-w-[28rem] -translate-x-1/2 -translate-y-1/2 gap-5 rounded-2xl bg-adm-surface p-6 text-adm-text shadow-xl outline-none",
           "data-starting-style:scale-[0.97] data-ending-style:scale-[0.97]",
           enterExit,
           className,
@@ -78,7 +78,7 @@ function AlertDialogTitle({ className, ...props }: React.ComponentProps<typeof A
   return (
     <AlertDialogPrimitive.Title
       data-slot="alert-dialog-title"
-      className={cn("font-serif text-xl text-forest", className)}
+      className={cn("font-serif text-xl text-adm-brand-ink", className)}
       {...props}
     />
   );
@@ -91,7 +91,7 @@ function AlertDialogDescription({
   return (
     <AlertDialogPrimitive.Description
       data-slot="alert-dialog-description"
-      className={cn("text-sm text-pretty text-muted-foreground", className)}
+      className={cn("text-sm text-pretty text-adm-muted", className)}
       {...props}
     />
   );
