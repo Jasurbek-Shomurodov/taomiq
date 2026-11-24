@@ -25,6 +25,12 @@ export const PAYROLL_LIMITS = {
   noteMax: 500,
   /** How far ahead a new rate may start, in days (a raise agreed for later). */
   rateAheadDays: 366,
+  /**
+   * How many days after the last working day a recorded leaving may still be undone (a mistake). Later, the person is
+   * added again as a new employee, so the break is never paid. The database enforces the same (0014,
+   * private.check_employee_resume).
+   */
+  resumeDays: 7,
 } as const;
 
 export function isSalaryEventKind(value: unknown): value is SalaryEventKind {

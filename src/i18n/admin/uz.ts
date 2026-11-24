@@ -825,6 +825,8 @@ const uz: AdminDictionary = {
       paidMonthHint: "Oy xarajatlariga kiradi",
       addTitle: "Yangi xodim",
       addLead: "Ish haqi birinchi ish kunidan shu stavka boʻyicha hisoblanadi. Stavkani keyin oʻzgartirish mumkin.",
+      addHint:
+        "«Yozuvlar»ga bir martalik toʻlov sifatida kiritilgan ish haqi oʻsha yerda qoladi. Birinchi ish kuni sifatida ish haqini shu yerda yuritish boshlanadigan kunni tanlang, shunda bir xil pul ikki marta hisoblanmaydi.",
       name: "Ism",
       namePlaceholder: "Ism va familiya",
       jobTitle: "Lavozim",
@@ -862,6 +864,9 @@ const uz: AdminDictionary = {
           ? `Bu oyda: kuniga ${base}`
           : `Bu oyda: birinchi ${extra} kun kuniga ${more}, keyin ${base}`,
       noRateHint: "Stavkasiz hech narsa hisoblanmaydi. Quyida stavka belgilang.",
+      rateGap: (from, to) =>
+        `${from} dan ${to} gacha stavka yoʻq va bu kunlar uchun hech narsa hisoblanmagan. Agar xodim ishlagan boʻlsa, ${from} dan amal qiladigan stavka qoʻshing.`,
+      rateGapShort: "Stavkasiz kunlar bor",
       monthPayOne: "Bir oyda ishlab topadi",
       eventTitle: "Yozib qoʻyish",
       eventLead: "Toʻlov va jarima xodim oldidagi qarzni kamaytiradi, mukofot oshiradi, kelmagan kun uchun haq toʻlanmaydi.",
@@ -921,7 +926,7 @@ const uz: AdminDictionary = {
       resume: "Shtatga qaytarish",
       resumeConfirmTitle: "Shtatga qaytarilsinmi?",
       resumeConfirmText:
-        "Ish haqi avvalgi ketish kunidan keyingi kundan boshlab, oʻtgan kunlar bilan birga yana hisoblanadi. Agar tanaffus boʻlgan boʻlsa, uni kelmagan kunlar bilan belgilang.",
+        "Ketish bekor qilinadi va ish haqi xodim ketmagandek, belgilangan ketish kunidan keyingi kunlar bilan birga hisoblanadi. Bu xatoni tuzatish uchun: tanaffusdan keyin qaytgan xodimni yangi xodim sifatida qoʻshing.",
       resumed: "Xodim yana shtatda.",
       errors: {
         name: "Xodimning ismini kiriting.",
@@ -942,6 +947,8 @@ const uz: AdminDictionary = {
         absentAlready: "Bu kunda kelmagan kun allaqachon belgilangan.",
         rateExists: "Bu kundan boshlab stavka allaqachon bor. Uni stavkalar roʻyxatida oʻchiring va qayta saqlang.",
         endBeforeStart: "Oxirgi ish kuni birinchisidan oldin boʻlishi mumkin emas.",
+        resumeTooLate: (days) =>
+          `Shtatga faqat ketgandan keyin ${days} kun ichida, xatoni tuzatish uchun qaytarish mumkin. Agar xodim tanaffusdan keyin qaytgan boʻlsa, uni yangi birinchi ish kuni bilan yangi xodim sifatida qoʻshing: shunda tanaffus uchun haq toʻlanmaydi.`,
         denied: "Baza yozuvni rad etdi: sanani tekshiring yoki ega sifatida qayta kiring.",
         invalid: "Baza yozuvni rad etdi: summa va maydonlarni tekshiring.",
         saveFailed: "Saqlab boʻlmadi. Qayta urinib koʻring.",

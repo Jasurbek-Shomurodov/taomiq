@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { requireOwner } from "@/lib/admin/auth";
-import { balanceState, payrollSummary, type PayrollRow } from "@/lib/admin/finance/math";
+import { balanceState, payrollSummary, rateGap, type PayrollRow } from "@/lib/admin/finance/math";
 import { formatEntryDay, formatMonth } from "@/lib/admin/finance/month";
 import { loadPayroll } from "@/lib/admin/finance/queries";
 import { tashkentDay } from "@/lib/admin/stats";
@@ -161,7 +161,12 @@ function EmployeeRow({ row, locale, t }: { row: PayrollRow; locale: Locale; t: A
             {row.name}
           </p>
           <p className="adm-caption truncate">{[row.job_title, dates].filter(Boolean).join(" · ")}</p>
-          <p className="adm-caption tabular-nums">{rateLine(row.rate_amount, row.rate_unit, t)}</p>
+          <p className="adm-caption tabular-nums">
+            {rateLine(row.rate_amount, row.rate_unit, t)}
+            {(row.first_rate_from === null || rateGap(row)) && (
+              <span className="text-adm-caution"> · {p.rateGapShort}</span>
+            )}
+          </p>
         </div>
         <div className="grid shrink-0 justify-items-end gap-1">
           <span

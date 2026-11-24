@@ -146,6 +146,8 @@ export function EmployeeForm({ locale, today }: { locale: Locale; today: string 
         </fieldset>
       </div>
 
+      <p className="adm-caption">{p.addHint}</p>
+
       <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
         <FormMessage message={message} pending={pending} />
         <button type="submit" disabled={pending} aria-busy={pending || undefined} className="adm-btn adm-btn-primary">

@@ -445,6 +445,8 @@ export type PayrollRow = {
   rate_amount: number | null;
   rate_unit: "daily" | "monthly" | null;
   rate_from: string | null;
+  /** The start of the earliest rate; null without any. */
+  first_rate_from: string | null;
   /** Pay earned from the first day to the day asked for (absences earn nothing). */
   accrued: number;
   bonuses: number;
@@ -457,6 +459,21 @@ export type PayrollRow = {
   /** Payments from the 1st of that month to the day asked for. */
   paid_month: number;
 };
+
+/**
+ * The days of employment no rate covers, because the earliest rate starts after the first working day (a deleted or
+ * late first rate): from joined_at to the day before that rate, cut at the last working day. Null when the first day
+ * is covered, or when there is no rate at all (the page says that on its own).
+ */
+export function rateGap(
+  row: Pick<PayrollRow, "joined_at" | "ended_at" | "first_rate_from">,
+): { from: string; to: string } | null {
+  if (!row.first_rate_from || row.first_rate_from <= row.joined_at) return null;
+  const [y, m, d] = row.first_rate_from.split("-").map(Number);
+  const before = new Date(Date.UTC(y, m - 1, d - 1)).toISOString().slice(0, 10);
+  const to = row.ended_at && row.ended_at < before ? row.ended_at : before;
+  return { from: row.joined_at, to };
+}
 
 /** What a balance means: owed to the person (due), paid ahead (advance), or settled. */
 export function balanceState(balance: number): { kind: "due" | "advance" | "settled"; amount: number } {

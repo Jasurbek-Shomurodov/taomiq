@@ -6,7 +6,7 @@ import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
 import { formatSum, type Locale } from "@/i18n/config";
 import { requireOwner } from "@/lib/admin/auth";
 import { isPaymentMethod } from "@/lib/admin/finance/categories";
-import { balanceState, daysInMonth, monthlySpread, type PayrollRow } from "@/lib/admin/finance/math";
+import { balanceState, daysInMonth, monthlySpread, rateGap, type PayrollRow } from "@/lib/admin/finance/math";
 import { formatEntryDay } from "@/lib/admin/finance/month";
 import { EVENT_TONES, eventIcon, PAYROLL_LIMITS } from "@/lib/admin/finance/payroll";
 import {
@@ -86,6 +86,10 @@ export default async function EmployeePage({ params }: PageProps<"/admin/finance
   if (!row) notFound();
 
   const since = formatEntryDay(row.joined_at, locale);
+  // Days no rate covers (a deleted or late first rate) earn nothing: say which.
+  const gap = rateGap(row);
+  // A leaving can be undone only within a few days of the last working day (a mistake); 0014 enforces it too.
+  const canResume = !row.ended_at || row.ended_at >= addDays(today, -PAYROLL_LIMITS.resumeDays);
 
   return (
     <div className="adm-page">
@@ -101,7 +105,11 @@ export default async function EmployeePage({ params }: PageProps<"/admin/finance
 
       <p className="adm-caption">{[row.job_title, p.since(since)].filter(Boolean).join(" · ")}</p>
       {row.ended_at && <Notice tone="info">{p.endedNote(formatEntryDay(row.ended_at, locale))}</Notice>}
-      {row.rate_amount === null && <Notice tone="caution">{p.noRateHint}</Notice>}
+      {row.first_rate_from === null ? (
+        <Notice tone="caution">{p.noRateHint}</Notice>
+      ) : (
+        gap && <Notice tone="caution">{p.rateGap(formatEntryDay(gap.from, locale), formatEntryDay(gap.to, locale))}</Notice>
+      )}
 
       <Figures row={row} today={today} locale={locale} t={t} />
 
@@ -166,6 +174,7 @@ export default async function EmployeePage({ params }: PageProps<"/admin/finance
           name={row.name}
           joinedAt={row.joined_at}
           endedAt={row.ended_at}
+          canResume={canResume}
           locale={locale}
           today={today}
         />

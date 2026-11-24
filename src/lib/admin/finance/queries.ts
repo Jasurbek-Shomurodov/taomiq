@@ -208,6 +208,7 @@ export async function loadPayroll(supabase: SupabaseClient, asOf: string): Promi
     rate_amount: row.rate_amount === null || row.rate_amount === undefined ? null : money(row.rate_amount),
     rate_unit: rateUnit(row.rate_unit),
     rate_from: text(row.rate_from),
+    first_rate_from: text(row.first_rate_from),
     accrued: money(row.accrued),
     bonuses: money(row.bonuses),
     fines: money(row.fines),

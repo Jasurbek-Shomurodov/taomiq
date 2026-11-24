@@ -6,7 +6,7 @@
 -- Additive only. No existing row, table, policy or grant is changed or dropped:
 --   1. New tables public.finance_employees, public.finance_salary_rates and public.finance_salary_events, RLS on,
 --      owner-only policies. Employees are never deleted (they are ended); rates and events are deleted and entered
---      again, never updated.
+--      again, never updated. A new trigger refuses undoing a leaving more than 7 days old.
 --   2. New function public.finance_add_employee (security invoker: the caller's grants and policies apply), so a person
 --      and their first rate are written together or not at all.
 --   3. New private.finance_salary_days: the pay of every employee on every day of a range. The one place the accrual
@@ -74,6 +74,31 @@ create policy "owner ends employees" on public.finance_employees
     (select private.is_owner())
     and (ended_at is null or ended_at <= (now() at time zone 'Asia/Tashkent')::date)
   );
+
+-- Undoing a recorded leaving is for fixing a mistake only: within 7 days of the last working day (Tashkent). Later,
+-- clearing ended_at (or moving it later) would pay every day of the gap, so it is refused; a person who comes back
+-- after a break is added again as a new employee. Moving the end earlier, and ending someone, are always allowed.
+-- Runs for every update, the table owner's too.
+create or replace function private.check_employee_resume()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if old.ended_at is not null
+    and old.ended_at < (now() at time zone 'Asia/Tashkent')::date - 7
+    and (new.ended_at is null or new.ended_at > old.ended_at) then
+    raise exception 'resume_too_late' using errcode = '23514';
+  end if;
+  return new;
+end;
+$$;
+
+revoke all on function private.check_employee_resume() from public;
+
+create trigger finance_employees_check_resume
+  before update of ended_at on public.finance_employees
+  for each row execute function private.check_employee_resume();
 
 -- ---------- 1b. finance_salary_rates ----------
 -- What a person earns from a day on: per day or per month. A raise is a new row with its own effective_from; a rate
@@ -494,6 +519,8 @@ grant execute on function public.finance_period(date, date) to authenticated;
 -- ---------- 5. finance_payroll ----------
 -- Every employee (active first, then by name) as of p_as_of (a Tashkent day; today when null):
 --   rate_amount, rate_unit, rate_from   the rate in force on p_as_of (null when none has started yet)
+--   first_rate_from                     the start of the earliest rate (null without any); after joined_at, the days
+--                                       before it earn nothing
 --   accrued                             pay earned from joined_at to p_as_of (absences and days before the first rate
 --                                       earn nothing; nothing after ended_at)
 --   bonuses, fines, paid                events dated up to p_as_of
@@ -512,6 +539,7 @@ returns table (
   rate_amount bigint,
   rate_unit text,
   rate_from date,
+  first_rate_from date,
   accrued bigint,
   bonuses bigint,
   fines bigint,
@@ -573,6 +601,7 @@ begin
       rt.amount,
       rt.rate_unit,
       rt.effective_from,
+      (select min(f.effective_from) from public.finance_salary_rates f where f.employee_id = e.id),
       coalesce(acc.a_pay, 0)::bigint,
       coalesce(ev.v_bonuses, 0)::bigint,
       coalesce(ev.v_fines, 0)::bigint,

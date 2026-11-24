@@ -337,7 +337,11 @@ export async function endEmployment(_prev: FormState, form: FormData): Promise<F
   return { ok: t.finance.payroll.ended };
 }
 
-/** Takes back a recorded end (a mistake, or the person came back): pay runs again from the day after it. */
+/**
+ * Takes back a recorded end, to fix a mistake: pay then runs on as if the person had not left. Only within
+ * PAYROLL_LIMITS.resumeDays of the last working day (the database refuses later ones too, resume_too_late); a person
+ * who comes back after a break is added again as a new employee, so the break is never paid.
+ */
 export async function resumeEmployment(_prev: FormState, form: FormData): Promise<FormState> {
   const { supabase, staff } = await requireOwner();
   const t = getAdminDictionary(staff.locale);
@@ -346,6 +350,19 @@ export async function resumeEmployment(_prev: FormState, form: FormData): Promis
   const employeeId = text(form, "employee_id");
   if (!UUID_RE.test(employeeId)) return { error: e.gone };
 
+  let employment: Awaited<ReturnType<typeof employmentOf>>;
+  try {
+    employment = await employmentOf(supabase, employeeId);
+  } catch (error) {
+    console.error("payroll: read employee failed", error instanceof Error ? error.message : error);
+    return { error: e.saveFailed };
+  }
+  if (!employment) return { error: e.gone };
+  const today = tashkentDay(new Date())!;
+  if (employment.ended_at && employment.ended_at < addDays(today, -PAYROLL_LIMITS.resumeDays)) {
+    return { error: e.resumeTooLate(PAYROLL_LIMITS.resumeDays) };
+  }
+
   const { data, error } = await supabase
     .from("finance_employees")
     .update({ ended_at: null, is_active: true })
@@ -353,6 +370,7 @@ export async function resumeEmployment(_prev: FormState, form: FormData): Promis
     .select("id");
   if (error) {
     console.error("payroll: resume employment failed", error.code, error.message);
+    if (error.message.includes("resume_too_late")) return { error: e.resumeTooLate(PAYROLL_LIMITS.resumeDays) };
     if (error.code === "42501") return { error: e.denied };
     return { error: e.saveFailed };
   }

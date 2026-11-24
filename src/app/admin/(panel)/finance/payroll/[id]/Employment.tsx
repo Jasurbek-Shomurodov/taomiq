@@ -7,17 +7,20 @@ import type { Locale } from "@/i18n/config";
 import type { FormState } from "@/lib/admin/actions";
 import { endEmployment, resumeEmployment } from "@/lib/admin/finance/actions";
 import { formatEntryDay } from "@/lib/admin/finance/month";
+import { PAYROLL_LIMITS } from "@/lib/admin/finance/payroll";
 import { FormMessage } from "../FormMessage";
 
 /**
  * A person's employment: while they work, their last working day and "Record leaving" (asked first); once they have
- * left, "Back on staff" (asked first, since pay then runs again from the day after the old end).
+ * left, "Back on staff" (asked first) to undo a mistaken leaving, only within PAYROLL_LIMITS.resumeDays of the last
+ * working day. Later the person is added again as a new employee, so the break is never paid.
  */
 export function Employment({
   employeeId,
   name,
   joinedAt,
   endedAt,
+  canResume,
   locale,
   today,
 }: {
@@ -25,9 +28,15 @@ export function Employment({
   name: string;
   joinedAt: string;
   endedAt: string | null;
+  /** False once the last working day is more than PAYROLL_LIMITS.resumeDays back: the button gives way to why. */
+  canResume: boolean;
   locale: Locale;
   today: string;
 }) {
+  if (endedAt && !canResume) {
+    const p = getAdminDictionary(locale).finance.payroll;
+    return <p className="adm-caption">{p.errors.resumeTooLate(PAYROLL_LIMITS.resumeDays)}</p>;
+  }
   return endedAt ? (
     <Resume employeeId={employeeId} locale={locale} />
   ) : (
