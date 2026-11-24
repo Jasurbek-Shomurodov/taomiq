@@ -7,6 +7,7 @@ import {
   Truck,
   Users,
   UtensilsCrossed,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { ORDERS_ROLES, STAFF_ROLES, type StaffRole } from "@/lib/admin/roles";
@@ -29,6 +30,7 @@ export const NAV = [
   { key: "menu", href: "/menu", icon: CalendarDays, group: "kitchen", roles: STAFF_ROLES },
   { key: "dishes", href: "/dishes", icon: UtensilsCrossed, group: "kitchen", roles: STAFF_ROLES },
   { key: "programs", href: "/programs", icon: Tags, group: "business", roles: OWNER },
+  { key: "finance", href: "/finance", icon: Wallet, group: "business", roles: OWNER },
   { key: "team", href: "/team", icon: Users, group: "business", roles: OWNER },
 ] as const satisfies readonly {
   key: string;

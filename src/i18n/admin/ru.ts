@@ -1,5 +1,6 @@
 import { plural, type Locale } from "@/i18n/config";
 import type { DishStatusFilter } from "@/lib/admin/dish-status";
+import type { EntryCategory, EntryKind, PaymentMethod } from "@/lib/admin/finance/categories";
 import type { ForwardStatus, OrderStatus } from "@/lib/admin/orders";
 import type { Slot } from "@/lib/data/types";
 
@@ -69,6 +70,7 @@ const ru = {
     production: "Производство",
     programs: "Программы и цены",
     team: "Команда",
+    finance: "Финансы",
     signOut: "Выйти",
   },
   roles: { owner: "Владелец", manager: "Менеджер", admin: "Администратор" },
@@ -561,6 +563,122 @@ const ru = {
     emptyAwaiting: (count: number) => `Ждут оплаты: ${count}.`,
     ordersFailed: "Не удалось загрузить доставки на этот день.",
     windowsFailed: "Не удалось загрузить время доставки из настроек: окна идут по алфавиту.",
+  },
+  /** Business → Finance: the ledger, the month and the year (docs/plans/finance-investor-payroll.md). Owner only. */
+  finance: {
+    title: "Финансы",
+    tabsAria: "Разделы финансов",
+    tabs: { month: "Месяц", year: "Год", records: "Записи" },
+    /** The three kinds of record: the form's switch and the history filter. */
+    kinds: { expense: "Расход", investor: "Деньги инвестора", other_income: "Прочий доход" } satisfies Record<
+      EntryKind,
+      string
+    >,
+    kindsPlural: { expense: "Расходы", investor: "Деньги инвестора", other_income: "Прочий доход" } satisfies Record<
+      EntryKind,
+      string
+    >,
+    categories: {
+      ingredients: "Продукты",
+      packaging: "Упаковка",
+      delivery: "Доставка",
+      rent: "Аренда",
+      utilities: "Коммунальные услуги",
+      marketing: "Маркетинг и реклама",
+      equipment: "Оборудование",
+      repair: "Ремонт",
+      tax: "Налоги",
+      payment_fees: "Комиссии за платежи",
+      software: "Сервисы и программы",
+      salary_one_time: "Разовая выплата сотруднику",
+      investment: "Вложения в бизнес",
+      other: "Прочее",
+      investor_support: "Деньги инвестора",
+      other_income: "Прочий доход",
+    } satisfies Record<EntryCategory, string>,
+    methods: { cash: "Наличные", card: "Карта", transfer: "Перевод" } satisfies Record<PaymentMethod, string>,
+    // Month and Year: the headline of a month
+    loadFailed: "Не удалось загрузить финансы за месяц.",
+    monthLead: (month: string) => `${month}, с начала месяца. Дни — по времени Ташкента.`,
+    yearLead: (month: string) => `Отчёт за год ещё не готов. Ниже — текущий месяц (${month}).`,
+    revenue: "Выручка",
+    revenueHint: (count: number) =>
+      `${count} ${plural(count, ["оплаченный заказ", "оплаченных заказа", "оплаченных заказов"])}`,
+    spent: "Расходы",
+    spentHint: "Все записанные расходы",
+    result: "Результат",
+    resultHint: "Выручка и прочий доход минус расходы",
+    investorNote: (amount: string) =>
+      `Деньги инвестора за месяц: ${amount}. Они не входят ни в доход, ни в результат.`,
+    emptyMonth: "В этом месяце пока нет ни оплаченных заказов, ни записей.",
+    toRecords: "Добавить запись",
+    /** Finance → Records: the form and the history. */
+    records: {
+      formTitle: "Новая запись",
+      formLead: "Расход, деньги инвестора или прочий доход. Ошибочную запись удалите и внесите заново.",
+      kind: "Что записываем",
+      date: "Дата",
+      category: "Категория",
+      chooseCategory: "Выберите категорию",
+      method: "Способ оплаты",
+      amount: "Сумма, сум",
+      amountPlaceholder: "Например, 250 000",
+      counterparty: { expense: "Кому заплатили", investor: "Инвестор", other_income: "От кого" } satisfies Record<
+        EntryKind,
+        string
+      >,
+      counterpartyPlaceholder: {
+        expense: "Поставщик, магазин, сервис",
+        investor: "Имя инвестора",
+        other_income: "Кто заплатил",
+      } satisfies Record<EntryKind, string>,
+      optional: "необязательно",
+      note: "Комментарий",
+      submit: "Добавить запись",
+      submitting: "Добавляем…",
+      added: "Запись добавлена.",
+      monthNav: "Выбор месяца",
+      prevMonth: "Предыдущий месяц",
+      nextMonth: "Следующий месяц",
+      filter: "Какие записи показать",
+      all: "Все",
+      count: (count: number) => `${count} ${plural(count, ["запись", "записи", "записей"])}`,
+      today: "Сегодня",
+      yesterday: "Вчера",
+      daySpent: (sum: string) => `Расходы: ${sum}`,
+      dayIncome: (sum: string) => `Доход: ${sum}`,
+      dayInvestor: (sum: string) => `Инвестор: ${sum}`,
+      empty: (month: string) => `За ${month} записей нет.`,
+      emptyFiltered: (kind: string, month: string) => `За ${month} нет записей «${kind}».`,
+      showAll: "Показать все",
+      loadFailed: "Не удалось загрузить записи.",
+      partial: (cap: string) => `Показаны первые ${cap} записей месяца.`,
+      noName: "Без имени",
+      delete: "Удалить",
+      deleteAria: (what: string) => `Удалить запись: ${what}`,
+      deleting: "Удаляем…",
+      deleteTitle: "Удалить запись?",
+      deleteText: (what: string) => `${what}. Это нельзя отменить.`,
+      deleted: "Запись удалена.",
+      errors: {
+        kind: "Выберите, что записываете.",
+        category: "Выберите категорию расхода.",
+        method: "Выберите способ оплаты.",
+        amount: "Введите сумму целым числом в сумах, только цифры.",
+        amountRange: (max: string) => `Сумма должна быть больше нуля и не больше ${max} сум.`,
+        date: "Укажите дату.",
+        dateFuture: "Дата не может быть позже сегодняшней.",
+        dateTooEarly: (day: string) => `Дата не может быть раньше ${day}.`,
+        investorName: "Укажите имя инвестора: деньги считаются по каждому инвестору.",
+        counterpartyLong: (max: number) => `Поле «кому / от кого» длиннее ${max} символов.`,
+        noteLong: (max: number) => `Комментарий длиннее ${max} символов.`,
+        denied: "База отклонила запись: проверьте дату или войдите снова как владелец.",
+        invalid: "База отклонила запись: проверьте категорию и сумму.",
+        saveFailed: "Не удалось сохранить запись. Попробуйте ещё раз.",
+        gone: "Эта запись уже удалена — страница обновлена.",
+        deleteFailed: "Не удалось удалить запись. Попробуйте ещё раз.",
+      },
+    },
   },
 };
 
