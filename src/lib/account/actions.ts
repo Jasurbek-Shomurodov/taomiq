@@ -135,14 +135,28 @@ export async function updateProfile(_prev: ProfileState, form: FormData): Promis
   return { ok: t.saved };
 }
 
+/** Ends the session on this device and clears its auth cookies. */
+async function endSession(): Promise<void> {
+  if (!isAccountEnabled) return;
+  const supabase = await createSessionClient();
+  // This device only: the default ("global") would also end the customer's other devices and,
+  // for staff signed in with the same account, their back-office session.
+  const { error } = await supabase.auth.signOut({ scope: "local" });
+  if (error) console.error("account: sign out failed", error.message);
+}
+
+/**
+ * Sign-out by the plain form post (before the page has hydrated): the redirect is then a full page load already.
+ * With JavaScript the button calls signOutOnly instead and leaves the page itself (SignOutButton): a redirect from an
+ * action called by the client is a client-side navigation, which would keep the account page in the document.
+ */
 export async function signOut(rawLocale: string): Promise<void> {
   const locale = localeFrom(rawLocale);
-  if (isAccountEnabled) {
-    const supabase = await createSessionClient();
-    // This device only: the default ("global") would also end the customer's other devices and,
-    // for staff signed in with the same account, their back-office session.
-    const { error } = await supabase.auth.signOut({ scope: "local" });
-    if (error) console.error("account: sign out failed", error.message);
-  }
+  await endSession();
   redirect(`/${locale}`);
+}
+
+/** Sign-out for the button's JavaScript path: no redirect; the browser then loads the home page as a new document. */
+export async function signOutOnly(): Promise<void> {
+  await endSession();
 }

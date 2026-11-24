@@ -10,11 +10,18 @@
 // Isolation: TAOMIQ_E2E_BUILD=1 makes next.config.ts build into .next-e2e with tsconfig.e2e.json, so the .next
 // folder of `npm run dev` and `npm run build` is left alone. `next build` still points next-env.d.ts at .next-e2e;
 // the file is put back afterwards so `npx tsc --noEmit` keeps reading the main build's route types.
+//
+// --account: the signed-in account suite instead (playwright.config.ts → the `account` project). Same demo env, except
+// that Supabase points at a local mock (scripts/e2e-mock-supabase.mjs, started here, in this process) and email sign-in
+// is on, so /account renders a made-up customer. Never the real database: the URL is always localhost. Builds into
+// .next-e2e-account (TAOMIQ_E2E_BUILD=account) and serves on E2E_ACCOUNT_PORT (5598), the mock on E2E_MOCK_PORT (5595).
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { startMockSupabase } from "./e2e-mock-supabase.mjs";
 
-const port = process.env.E2E_PORT ?? "5599";
+const account = process.argv.includes("--account");
+const port = account ? (process.env.E2E_ACCOUNT_PORT ?? "5598") : (process.env.E2E_PORT ?? "5599");
 
 const DEMO_ENV = {
   NEXT_PUBLIC_SUPABASE_URL: "",
@@ -38,9 +45,20 @@ const env = {
   ...process.env,
   ...DEMO_ENV,
   NEXT_PUBLIC_SITE_URL: `http://localhost:${port}`,
-  TAOMIQ_E2E_BUILD: "1",
+  TAOMIQ_E2E_BUILD: account ? "account" : "1",
   NEXT_TELEMETRY_DISABLED: "1",
 };
+
+if (account) {
+  const mockPort = Number(process.env.E2E_MOCK_PORT ?? 5595);
+  // Before the build: the build reads the catalogue (generateStaticParams) from it.
+  await startMockSupabase(mockPort);
+  Object.assign(env, {
+    NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${mockPort}`,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "e2e-mock-publishable-key",
+    NEXT_PUBLIC_AUTH_METHODS: "email",
+  });
+}
 
 const nextBin = createRequire(import.meta.url).resolve("next/dist/bin/next");
 

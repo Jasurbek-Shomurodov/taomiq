@@ -52,6 +52,31 @@ function whenIdle(callback: () => void) {
   else window.addEventListener("load", idle, { once: true });
 }
 
+/**
+ * A sign-out whose reset could not run yet (PostHog still loading, or failed to load), kept until a page where PostHog
+ * is ready. In memory it would not survive: sign-out leaves the page with a full load (SignOutButton), which drops the
+ * queue, and PostHog's stored id (local storage and a cookie, for the whole site) would stay the customer's. Local
+ * storage, not session storage, for the same reason: the next person may open a new tab.
+ */
+const PENDING_RESET_KEY = "taomiq:analytics-reset";
+
+function setPendingReset(pending: boolean) {
+  try {
+    if (pending) localStorage.setItem(PENDING_RESET_KEY, "1");
+    else localStorage.removeItem(PENDING_RESET_KEY);
+  } catch {
+    // Storage blocked: then PostHog cannot store an id across pages either.
+  }
+}
+
+function hasPendingReset(): boolean {
+  try {
+    return localStorage.getItem(PENDING_RESET_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
 async function load() {
   try {
     const { default: instance } = await import("posthog-js");
@@ -90,6 +115,14 @@ async function load() {
       disable_product_tours: true,
       disable_conversations: true,
       disable_web_experiments: true,
+      // A sign-out on an earlier page whose reset never ran (see resetAnalytics): done here, before PostHog sends
+      // anything (its queue and the first pageview start after this), so no event and no identify of a later sign-in
+      // lands on the old id.
+      loaded: (client) => {
+        if (!hasPendingReset()) return;
+        client.reset();
+        setPendingReset(false);
+      },
     });
     posthog = instance;
     state = "ready";
@@ -140,9 +173,16 @@ export function identifyUser(userId: string, signInAt: string, signedIn?: Client
   });
 }
 
-/** On sign-out: forget the customer, so the next visitor on this browser is a new anonymous one. */
+/**
+ * On sign-out: forget the customer, so the next visitor on this browser is a new anonymous one. At once when PostHog is
+ * ready; otherwise also remembered in local storage, so the first page where PostHog loads resets it (see load()).
+ */
 export function resetAnalytics() {
   if (identified) signedOut.add(identified);
   identified = null;
-  run((client) => client.reset());
+  if (isAnalyticsEnabled && !(state === "ready" && posthog)) setPendingReset(true);
+  run((client) => {
+    client.reset();
+    setPendingReset(false);
+  });
 }

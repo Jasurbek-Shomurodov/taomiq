@@ -13,12 +13,14 @@ const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
 // The Playwright smoke suite (scripts/e2e-server.mjs) builds and serves the app from its own folder, so
 // `npm run test:e2e` never touches the .next folder of `npm run dev` and `npm run build`. Its tsconfig extends the
 // main one, which stops Next from adding the folder's type paths to tsconfig.json. Types are checked by the
-// gate's own build and tsc steps, so this build skips them.
-const e2eBuild = process.env.TAOMIQ_E2E_BUILD === "1";
+// gate's own build and tsc steps, so this build skips them. TAOMIQ_E2E_BUILD=account is the signed-in account suite's
+// build (scripts/e2e-server.mjs --account), in a folder of its own.
+const e2eBuild = process.env.TAOMIQ_E2E_BUILD;
+const e2eDistDir = e2eBuild === "1" ? ".next-e2e" : e2eBuild === "account" ? ".next-e2e-account" : undefined;
 
 const nextConfig: NextConfig = {
-  ...(e2eBuild
-    ? { distDir: ".next-e2e", typescript: { tsconfigPath: "tsconfig.e2e.json", ignoreBuildErrors: true } }
+  ...(e2eDistDir
+    ? { distDir: e2eDistDir, typescript: { tsconfigPath: "tsconfig.e2e.json", ignoreBuildErrors: true } }
     : {}),
   cacheComponents: true,
   partialPrefetching: true,

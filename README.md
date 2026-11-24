@@ -83,7 +83,11 @@ the fourth step of the gate, after lint. First time on a machine: `npx playwrigh
 - It always runs in **demo mode**: the Supabase and Telegram variables are forced empty, which wins over
   `.env.local`. The first test checks that the admin shows "База данных не подключена" and stops the run otherwise;
   the browser also refuses any request to `*.supabase.co` or `api.telegram.org`.
-- The port must be free (it never reuses a running server). Another port: `E2E_PORT=5600 npm run test:e2e`.
+- The signed-in account checks (`e2e/account-signout.spec.ts`, the `account` projects) need a second build:
+  `scripts/e2e-server.mjs --account` builds into `.next-e2e-account` and serves it on port 5598, against a local
+  mock of Supabase on port 5595 (`scripts/e2e-mock-supabase.mjs`, a made-up customer from `e2e/account-fixture.json`).
+- The ports must be free (it never reuses a running server). Other ports: `E2E_PORT=5600 npm run test:e2e`, and
+  `E2E_ACCOUNT_PORT` / `E2E_MOCK_PORT` for the account build.
 - After a failure: `npx playwright show-report` (traces of failed tests are kept in `test-results/`).
 
 ## Documents
