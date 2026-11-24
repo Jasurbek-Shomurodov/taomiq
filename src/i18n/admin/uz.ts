@@ -524,6 +524,7 @@ const uz: AdminDictionary = {
     title: "Moliya",
     tabsAria: "Moliya boʻlimlari",
     tabs: { month: "Oy", year: "Yil", records: "Yozuvlar", payroll: "Ish haqi", close: "Oyni yopish" },
+    busyRetry: "Baza oyni yopish bilan band edi va amal bajarilmadi. Qayta urinib koʻring.",
     monthClosedError:
       "Bu oy yopilgan: unga hech narsa qoʻshib yoki oʻchirib boʻlmaydi. Yozuvni tuzatish uchun oyni «Oyni yopish» boʻlimida qayta oching.",
     kinds: { expense: "Xarajat", investor: "Investor puli", other_income: "Boshqa daromad" },
@@ -610,7 +611,7 @@ const uz: AdminDictionary = {
       projectedRevenue: "Oy oxirigacha tushum",
       projectedRevenueHint: (avg) => `Kuniga ${avg} boʻlsa`,
       expectedOut: "Kutilayotgan xarajatlar",
-      expectedOutHint: (salary) => `Butun oy ish haqi bilan: ${salary}`,
+      expectedOutHint: (salary) => `Mukofot va jarimalar bilan butun oy ish haqi: ${salary}`,
       rentLeft: (sum) => `Yana ijara: ${sum}`,
       projectedResult: "Kutilayotgan natija",
       projectedResultHint: "Tushum va boshqa daromad, minus kutilayotgan xarajatlar",
@@ -922,7 +923,7 @@ const uz: AdminDictionary = {
       },
       expectedOut: {
         title: "Kutilayotgan xarajatlar",
-        body: "Shu oyda allaqachon yozilgan xarajatlar, ustiga amaldagi stavkalar boʻyicha butun oy ish haqi (ikki marta hisoblanmasligi uchun toʻlanganlari oʻrniga) va sozlamalardagi ijara, agar u hali yozilmagan boʻlsa. Kelgusi bir martalik xaridlar bunga kirmaydi.",
+        body: "Shu oyda allaqachon yozilgan xarajatlar, ustiga amaldagi stavkalar boʻyicha butun oy ish haqi, shu oydagi mukofotlar qoʻshilib va jarimalar ayirilib (ikki marta hisoblanmasligi uchun toʻlanganlari oʻrniga), va sozlamalardagi ijara, agar u hali yozilmagan boʻlsa. Ish haqi oyni yopishdagidek hisoblanadi. Kelgusi bir martalik xaridlar bunga kirmaydi.",
       },
       projectedResult: {
         title: "Kutilayotgan natija",

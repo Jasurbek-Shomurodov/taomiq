@@ -524,6 +524,10 @@ export type EstimateInput = {
   salaryPaidSoFar: number;
   /** The whole month's pay of every employee by the rates in force (finance_payroll month_pay, summed). */
   salaryCommitment: number;
+  /** Bonuses dated this month (finance_month_salary_events): added to the month's salary, as the close counts it. */
+  salaryBonuses: number;
+  /** Fines dated this month: taken off the month's salary. */
+  salaryFines: number;
   /** The month's rent plan (setting finance_monthly_rent); null when not set. */
   rentPlan: number | null;
   /** Rent recorded this month (ledger expenses of the rent category). */
@@ -543,9 +547,11 @@ export type MonthEstimate = {
   projectedRevenue: number;
   /** Rent still to pay: max(0, rent plan − rent recorded); 0 without a plan. */
   rentLeft: number;
+  /** The month's salary as the close counts it: the whole month's pay + this month's bonuses − its fines. */
+  salary: number;
   /**
-   * What the month is expected to spend: spent so far − salary paid so far + the whole month's salary commitment +
-   * the rent still to pay. Salary payments are replaced by the month's pay, so no salary is counted twice.
+   * What the month is expected to spend: spent so far − salary paid so far + the month's salary (pay + bonuses −
+   * fines) + the rent still to pay. Salary payments are replaced by the month's salary, so none is counted twice.
    */
   expectedOut: number;
   /** projectedRevenue + other income so far − expectedOut. */
@@ -568,12 +574,13 @@ export function monthEstimate(input: EstimateInput): MonthEstimate {
   const remaining = Math.max(0, input.remainingDays);
   const projectedRevenue = input.revenueSoFar + (avgDaily ?? 0) * remaining;
   const rentLeft = input.rentPlan !== null ? Math.max(0, input.rentPlan - input.rentRecorded) : 0;
-  const expectedOut = input.spentSoFar - input.salaryPaidSoFar + input.salaryCommitment + rentLeft;
+  const salary = input.salaryCommitment + input.salaryBonuses - input.salaryFines;
+  const expectedOut = input.spentSoFar - input.salaryPaidSoFar + salary + rentLeft;
   const incomeSoFar = input.revenueSoFar + input.otherIncomeSoFar;
   const projectedResult = projectedRevenue + input.otherIncomeSoFar - expectedOut;
   const requiredDaily = remaining > 0 ? Math.ceil(Math.max(0, expectedOut - incomeSoFar) / remaining) : null;
   const estimatedTax = input.taxRatePct !== null ? (projectedRevenue * input.taxRatePct) / 100 : null;
-  return { avgDaily, projectedRevenue, rentLeft, expectedOut, projectedResult, requiredDaily, estimatedTax };
+  return { avgDaily, projectedRevenue, rentLeft, salary, expectedOut, projectedResult, requiredDaily, estimatedTax };
 }
 
 /** Days of the month after `today` ("YYYY-MM-DD"): 0 on the last day. */

@@ -10,8 +10,9 @@
 --      append-only (a removed account only clears the actor).
 --   2. New private helpers: finance_month_figures (the figures of a month, the one place the close rule lives),
 --      finance_first_month, finance_next_to_close, finance_locked_through.
---   3. New functions public.close_finance_month, public.reopen_finance_month and public.finance_close_overview: owner
---      only (each raises not_owner, 42501, for anyone else), executable by authenticated.
+--   3. New functions public.close_finance_month, public.reopen_finance_month, public.finance_month_salary_events and
+--      public.finance_close_overview: owner only (each raises not_owner, 42501, for anyone else), executable by
+--      authenticated.
 --   4. New guard triggers on public.finance_entries, public.finance_salary_events, public.finance_salary_rates and
 --      public.finance_employees: nothing that changes a closed month's figures can be written (raises month_closed).
 --   5. public.settings gets a new restrictive select policy (finance_* rows are readable by the owner only; every
@@ -354,9 +355,12 @@ begin
   end if;
 
   -- One close or reopen at a time, and no write to the closed tables while the month is counted: a write that started
-  -- before finishes first, one that comes after waits and then meets the close (its guard sees the new row).
+  -- before finishes first, one that comes after waits and then meets the close (its guard sees the new row). The
+  -- tables are locked in the order the writers take them (finance_add_employee: employees, then rates), so a close
+  -- and a write never wait on each other in a circle. reopen_finance_month takes no table lock (it only deletes a
+  -- close row and appends to the log).
   perform pg_advisory_xact_lock(hashtext('public.finance_month_closes'));
-  lock table public.finance_entries, public.finance_salary_events, public.finance_salary_rates, public.finance_employees
+  lock table public.finance_employees, public.finance_salary_rates, public.finance_salary_events, public.finance_entries
     in share mode;
 
   if exists (select 1 from public.finance_month_closes c where c.month_start = p_month_start) then
@@ -456,7 +460,41 @@ $$;
 revoke all on function public.reopen_finance_month(date, text) from public, anon;
 grant execute on function public.reopen_finance_month(date, text) to authenticated;
 
--- ---------- 3c. finance_close_overview ----------
+-- ---------- 3c. finance_month_salary_events ----------
+-- The bonuses and fines dated in the month starting p_month_start (owner only), for the running month's estimate on
+-- Month: its salary figure is the whole month's pay by the rates (finance_payroll month_pay) plus these, as the close
+-- counts salary earned. One row; zeros when there are none. Errors: not_owner 42501 · bad_month 22023.
+create or replace function public.finance_month_salary_events(p_month_start date)
+returns table (bonuses bigint, fines bigint)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if not private.is_owner() then
+    raise exception 'not_owner' using errcode = '42501';
+  end if;
+  if p_month_start is null
+    or p_month_start <> date_trunc('month', p_month_start)::date
+    or p_month_start < date '2024-01-01' then
+    raise exception 'bad_month' using errcode = '22023';
+  end if;
+
+  return query
+    select
+      coalesce(sum(x.amount) filter (where x.kind = 'bonus'), 0)::bigint,
+      coalesce(sum(x.amount) filter (where x.kind = 'fine'), 0)::bigint
+    from public.finance_salary_events x
+    where x.kind in ('bonus', 'fine')
+      and x.event_date between p_month_start and (p_month_start + interval '1 month - 1 day')::date;
+end;
+$$;
+
+revoke all on function public.finance_month_salary_events(date) from public, anon;
+grant execute on function public.finance_month_salary_events(date) to authenticated;
+
+-- ---------- 3d. finance_close_overview ----------
 -- Everything the Month close screen shows, as JSON:
 --   { today, current_month, first_month, next_to_close,
 --     months: [{ month_start, status,              oldest first, from the first month (with activity or closed) to

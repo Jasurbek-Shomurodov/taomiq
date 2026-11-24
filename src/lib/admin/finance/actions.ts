@@ -34,6 +34,12 @@ function isMonthClosed(error: { message: string }): boolean {
   return error.message.includes("month_closed");
 }
 
+/**
+ * Postgres deadlock_detected: a write and a month close (which locks the payroll and ledger tables) waited on each
+ * other and the database rolled one back. Nothing was saved; trying again works.
+ */
+const DEADLOCK = "40P01";
+
 const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
 /** Length as Postgres char_length counts it: code points, not UTF-16 units. */
 const length = (value: string) => [...value].length;
@@ -201,6 +207,7 @@ export async function addEmployee(_prev: FormState, form: FormData): Promise<For
   if (error) {
     console.error("payroll: add employee failed", error.code, error.message);
     if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
+    if (error.code === DEADLOCK) return { error: t.finance.busyRetry };
     if (error.code === "42501") return { error: e.denied };
     if (error.code === "23514") return { error: e.invalid };
     return { error: e.saveFailed };
@@ -476,6 +483,7 @@ export async function closeFinanceMonth(_prev: FormState, form: FormData): Promi
     if (message.includes("nothing_to_close")) return { error: e.nothingToClose };
     if (message.includes("bad_month")) return { error: e.badMonth };
     if (error.code === "42501") return { error: e.denied };
+    if (error.code === DEADLOCK) return { error: t.finance.busyRetry };
     return { error: e.closeFailed };
   }
 

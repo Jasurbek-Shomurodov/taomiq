@@ -400,6 +400,17 @@ export async function loadClosedMonths(supabase: SupabaseClient): Promise<Frozen
   return ((data ?? []) as unknown[]).map(frozenClose).reverse();
 }
 
+/** Bonuses and fines dated in one month ("YYYY-MM-01"): public.finance_month_salary_events. */
+export async function loadMonthSalaryEvents(
+  supabase: SupabaseClient,
+  monthStart: string,
+): Promise<{ bonuses: number; fines: number }> {
+  const { data, error } = await supabase.rpc("finance_month_salary_events", { p_month_start: monthStart });
+  if (error) throw new Error(`finance_month_salary_events: ${error.code} ${error.message}`);
+  const row = record(Array.isArray(data) ? data[0] : data);
+  return { bonuses: money(row.bonuses), fines: money(row.fines) };
+}
+
 /** The frozen close of one month ("YYYY-MM-01"), or null while it is open (RLS: the owner only). */
 export async function loadMonthClose(supabase: SupabaseClient, monthStart: string): Promise<FrozenClose | null> {
   const { data, error } = await supabase

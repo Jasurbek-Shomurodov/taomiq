@@ -35,7 +35,14 @@ import {
   type PeriodFigures,
 } from "@/lib/admin/finance/math";
 import { comparisonRange, financeMonth, formatDayRange, formatEntryDay, type FinanceMonth } from "@/lib/admin/finance/month";
-import { loadFinanceSettings, loadMonthClose, loadPayroll, loadPeriod, loadTotals } from "@/lib/admin/finance/queries";
+import {
+  loadFinanceSettings,
+  loadMonthClose,
+  loadMonthSalaryEvents,
+  loadPayroll,
+  loadPeriod,
+  loadTotals,
+} from "@/lib/admin/finance/queries";
 import { NO_FINANCE_SETTINGS, type FinanceSettings } from "@/lib/admin/finance/settings";
 import { tashkentDay } from "@/lib/admin/stats";
 import { BarChart, type ChartBar } from "../../kit/BarChart";
@@ -57,6 +64,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const BASE_PATH = "/finance";
+
+/** The running month's payroll for the estimate: every person's month pay, and the month's bonuses and fines. */
+type MonthPayroll = { rows: PayrollRow[]; bonuses: number; fines: number };
 
 /** The spending-by-category row of salary payments (payroll), next to the ledger's categories. */
 const SALARIES_ROW = "__salaries";
@@ -108,7 +118,7 @@ export default async function FinanceMonthPage({ searchParams }: PageProps<"/adm
   const compare = comparisonRange(month, today);
   const selfHref = monthHref(month.isCurrent ? null : month.key);
 
-  const [current, previous, totals, settings, payroll, close] = await Promise.all([
+  const [current, previous, totals, settings, payrollRows, salaryEvents, close] = await Promise.all([
     settle("period", () => loadPeriod(supabase, month.from, to)),
     compare ? settle("comparison", () => loadPeriod(supabase, compare.from, compare.to)) : Promise.resolve(null),
     // Only for the first paid order's day (the launch month's revenue per day); without it, every day counts.
@@ -117,8 +127,12 @@ export default async function FinanceMonthPage({ searchParams }: PageProps<"/adm
     settle("settings", () => loadFinanceSettings(supabase)),
     // The whole month's pay, for the running month's estimate only.
     month.isCurrent ? settle("payroll", () => loadPayroll(supabase, today)) : Promise.resolve(null),
+    // This month's bonuses and fines, which the month's salary includes (as the close counts it).
+    month.isCurrent ? settle("salary events", () => loadMonthSalaryEvents(supabase, month.from)) : Promise.resolve(null),
     month.isCurrent ? Promise.resolve(null) : settle("close", () => loadMonthClose(supabase, month.from)),
   ]);
+  // The estimate needs both; without either, it is not shown.
+  const payroll = payrollRows && salaryEvents ? { rows: payrollRows, ...salaryEvents } : null;
 
   return (
     <div className="adm-page">
@@ -184,8 +198,8 @@ function MonthBody({
   days: number;
   today: string;
   settings: FinanceSettings;
-  /** The running month's payroll (null for a past month, or when the read failed). */
-  payroll: PayrollRow[] | null;
+  /** The running month's payroll (null for a past month, or when a read failed). */
+  payroll: MonthPayroll | null;
   locale: Locale;
   t: AdminDictionary;
 }) {
@@ -511,7 +525,7 @@ function RevenueChart({
 
 /**
  * The running month to its end (math.monthEstimate): revenue at today's pace, the spending to expect with the whole
- * month's salaries and the rent plan, the result that gives, and the revenue a day needs from tomorrow on. The tax line
+ * month's salaries (pay by the rates + this month's bonuses − its fines, as the close counts them) and the rent plan, the result that gives, and the revenue a day needs from tomorrow on. The tax line
  * is an estimate only and never enters a result. Without the payroll (a failed read) nothing is estimated.
  */
 function EstimatePanel({
@@ -529,7 +543,7 @@ function EstimatePanel({
   days: number;
   today: string;
   settings: FinanceSettings;
-  payroll: PayrollRow[] | null;
+  payroll: MonthPayroll | null;
   locale: Locale;
   t: AdminDictionary;
 }) {
@@ -552,13 +566,14 @@ function EstimatePanel({
     );
   }
 
-  const salary = payrollSummary(payroll).monthPay;
   const estimate = monthEstimate({
     revenueSoFar: figures.revenue,
     otherIncomeSoFar: figures.other_income,
     spentSoFar: figures.spent,
     salaryPaidSoFar: figures.salaries,
-    salaryCommitment: salary,
+    salaryCommitment: payrollSummary(payroll.rows).monthPay,
+    salaryBonuses: payroll.bonuses,
+    salaryFines: payroll.fines,
     rentPlan: settings.monthlyRent,
     rentRecorded: period.expenseByCategory.rent ?? 0,
     daysCounted: days,
@@ -584,7 +599,7 @@ function EstimatePanel({
           value={sumText(estimate.expectedOut, t)}
           hint={
             <span className="grid gap-0.5">
-              <span>{e.expectedOutHint(sumText(salary, t))}</span>
+              <span>{e.expectedOutHint(sumText(estimate.salary, t))}</span>
               {estimate.rentLeft > 0 && <span>{e.rentLeft(sumText(estimate.rentLeft, t))}</span>}
             </span>
           }
