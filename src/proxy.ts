@@ -140,7 +140,8 @@ export function proxy(request: NextRequest): NextResponse | Promise<NextResponse
   }
 
   // The sign-in callback (src/app/auth/callback) has no locale segment: Telegram and Google return
-  // there. Skipped only here, on the public host; the admin host rewrites it under /admin above.
+  // there. Skipped only here, on the public host; the admin host rewrites its own /auth/callback under
+  // /admin above (src/app/admin/auth/callback, the staff Google sign-in).
   if (first === "auth") return NextResponse.next();
 
   // No locale in the path: pick one from the browser, default to Uzbek (Latin).

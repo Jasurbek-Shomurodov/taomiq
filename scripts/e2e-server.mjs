@@ -25,6 +25,8 @@ const DEMO_ENV = {
   TELEGRAM_STAFF_CHAT_ID: "",
   // Customer sign-in off: no login link, /login and /account are 404 (also implied by the empty Supabase keys).
   NEXT_PUBLIC_AUTH_METHODS: "",
+  // Back-office Google sign-in off: no Google button on the admin login (also implied by the empty Supabase keys).
+  ADMIN_GOOGLE_LOGIN: "",
   // No bot check: the Turnstile widget is not rendered and the server check passes.
   NEXT_PUBLIC_TURNSTILE_SITE_KEY: "",
   TURNSTILE_SECRET_KEY: "",

@@ -39,10 +39,33 @@ test("bot check off: the back-office login has no widget and answers as before",
   await expect(widget(page)).toHaveCount(0);
 
   await page.getByLabel(t.email).fill("staff@example.com");
-  await page.getByLabel(t.password).fill("not-a-real-password");
+  // exact: the show/hide toggle's name ("Показать пароль") also contains the word.
+  await page.getByLabel(t.password, { exact: true }).fill("not-a-real-password");
   await page.getByRole("button", { name: t.submit }).click();
   await expect(page.getByRole("alert").filter({ hasText: t.notConfigured })).toBeVisible();
   await expect(widget(page)).toHaveCount(0);
+});
+
+test("back-office Google sign-in off: no Google button, the callback refuses, the password toggle works", async ({ page, adminURL }) => {
+  // ADMIN_GOOGLE_LOGIN is unset in the e2e build (scripts/e2e-server.mjs), and Supabase is not connected.
+  const t = getAdminDictionary("ru").login;
+  await page.goto(adminURL("/login"));
+  await expect(page.getByRole("heading", { level: 1, name: t.heading })).toBeVisible();
+  await expect(page.getByRole("button", { name: t.google })).toHaveCount(0);
+  await expect(page.getByText(t.or, { exact: true })).toHaveCount(0);
+
+  const password = page.getByLabel(t.password, { exact: true });
+  const toggle = page.getByRole("button", { name: t.showPassword });
+  await password.fill("not-a-real-password");
+  await expect(password).toHaveAttribute("type", "password");
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await toggle.click();
+  await expect(password).toHaveAttribute("type", "text");
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+
+  // The admin host's /auth/callback is the staff Google callback: switched off, it goes straight back to /login.
+  await page.goto(adminURL("/auth/callback?code=not-a-real-code"));
+  await expect(page).toHaveURL(adminURL("/login"));
 });
 
 test("marketing pages and the order page set no cookies (the session refresh is for account pages only)", async ({ request }) => {

@@ -6,7 +6,8 @@ import { createSessionClient } from "@/lib/supabase/server";
 
 /**
  * Where Telegram and Google send the customer back (public host only: on the admin host the proxy
- * rewrites every path under /admin, where this route does not exist). Exchanges the one-time code for a
+ * rewrites every path under /admin, so admin.taomiq.uz/auth/callback is the staff Google callback in
+ * src/app/admin/auth/callback instead). Exchanges the one-time code for a
  * session (the PKCE verifier is in a cookie set by startOAuth), syncs the profile, then goes on to
  * `next`. Redirects stay on the host the request came to, which is where the session cookies were set.
  */

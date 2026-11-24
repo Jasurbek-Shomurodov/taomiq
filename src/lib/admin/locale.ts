@@ -22,3 +22,13 @@ export async function cookieLocale(): Promise<Locale> {
   const value = (await cookies()).get(ADMIN_LOCALE_COOKIE)?.value ?? "";
   return isLocale(value) ? value : defaultAdminLocale;
 }
+
+/**
+ * After a successful sign-in (password or Google): the saved language wins over the login page's, so remember
+ * the staff member's staff.locale on this device for the next login page. Ignores anything that is not a locale.
+ */
+export async function rememberStaffLocale(value: unknown): Promise<void> {
+  if (typeof value === "string" && isLocale(value)) {
+    (await cookies()).set(ADMIN_LOCALE_COOKIE, value, ADMIN_LOCALE_COOKIE_OPTIONS);
+  }
+}

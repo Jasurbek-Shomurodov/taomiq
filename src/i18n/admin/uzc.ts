@@ -32,6 +32,13 @@ const uzc: AdminDictionary = {
     notConfigured: "Маълумотлар базаси ҳали уланмаган.",
     wrongCredentials: "Почта ёки парол нотўғри.",
     captcha: "Робот эмаслигингизни текшириб бўлмади. Бир-икки сония кутиб, қайта уриниб кўринг.",
+    heading: "Хуш келибсиз",
+    google: "Google орқали кириш",
+    or: "ёки",
+    redirecting: "Ўтилмоқда…",
+    googleFailed: "Google орқали кириб бўлмади. Қайта уриниб кўринг.",
+    showPassword: "Паролни кўрсатиш",
+    hidePassword: "Паролни яшириш",
   },
   setup: {
     title: "Созлаш",

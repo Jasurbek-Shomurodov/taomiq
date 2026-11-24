@@ -32,6 +32,13 @@ const uz: AdminDictionary = {
     notConfigured: "Maʼlumotlar bazasi hali ulanmagan.",
     wrongCredentials: "Pochta yoki parol notoʻgʻri.",
     captcha: "Robot emasligingizni tekshirib boʻlmadi. Bir-ikki soniya kutib, qayta urinib koʻring.",
+    heading: "Xush kelibsiz",
+    google: "Google orqali kirish",
+    or: "yoki",
+    redirecting: "Oʻtilmoqda…",
+    googleFailed: "Google orqali kirib boʻlmadi. Qayta urinib koʻring.",
+    showPassword: "Parolni koʻrsatish",
+    hidePassword: "Parolni yashirish",
   },
   setup: {
     title: "Sozlash",

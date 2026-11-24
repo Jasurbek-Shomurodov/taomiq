@@ -11,7 +11,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
 import { TURNSTILE_FIELD } from "@/lib/turnstile/shared";
 import { requireOwner, requireStaff } from "./auth";
-import { ADMIN_LOCALE_COOKIE, ADMIN_LOCALE_COOKIE_OPTIONS, cookieLocale } from "./locale";
+import { adminGoogleCallbackUrl, isAdminGoogleLoginOn } from "./google";
+import { ADMIN_LOCALE_COOKIE, ADMIN_LOCALE_COOKIE_OPTIONS, cookieLocale, rememberStaffLocale } from "./locale";
 import { STAFF_NOTE_MAX, canMove, isOrderStatus } from "./orders";
 
 export type FormState = { error?: string; ok?: string };
@@ -35,12 +36,29 @@ export async function signIn(_prev: FormState, form: FormData): Promise<FormStat
   });
   if (error) return { error: error.code === "captcha_failed" ? t.login.captcha : t.login.wrongCredentials };
 
-  // The saved language wins over the login page's: remember it on this device for the next login page.
   const { data: staff } = await supabase.from("staff").select("locale").eq("user_id", data.user.id).maybeSingle();
-  if (typeof staff?.locale === "string" && isLocale(staff.locale)) {
-    (await cookies()).set(ADMIN_LOCALE_COOKIE, staff.locale, ADMIN_LOCALE_COOKIE_OPTIONS);
-  }
+  await rememberStaffLocale(staff?.locale);
   redirect("/");
+}
+
+/**
+ * "Sign in with Google" on the back-office login. Supabase prepares the Google URL (PKCE: the code verifier goes
+ * into a cookie on the admin host) and Google returns to the admin host's /auth/callback
+ * (src/app/admin/auth/callback), which finishes the sign-in and checks the staff table. Google never grants access
+ * by itself: a Google account with no staff row is signed out again there.
+ */
+export async function signInWithGoogle(): Promise<void> {
+  if (!isAdminGoogleLoginOn()) redirect("/login");
+  const supabase = await createSessionClient();
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: adminGoogleCallbackUrl(), queryParams: { prompt: "select_account" } },
+  });
+  if (error || !data.url) {
+    console.error("admin: Google sign-in start failed", error?.code, error?.message);
+    redirect("/login?error=google");
+  }
+  redirect(data.url);
 }
 
 export async function signOut() {
