@@ -118,7 +118,7 @@ export type FinancePeriod = {
   incomeByCategory: Record<string, number>;
   investors: InvestorTotal[];
   largest: LargestPayment[];
-  /** Salary payments: 0 until the payroll migration (slice 3) adds them to the function. */
+  /** Salary payments of the period (payroll, migration 0014); also inside each day's `spent`. */
   salaries: number;
 };
 
@@ -411,4 +411,85 @@ export function growth(rows: readonly MonthCashflow[], currentMonthStart: string
     avgMonthlyPct,
     avgMonths: withRevenue.length,
   };
+}
+
+// ---------- payroll (public.finance_payroll, migration 0014) ----------
+
+/**
+ * One day's pay by a rate (zarkebab expenses.js): a daily rate is paid as is; a monthly rate m in a month of n days pays
+ * floor(m / n) a day and one sum more on days 1 .. (m mod n), so a whole month adds up to exactly m. `day` is
+ * "YYYY-MM-DD". The database does the accrual itself (private.finance_salary_days); this mirror is for what the
+ * screens explain (how a monthly rate is spread over the days of a month).
+ */
+export function dayPay(amount: number, unit: "daily" | "monthly", day: string): number {
+  if (unit === "daily") return amount;
+  const days = daysInMonth(day);
+  const base = Math.floor(amount / days);
+  return Number(day.slice(8, 10)) <= amount % days ? base + 1 : base;
+}
+
+/** How a monthly rate is spread over a month of `days` days: `extra` days of base + 1, then base. */
+export function monthlySpread(amount: number, days: number): { base: number; extra: number } {
+  return { base: Math.floor(amount / days), extra: amount % days };
+}
+
+/** One person as public.finance_payroll(p_as_of) returns them. Whole UZS. */
+export type PayrollRow = {
+  employee_id: string;
+  name: string;
+  job_title: string | null;
+  joined_at: string;
+  ended_at: string | null;
+  is_active: boolean;
+  /** The rate in force on the day asked for; null before the first one starts. */
+  rate_amount: number | null;
+  rate_unit: "daily" | "monthly" | null;
+  rate_from: string | null;
+  /** Pay earned from the first day to the day asked for (absences earn nothing). */
+  accrued: number;
+  bonuses: number;
+  fines: number;
+  paid: number;
+  /** accrued + bonuses − fines − paid: above 0 owed to the person, below 0 an advance. */
+  balance: number;
+  /** The pay of the whole calendar month of the day asked for. */
+  month_pay: number;
+  /** Payments from the 1st of that month to the day asked for. */
+  paid_month: number;
+};
+
+/** What a balance means: owed to the person (due), paid ahead (advance), or settled. */
+export function balanceState(balance: number): { kind: "due" | "advance" | "settled"; amount: number } {
+  if (balance > 0) return { kind: "due", amount: balance };
+  if (balance < 0) return { kind: "advance", amount: -balance };
+  return { kind: "settled", amount: 0 };
+}
+
+export type PayrollSummary = {
+  /** Everything owed now: the sum of the positive balances (an advance never offsets someone else's due). */
+  due: number;
+  /** Paid ahead: the sum of the negative balances, as a positive number. */
+  advance: number;
+  /** The whole current month's pay by the rates in force (the month's salary commitment). */
+  monthPay: number;
+  /** Salary payments this month so far. */
+  paidMonth: number;
+  /** People still working. */
+  active: number;
+};
+
+export function payrollSummary(rows: readonly PayrollRow[]): PayrollSummary {
+  let due = 0;
+  let advance = 0;
+  let monthPay = 0;
+  let paidMonth = 0;
+  let active = 0;
+  for (const row of rows) {
+    if (row.balance > 0) due += row.balance;
+    else advance -= row.balance;
+    monthPay += row.month_pay;
+    paidMonth += row.paid_month;
+    if (row.is_active) active += 1;
+  }
+  return { due, advance, monthPay, paidMonth, active };
 }

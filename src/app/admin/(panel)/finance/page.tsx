@@ -1,4 +1,14 @@
-import { ChartColumn, NotebookPen, PiggyBank, Receipt, Scale, TrendingDown, TrendingUp, Wallet } from "lucide-react";
+import {
+  ChartColumn,
+  NotebookPen,
+  PiggyBank,
+  Receipt,
+  Scale,
+  TrendingDown,
+  TrendingUp,
+  UserRound,
+  Wallet,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createElement } from "react";
@@ -40,6 +50,9 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 const BASE_PATH = "/finance";
+
+/** The spending-by-category row of salary payments (payroll), next to the ledger's categories. */
+const SALARIES_ROW = "__salaries";
 
 function one(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
@@ -329,9 +342,9 @@ function CategoryBreakdown({
   t: AdminDictionary;
 }) {
   const f = t.finance;
-  // Salary payments (payroll, slice 3) are spending too: one more row, so the rows add up to the month's spending.
+  // Salary payments (payroll) are spending too: one more row, so the rows add up to the month's spending.
   const rows = categoryShares(
-    figures.salaries > 0 ? { ...period.expenseByCategory, __salaries: figures.salaries } : period.expenseByCategory,
+    figures.salaries > 0 ? { ...period.expenseByCategory, [SALARIES_ROW]: figures.salaries } : period.expenseByCategory,
   );
   if (rows.length === 0) return <EmptyState icon={PiggyBank}>{f.month.noExpenses}</EmptyState>;
   const percent = (share: number) => pct(share * 100, locale);
@@ -342,8 +355,11 @@ function CategoryBreakdown({
           key={row.category}
           label={
             <span className="inline-flex items-center gap-2">
-              {createElement(categoryIcon(row.category), { "aria-hidden": true, className: "size-4 text-adm-muted" })}
-              {row.category === "__salaries"
+              {createElement(row.category === SALARIES_ROW ? UserRound : categoryIcon(row.category), {
+                "aria-hidden": true,
+                className: "size-4 text-adm-muted",
+              })}
+              {row.category === SALARIES_ROW
                 ? f.month.salaries
                 : isExpenseCategory(row.category)
                   ? f.categories[row.category]

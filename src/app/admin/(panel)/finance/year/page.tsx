@@ -434,6 +434,9 @@ function Statement({ year, locale, t }: { year: YearSummary; locale: Locale; t: 
                 {c.spent}
               </th>
               <th scope="col" className="px-4 py-2.5 text-right font-medium">
+                {c.salaries}
+              </th>
+              <th scope="col" className="px-4 py-2.5 text-right font-medium">
                 {c.result}
               </th>
               <th scope="col" className="px-4 py-2.5 text-right font-medium">
@@ -454,6 +457,7 @@ function Statement({ year, locale, t }: { year: YearSummary; locale: Locale; t: 
                 <td className={num}>{sumText(month.revenue, t)}</td>
                 <td className={num}>{sumText(month.other_income, t)}</td>
                 <td className={num}>{sumText(month.spent, t)}</td>
+                <td className={`${num} ${month.salaries > 0 ? "" : "text-adm-muted"}`}>{sumText(month.salaries, t)}</td>
                 <td className={`${num} font-semibold ${resultClass(month.result)}`}>{sumText(month.result, t)}</td>
                 <td className={num}>{pct(month.marginPct, locale)}</td>
                 <td className={`${num} ${month.investor_support > 0 ? "text-adm-info" : "text-adm-muted"}`}>
@@ -470,6 +474,7 @@ function Statement({ year, locale, t }: { year: YearSummary; locale: Locale; t: 
               <td className={num}>{sumText(totals.revenue, t)}</td>
               <td className={num}>{sumText(totals.other_income, t)}</td>
               <td className={num}>{sumText(totals.spent, t)}</td>
+              <td className={`${num} ${totals.salaries > 0 ? "" : "text-adm-muted"}`}>{sumText(totals.salaries, t)}</td>
               <td className={`${num} ${resultClass(totals.result)}`}>{sumText(totals.result, t)}</td>
               <td className={num}>{pct(totals.marginPct, locale)}</td>
               <td className={`${num} ${totals.investor_support > 0 ? "text-adm-info" : "text-adm-muted"}`}>
@@ -497,6 +502,7 @@ function StatementCard({
     revenue: number;
     other_income: number;
     spent: number;
+    salaries: number;
     result: number;
     marginPct: number | null;
     investor_support: number;
@@ -522,6 +528,7 @@ function StatementCard({
         {line(c.revenue, sumText(figures.revenue, t))}
         {figures.other_income > 0 && line(c.otherIncome, sumText(figures.other_income, t))}
         {line(c.spent, sumText(figures.spent, t))}
+        {figures.salaries > 0 && line(c.salaries, sumText(figures.salaries, t), "text-adm-muted")}
         {line(c.result, sumText(figures.result, t), `font-semibold ${resultClass(figures.result)}`)}
         {line(c.margin, pct(figures.marginPct, locale))}
         {figures.investor_support > 0 && line(c.investor, sumText(figures.investor_support, t), "text-adm-info")}
