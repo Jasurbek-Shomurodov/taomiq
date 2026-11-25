@@ -7,7 +7,13 @@ import { formatSum, type Locale } from "@/i18n/config";
 import { requireOwner } from "@/lib/admin/auth";
 import { categoryIcon, isEntryKind, isPaymentMethod, type EntryKind } from "@/lib/admin/finance/categories";
 import { financeMonth, formatEntryDay, formatMonth } from "@/lib/admin/finance/month";
-import { ENTRIES_CAP, listMonthEntries, loadLockedThrough, type FinanceEntry } from "@/lib/admin/finance/queries";
+import {
+  ENTRIES_CAP,
+  listMonthEntries,
+  loadBackdateDays,
+  loadLockedThrough,
+  type FinanceEntry,
+} from "@/lib/admin/finance/queries";
 import { customPeriod } from "@/lib/admin/reports";
 import { purchaseEntryLinks } from "@/lib/admin/stock-queries";
 import { addDays, tashkentDay } from "@/lib/admin/stats";
@@ -22,6 +28,7 @@ import { FinanceTabs } from "../FinanceTabs";
 import { ExcelLink } from "../../reports/parts";
 import { DeleteEntry } from "./DeleteEntry";
 import { EntryForm } from "./EntryForm";
+import { RecordsViews } from "./RecordsViews";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { staff } = await requireOwner();
@@ -98,9 +105,12 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
   // Ledger rows written by a purchase (migration 0022): shown locked, with a link to the receipt. Unknown (a failed
   // read) keeps the delete button; the database refuses it (purchase_entry) and the action says why.
   let purchaseLinks = new Map<string, string>();
-  const [entries, locked] = await Promise.allSettled([
+  const [entries, locked, backdate] = await Promise.allSettled([
     listMonthEntries(supabase, month, kind),
     loadLockedThrough(supabase),
+    // How far back the form may date a record (migration 0024). Unknown (a failed read): the form allows any past day
+    // and the database refuses one outside the window, with the limit in the message.
+    loadBackdateDays(supabase),
   ]);
   // Only the ingredients expenses on the page can come from a purchase.
   const links =
@@ -116,6 +126,10 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
   else console.error("finance records failed", entries.reason instanceof Error ? entries.reason.message : entries.reason);
   if (locked.status === "fulfilled") lockedThrough = locked.value;
   else console.error("finance records: lock failed", locked.reason instanceof Error ? locked.reason.message : locked.reason);
+  const backdateDays = backdate.status === "fulfilled" ? backdate.value : null;
+  if (backdate.status === "rejected") {
+    console.error("finance records: backdate failed", backdate.reason instanceof Error ? backdate.reason.message : backdate.reason);
+  }
   if (links.status === "fulfilled") purchaseLinks = links.value;
   else console.error("finance records: purchase links failed", links.reason instanceof Error ? links.reason.message : links.reason);
   const closed = lockedThrough !== null && month.to <= lockedThrough;
@@ -134,8 +148,10 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
         <FinanceTabs locale={locale} />
       </BeforeHydration>
 
+      <RecordsViews current="month" locale={locale} />
+
       <Panel title={r.formTitle} description={r.formLead}>
-        <EntryForm locale={locale} today={today} />
+        <EntryForm locale={locale} today={today} backdateDays={backdateDays} />
       </Panel>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

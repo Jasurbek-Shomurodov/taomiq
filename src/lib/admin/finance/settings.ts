@@ -1,3 +1,5 @@
+import { addDays } from "@/lib/order/rules";
+
 /*
  * The finance settings (migration 0015): three rows of public.settings, readable and writable by the owner only (a
  * restrictive select policy and the owner-only write policy). The database checks the same limits
@@ -72,6 +74,40 @@ export function readFinanceSettingInput(
   const amount = Number(text);
   if (!Number.isSafeInteger(amount) || amount > FINANCE_SETTING_LIMITS.amountMax) return { error: "amountRange" };
   return { value: amount };
+}
+
+// ---------- how far back a record may be entered by hand (migration 0024) ----------
+
+/**
+ * public.settings key finance_backdate_days: a ledger record or a payroll event typed by hand may be dated today or
+ * up to this many days back (Tashkent). A whole number 0..31; a missing row means 3. The database checks the same
+ * (private.check_finance_setting) and enforces the window on insert (private.check_finance_backdate). Not one of the
+ * three estimate settings above: it has its own field and action.
+ */
+export const BACKDATE_SETTING_KEY = "finance_backdate_days";
+
+export const BACKDATE_LIMITS = { min: 0, max: 31, fallback: 3 } as const;
+
+/** The days back allowed, from public.settings rows; the fallback (3) when missing or malformed. */
+export function parseBackdateDays(rows: readonly { key: unknown; value: unknown }[]): number {
+  const row = rows.find((r) => r.key === BACKDATE_SETTING_KEY);
+  const n = row?.value;
+  return typeof n === "number" && Number.isInteger(n) && n >= BACKDATE_LIMITS.min && n <= BACKDATE_LIMITS.max
+    ? n
+    : BACKDATE_LIMITS.fallback;
+}
+
+/** The field's text as a number of days 0..31, or null when it is not one (digits only). */
+export function readBackdateInput(raw: string): number | null {
+  const text = raw.trim();
+  if (!/^\d{1,2}$/.test(text)) return null;
+  const days = Number(text);
+  return days >= BACKDATE_LIMITS.min && days <= BACKDATE_LIMITS.max ? days : null;
+}
+
+/** The earliest day a record typed on `today` may carry with `days` back allowed ("YYYY-MM-DD", Tashkent). */
+export function backdateEarliest(today: string, days: number): string {
+  return addDays(today, -days);
 }
 
 /** The settings from public.settings rows ({ key, value }); anything missing or malformed is null (not set). */

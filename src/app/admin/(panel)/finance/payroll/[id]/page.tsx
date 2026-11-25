@@ -11,6 +11,7 @@ import { formatEntryDay } from "@/lib/admin/finance/month";
 import { EVENT_TONES, eventIcon, PAYROLL_LIMITS } from "@/lib/admin/finance/payroll";
 import {
   EVENTS_CAP,
+  loadBackdateDays,
   loadEmployeeHistory,
   loadPayroll,
   type SalaryEvent,
@@ -58,13 +59,18 @@ export default async function EmployeePage({ params }: PageProps<"/admin/finance
   const today = tashkentDay(new Date())!;
   const selfHref = `/finance/payroll/${id}`;
 
-  const [rows, history] = await Promise.all([
+  const [rows, history, backdateDays] = await Promise.all([
     loadPayroll(supabase, today).catch((error: unknown) => {
       console.error("finance payroll failed", error instanceof Error ? error.message : error);
       return null;
     }),
     loadEmployeeHistory(supabase, id).catch((error: unknown) => {
       console.error("finance payroll history failed", error instanceof Error ? error.message : error);
+      return null;
+    }),
+    // How far back the event form may date (migration 0024); unknown: the database still checks.
+    loadBackdateDays(supabase).catch((error: unknown) => {
+      console.error("finance payroll backdate failed", error instanceof Error ? error.message : error);
       return null;
     }),
   ]);
@@ -114,7 +120,7 @@ export default async function EmployeePage({ params }: PageProps<"/admin/finance
       <Figures row={row} today={today} locale={locale} t={t} />
 
       <Panel title={p.eventTitle} description={p.eventLead}>
-        <EventForm employeeId={row.employee_id} locale={locale} today={today} />
+        <EventForm employeeId={row.employee_id} locale={locale} today={today} backdateDays={backdateDays} />
       </Panel>
 
       {!history ? (

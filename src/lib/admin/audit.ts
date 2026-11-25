@@ -2,6 +2,7 @@ import { formatSum, htmlLang, type Locale } from "@/i18n/config";
 import type { AdminDictionary } from "@/i18n/admin/ru";
 import { isExpenseCategory, isPaymentMethod, rowKind } from "./finance/categories";
 import { formatMonth } from "./finance/month";
+import { formatFeeRate, isFeeMethod } from "./finance/fees";
 import { isRateUnit, isSalaryEventKind } from "./finance/payroll";
 import { EDITED_FIELDS, formatDay, formatPhone, type EditedField } from "./orders";
 import { isStaffRole } from "./roles";
@@ -279,6 +280,8 @@ const SETTING_LABELS: Record<string, (t: AdminDictionary) => string> = {
   finance_monthly_rent: (t) => t.finance.settings.fields.monthlyRent,
   finance_break_even_daily: (t) => t.finance.settings.fields.breakEvenDaily,
   finance_tax_rate_pct: (t) => t.finance.settings.fields.taxRatePct,
+  finance_backdate_days: (t) => t.finance.backdate.label,
+  finance_fee_rates: (t) => t.finance.fees.label,
 };
 
 /** A settings value as the Settings screen shows it. `undefined` is a key that was not set (added or reset). */
@@ -297,10 +300,25 @@ function settingValue(key: string, value: unknown, ctx: Ctx): string {
   if (typeof value === "number") {
     if (key === "order_cutoff_hour") return `${String(value).padStart(2, "0")}:00`;
     if (key === "finance_tax_rate_pct") return `${value}%`;
+    if (key === "finance_backdate_days") return t.finance.backdate.daysValue(value);
     if (key.startsWith("finance_")) return money(value, ctx) ?? String(value);
     return String(value);
   }
   if (typeof value === "boolean") return value ? t.order.yes : t.order.no;
+  // A bank fee rate (migration 0024): { method, rate_bp, effective_from }.
+  if (key === "finance_fee_rates") {
+    const rate = record(value);
+    const method = isFeeMethod(rate.method) ? t.finance.fees.methods[rate.method] : (str(rate.method) ?? "—");
+    const bp = num(rate.rate_bp);
+    const from = str(rate.effective_from);
+    return [
+      method,
+      bp === null ? null : formatFeeRate(bp, locale),
+      from && DAY_RE.test(from) ? t.finance.fees.fromDay(formatDay(from, locale)) : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
   const text = JSON.stringify(value);
   return text.length > 200 ? `${text.slice(0, 200)}…` : text;
 }

@@ -5,9 +5,21 @@ import { useActionState, useId, useState, type InputHTMLAttributes, type ReactNo
 import { getAdminDictionary } from "@/i18n/admin";
 import { formatSum, type Locale } from "@/i18n/config";
 import type { FormState } from "@/lib/admin/actions";
-import { saveFinanceSetting } from "@/lib/admin/finance/actions";
+import { addFeeRate, deleteFeeRate, saveBackdateDays, saveFinanceSetting } from "@/lib/admin/finance/actions";
 import {
+  FEE_LIMITS,
+  FEE_METHODS,
+  feeRateOn,
+  formatFeeRate,
+  readFeeRateInput,
+  type FeeMethod,
+  type FeeRate,
+} from "@/lib/admin/finance/fees";
+import { formatEntryDay } from "@/lib/admin/finance/month";
+import {
+  BACKDATE_LIMITS,
   FINANCE_SETTING_LIMITS,
+  readBackdateInput,
   readFinanceSettingInput,
   type FinanceSettingName,
 } from "@/lib/admin/finance/settings";
@@ -31,6 +43,7 @@ import {
   splitWindow,
   type DeliveryWindow,
 } from "@/lib/admin/settings-rules";
+import { ConfirmDialog } from "@/app/admin/ConfirmDialog";
 import { setAdminTheme, useAdminTheme } from "../../shell/theme";
 import { FormMessage } from "../finance/payroll/FormMessage";
 
@@ -361,6 +374,212 @@ export function FinanceField({
       }}
       locale={locale}
     />
+  );
+}
+
+/** How many days back a record may be dated by hand (finance_backdate_days, 0..31; 3 when never set). */
+export function BackdateField({ initial, locale }: { initial: number; locale: Locale }) {
+  const b = getAdminDictionary(locale).finance.backdate;
+  return (
+    <SingleField
+      id="setting-finance-backdate"
+      label={b.label}
+      hint={b.settingHint}
+      action={saveBackdateDays}
+      initialText={String(initial)}
+      savedValue={String(initial)}
+      read={(text) => {
+        const days = readBackdateInput(text);
+        return days === null ? { problem: b.errors.range } : { value: String(days) };
+      }}
+      input={{
+        type: "number",
+        inputMode: "numeric",
+        min: BACKDATE_LIMITS.min,
+        max: BACKDATE_LIMITS.max,
+        step: 1,
+        className: "adm-input w-28 tabular-nums",
+      }}
+      after={(reading) => "value" in reading && <p className="adm-caption">{b.daysValue(Number(reading.value))}</p>}
+      locale={locale}
+    />
+  );
+}
+
+// ---------- bank fee rates (migration 0024) ----------
+
+/**
+ * Bank fee rates by method, each from a day on: the list (the rate in force today marked, later ones too), a bin per
+ * rate (asks first), and a form for a new one. The list is the server's (the page refreshes after each change).
+ */
+export function FeeRatesField({ rates, today, locale }: { rates: FeeRate[]; today: string; locale: Locale }) {
+  const t = getAdminDictionary(locale);
+  const f = t.finance.fees;
+  const id = useId();
+  const [method, setMethod] = useState<FeeMethod>("card");
+  const [rate, setRate] = useState("");
+  const [from, setFrom] = useState(today);
+  const bp = readFeeRateInput(rate);
+  const { formAction, pending, message, clear } = useSave(addFeeRate, () => setRate(""));
+  const problem = rate.trim() && bp === null ? f.errors.rate(FEE_LIMITS.pctMax) : null;
+  const edit =
+    <T,>(set: (value: T) => void) =>
+    (value: T) => {
+      set(value);
+      if (message.ok || message.error) clear();
+    };
+
+  return (
+    <SettingRow label={f.label} hint={f.hint}>
+      <div className="grid gap-4">
+        {rates.length === 0 ? (
+          <p className="adm-caption sm:pt-2.5">{f.empty}</p>
+        ) : (
+          <ul className="grid gap-2">
+            {FEE_METHODS.flatMap((m) => {
+              const current = feeRateOn(rates, m, today);
+              return rates
+                .filter((r) => r.method === m)
+                .map((r) => (
+                  <FeeRateRow
+                    key={r.id}
+                    rate={r}
+                    status={r.effective_from > today ? "later" : current?.id === r.id ? "inForce" : null}
+                    locale={locale}
+                  />
+                ));
+            })}
+          </ul>
+        )}
+
+        <form action={formAction} className="grid gap-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="adm-label w-36 text-[13px] font-medium" htmlFor={`${id}-method`}>
+              {f.method}
+              <select
+                id={`${id}-method`}
+                name="method"
+                value={method}
+                onChange={(event) => edit(setMethod)(event.currentTarget.value as FeeMethod)}
+                disabled={pending}
+                className="adm-input"
+              >
+                {FEE_METHODS.map((option) => (
+                  <option key={option} value={option}>
+                    {f.methods[option]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="adm-label w-28 text-[13px] font-medium" htmlFor={`${id}-rate`}>
+              {f.rate}
+              <input
+                id={`${id}-rate`}
+                name="rate"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                maxLength={8}
+                placeholder={f.ratePlaceholder}
+                value={rate}
+                onChange={(event) => edit(setRate)(event.currentTarget.value)}
+                disabled={pending}
+                aria-invalid={problem ? true : undefined}
+                className="adm-input tabular-nums"
+              />
+            </label>
+            <label className="adm-label w-44 text-[13px] font-medium" htmlFor={`${id}-from`}>
+              {f.from}
+              <input
+                id={`${id}-from`}
+                name="effective_from"
+                type="date"
+                min={FEE_LIMITS.firstDay}
+                value={from}
+                onChange={(event) => edit(setFrom)(event.currentTarget.value)}
+                disabled={pending}
+                required
+                className="adm-input tabular-nums"
+              />
+            </label>
+          </div>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <button
+              type="submit"
+              disabled={pending || bp === null || !from}
+              aria-busy={pending || undefined}
+              className="adm-btn adm-btn-outline"
+            >
+              {pending && <LoaderCircle aria-hidden="true" className="animate-spin" />}
+              {pending ? f.adding : f.add}
+            </button>
+            {problem && !pending && !message.error ? (
+              <span className="inline-flex items-center gap-1.5 text-[13px] font-medium text-adm-caution">
+                <TriangleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+                {problem}
+              </span>
+            ) : (
+              <FormMessage message={message} pending={pending} />
+            )}
+          </div>
+        </form>
+      </div>
+    </SettingRow>
+  );
+}
+
+function FeeRateRow({
+  rate,
+  status,
+  locale,
+}: {
+  rate: FeeRate;
+  status: "inForce" | "later" | null;
+  locale: Locale;
+}) {
+  const t = getAdminDictionary(locale);
+  const f = t.finance.fees;
+  const [state, remove, removing] = useActionState<FormState, FormData>(deleteFeeRate, {});
+  const what = `${f.methods[rate.method]} · ${formatFeeRate(rate.rate_bp, locale)} · ${f.fromDay(formatEntryDay(rate.effective_from, locale))}`;
+
+  return (
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-adm-control border border-adm-border px-3 py-2">
+      <span className="min-w-0 flex-1 text-sm">
+        <span className="font-semibold text-adm-text">{f.methods[rate.method]}</span>{" "}
+        <span className="font-semibold tabular-nums text-adm-text">{formatFeeRate(rate.rate_bp, locale)}</span>{" "}
+        <span className="adm-caption tabular-nums">{f.fromDay(formatEntryDay(rate.effective_from, locale))}</span>
+        {status && (
+          <span className={`adm-badge ml-2 ${status === "inForce" ? "adm-tone-positive" : "adm-tone-neutral"}`}>
+            {f[status]}
+          </span>
+        )}
+      </span>
+      <form action={remove}>
+        <input type="hidden" name="id" value={rate.id} />
+        <ConfirmDialog
+          trigger={
+            <>
+              <Trash2 aria-hidden="true" />
+              <span className="sr-only">{f.remove(what)}</span>
+            </>
+          }
+          triggerClassName="adm-btn adm-btn-ghost adm-btn-danger adm-btn-sm adm-btn-icon"
+          disabled={removing}
+          title={f.removeTitle}
+          description={f.removeText(what)}
+          confirmLabel={f.removeConfirm}
+          pendingLabel={f.removing}
+          cancelLabel={t.common.cancel}
+          destructive
+          pending={removing}
+        />
+      </form>
+      {!removing && state.error && (
+        <p role="alert" className="basis-full text-[13px] font-medium text-adm-negative">
+          {state.error}
+        </p>
+      )}
+    </li>
   );
 }
 

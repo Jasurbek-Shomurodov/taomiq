@@ -15,6 +15,8 @@ import {
   type ExpenseCategory,
   type PaymentMethod,
 } from "@/lib/admin/finance/categories";
+import { formatEntryDay } from "@/lib/admin/finance/month";
+import { backdateEarliest } from "@/lib/admin/finance/settings";
 
 /**
  * One record of the ledger: what it is (expense, investor money, other income), the date, the category (expenses
@@ -23,7 +25,16 @@ import {
  * typed; after a save the amount, the name and the comment clear and the rest stays, for the next record of the
  * same day.
  */
-export function EntryForm({ locale, today }: { locale: Locale; today: string }) {
+export function EntryForm({
+  locale,
+  today,
+  backdateDays,
+}: {
+  locale: Locale;
+  today: string;
+  /** How many days back a record may be dated (finance_backdate_days); null when unknown (the database still checks). */
+  backdateDays: number | null;
+}) {
   const [state, action, pending] = useActionState<FormState, FormData>(addFinanceEntry, {});
   const t = getAdminDictionary(locale);
   const r = t.finance.records;
@@ -71,6 +82,7 @@ export function EntryForm({ locale, today }: { locale: Locale; today: string }) 
   }
 
   const isExpense = kind === "expense";
+  const earliest = backdateDays === null ? FINANCE_LIMITS.firstDay : backdateEarliest(today, backdateDays);
   const counterpartyRequired = kind === "investor";
 
   return (
@@ -102,13 +114,19 @@ export function EntryForm({ locale, today }: { locale: Locale; today: string }) 
             type="date"
             name="entry_date"
             required
-            min={FINANCE_LIMITS.firstDay}
+            min={earliest}
             max={today}
             value={date}
             onChange={(event) => edit(setDate)(event.currentTarget.value)}
             disabled={pending}
+            aria-describedby={backdateDays === null ? undefined : `${id}-date-hint`}
             className="adm-input tabular-nums"
           />
+          {backdateDays !== null && (
+            <span id={`${id}-date-hint`} className="adm-caption font-normal">
+              {t.finance.backdate.hint(backdateDays, formatEntryDay(earliest, locale))}
+            </span>
+          )}
         </label>
 
         {isExpense && (

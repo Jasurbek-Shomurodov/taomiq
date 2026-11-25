@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createElement, Suspense } from "react";
+import { createElement, Suspense, type ReactNode } from "react";
 import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
 import { formatSum, htmlLang, type Locale } from "@/i18n/config";
 import { requireOwner } from "@/lib/admin/auth";
@@ -53,6 +53,7 @@ import { Notice } from "../../kit/Notice";
 import { Panel } from "../../kit/Panel";
 import { ProgressRow } from "../../kit/ProgressRow";
 import { StatTile } from "../../kit/StatTile";
+import { AnalysisPanelSkeleton, CashPanel, MethodPanel } from "./AnalysisPanels";
 import { FinanceMonthSwitcher } from "./FinanceMonthSwitcher";
 import { FinanceTabs } from "./FinanceTabs";
 import { RationCostPanel, RationCostSkeleton } from "./RationCostPanel";
@@ -175,6 +176,16 @@ export default async function FinanceMonthPage({ searchParams }: PageProps<"/adm
             payroll={payroll}
             locale={locale}
             t={t}
+            cash={
+              <Suspense fallback={<AnalysisPanelSkeleton />}>
+                <CashPanel month={month} locale={locale} />
+              </Suspense>
+            }
+            methods={
+              <Suspense fallback={<AnalysisPanelSkeleton rows={3} />}>
+                <MethodPanel month={month} today={today} locale={locale} />
+              </Suspense>
+            }
           />
         </>
       )}
@@ -197,6 +208,8 @@ function MonthBody({
   payroll,
   locale,
   t,
+  cash,
+  methods,
 }: {
   period: FinancePeriod;
   previous: FinancePeriod | null;
@@ -208,6 +221,10 @@ function MonthBody({
   payroll: MonthPayroll | null;
   locale: Locale;
   t: AdminDictionary;
+  /** Slice 8: the cash row (daily burn, runway, all-time balance), under the headline tiles. */
+  cash: ReactNode;
+  /** Slice 8: money by payment method with estimated fees, under where the money went. */
+  methods: ReactNode;
 }) {
   const f = t.finance;
   const now = periodFigures(period);
@@ -292,6 +309,8 @@ function MonthBody({
       </div>
 
       {now.investor_support > 0 && <Notice tone="info">{f.investorNote(sumText(now.investor_support, t))}</Notice>}
+
+      {cash}
 
       {month.isCurrent && (
         <EstimatePanel
@@ -397,6 +416,8 @@ function MonthBody({
           )}
         </Panel>
       </div>
+
+      {methods}
 
       <RevenueChart period={period} today={today} breakEven={settings.breakEvenDaily} locale={locale} t={t} />
 

@@ -1,6 +1,7 @@
 import { CalendarCheck, HandCoins, Lock, NotebookPen, Receipt, TrendingDown, TrendingUp, Wallet } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Suspense } from "react";
 import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { requireOwner } from "@/lib/admin/auth";
@@ -17,7 +18,7 @@ import {
   type YearMonth,
   type YearSummary,
 } from "@/lib/admin/finance/math";
-import { formatMonth, formatMonthShort } from "@/lib/admin/finance/month";
+import { formatMonth, formatMonthShort, shiftMonth } from "@/lib/admin/finance/month";
 import { loadCloseOverview, loadInvestorTotals, loadMonthlyCashflow, loadTotals } from "@/lib/admin/finance/queries";
 import { Badge } from "../../../kit/Badge";
 import { tashkentDay } from "@/lib/admin/stats";
@@ -31,6 +32,7 @@ import { ProgressRow } from "../../../kit/ProgressRow";
 import { SignedBarChart } from "../../../kit/SignedBarChart";
 import { StatTile } from "../../../kit/StatTile";
 import { FinanceTabs } from "../FinanceTabs";
+import { MoneyFlowPanel, RecordsPanel, YearPanelSkeleton } from "./YearPanels";
 import { DASH, Help, Indicator, Labeled, Money, pct, resultClass, resultTone, signedPct, sumText } from "../figures";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -102,6 +104,13 @@ export default async function FinanceYearPage() {
             locale={locale}
             t={t}
           />
+          {/* Slice 8: the 12 months' money flow and the records of the whole history, each loading on its own. */}
+          <Suspense fallback={<YearPanelSkeleton tall />}>
+            <MoneyFlowPanel from={`${shiftMonth(today.slice(0, 7), -(MONTHS - 1))}-01`} to={today} locale={locale} />
+          </Suspense>
+          <Suspense fallback={<YearPanelSkeleton />}>
+            <RecordsPanel locale={locale} />
+          </Suspense>
           <OfficialResults
             closed={overview ? overview.months.filter((month) => month.closed && month.month_start >= (rows[0]?.month_start ?? "")) : null}
             locale={locale}

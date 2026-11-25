@@ -19,10 +19,32 @@ import {
 } from "./math";
 import type { FinanceMonth } from "./month";
 import { isSalaryEventKind, type SalaryEventKind } from "./payroll";
-import { FINANCE_SETTING_KEYS, parseFinanceSettings, type FinanceSettings } from "./settings";
+import {
+  BACKDATE_SETTING_KEY,
+  FINANCE_SETTING_KEYS,
+  parseBackdateDays,
+  parseFinanceSettings,
+  type FinanceSettings,
+} from "./settings";
+import {
+  isFlowMethod,
+  type CashSums,
+  type FinanceRecords,
+  type IndicatorsData,
+  type MethodFlow,
+} from "./analysis";
+import { isFeeMethod, type FeeRate } from "./fees";
+import {
+  HISTORY_PAGE_SIZE,
+  isHistoryKind,
+  type HistoryCursor,
+  type HistoryDay,
+  type HistoryKind,
+  type HistoryRow,
+} from "./history";
 
 /*
- * Finance loaders (migrations 0013, 0014 and 0015). Each takes the signed-in owner's session client (never the secret client) and
+ * Finance loaders (migrations 0013, 0014, 0015 and 0024). Each takes the signed-in owner's session client (never the secret client) and
  * throws on a failed read, so the page decides what to show. RLS and the functions' own check return nothing to anyone
  * but the owner.
  */
@@ -547,4 +569,183 @@ export async function loadPayrollExport(
     ),
     partial: rates.partial || events.partial,
   };
+}
+
+// ---------- finance analysis, round two (migration 0024) ----------
+
+/** How many days back a record may be dated by hand (finance_backdate_days; 3 when not set). The owner only. */
+export async function loadBackdateDays(supabase: SupabaseClient): Promise<number> {
+  const { data, error } = await supabase.from("settings").select("key, value").eq("key", BACKDATE_SETTING_KEY);
+  if (error) throw new Error(`settings: ${error.code} ${error.message}`);
+  return parseBackdateDays((data ?? []) as { key: unknown; value: unknown }[]);
+}
+
+/** Every bank fee rate, by method and then newest start first (RLS: the owner only). */
+export async function loadFeeRates(supabase: SupabaseClient): Promise<FeeRate[]> {
+  const { data, error } = await supabase
+    .from("finance_fee_rates")
+    .select("id, method, rate_bp, effective_from")
+    .order("method", { ascending: true })
+    .order("effective_from", { ascending: false })
+    .limit(500);
+  if (error) throw new Error(`finance_fee_rates: ${error.code} ${error.message}`);
+  return ((data ?? []) as Record<string, unknown>[]).flatMap((row) =>
+    isFeeMethod(row.method)
+      ? [{ id: String(row.id), method: row.method, rate_bp: money(row.rate_bp), effective_from: String(row.effective_from) }]
+      : [],
+  );
+}
+
+function cashSums(value: unknown): CashSums {
+  const row = record(value);
+  return {
+    revenue: money(row.revenue),
+    order_count: money(row.order_count),
+    other_income: money(row.other_income),
+    investor_support: money(row.investor_support),
+    expenses: money(row.expenses),
+    salaries: money(row.salaries),
+  };
+}
+
+/** The month's cash sums and the all-time sums up to its last counted day: public.finance_indicators. */
+export async function loadIndicators(supabase: SupabaseClient, monthStart: string): Promise<IndicatorsData> {
+  const { data, error } = await supabase.rpc("finance_indicators", { p_month_start: monthStart });
+  if (error) throw new Error(`finance_indicators: ${error.code} ${error.message}`);
+  const body = record(data);
+  return {
+    month_start: String(body.month_start),
+    through: String(body.through),
+    days: money(body.days),
+    month: cashSums(body.month),
+    balance: cashSums(body.balance),
+  };
+}
+
+/** Money in and out per payment method, with estimated bank fees: public.finance_method_flow (at most 366 days). */
+export async function loadMethodFlow(supabase: SupabaseClient, from: string, to: string): Promise<MethodFlow> {
+  const { data, error } = await supabase.rpc("finance_method_flow", { p_from: from, p_to: to });
+  if (error) throw new Error(`finance_method_flow: ${error.code} ${error.message}`);
+  const body = record(data);
+  return {
+    methods: list(body.methods).flatMap((row) =>
+      isFlowMethod(row.method)
+        ? [
+            {
+              method: row.method,
+              order_count: money(row.order_count),
+              orders: money(row.orders),
+              other_income: money(row.other_income),
+              investor_support: money(row.investor_support),
+              expenses: money(row.expenses),
+              salaries: money(row.salaries),
+              fee: money(row.fee),
+              unrated_count: money(row.unrated_count),
+              unrated_orders: money(row.unrated_orders),
+            },
+          ]
+        : [],
+    ),
+    fee_total: money(body.fee_total),
+  };
+}
+
+function nullableRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null;
+}
+
+/** Best month, best 10 days, best day and profitable runs over the whole history: public.finance_records(). */
+export async function loadRecords(supabase: SupabaseClient): Promise<FinanceRecords> {
+  const { data, error } = await supabase.rpc("finance_records");
+  if (error) throw new Error(`finance_records: ${error.code} ${error.message}`);
+  const body = record(data);
+  const bestMonth = nullableRecord(body.best_month);
+  const bestResult = nullableRecord(body.best_result_month);
+  const bestDay = nullableRecord(body.best_day);
+  const bestTen = nullableRecord(body.best_ten_days);
+  const run = nullableRecord(body.longest_run);
+  const current = record(body.current);
+  return {
+    current_month: String(body.current_month),
+    months: money(body.months),
+    best_month: bestMonth
+      ? { month_start: String(bestMonth.month_start), revenue: money(bestMonth.revenue), order_count: money(bestMonth.order_count) }
+      : null,
+    best_result_month: bestResult
+      ? { month_start: String(bestResult.month_start), result: money(bestResult.result) }
+      : null,
+    best_day: bestDay
+      ? { day: String(bestDay.day), revenue: money(bestDay.revenue), order_count: money(bestDay.order_count) }
+      : null,
+    best_ten_days: bestTen
+      ? {
+          from: String(bestTen.from),
+          to: String(bestTen.to),
+          revenue: money(bestTen.revenue),
+          order_count: money(bestTen.order_count),
+        }
+      : null,
+    longest_run: run ? { months: money(run.months), from: String(run.from), to: String(run.to) } : null,
+    current_run: money(body.current_run),
+    current: { revenue: money(current.revenue), order_count: money(current.order_count) },
+  };
+}
+
+/**
+ * One page of the whole history (public.finance_history), newest first: the rows, the totals of the days on the page
+ * (each over every matching row of that day) and the cursor of the next, older page (null on the last one). Rows of
+ * a kind this build does not know are left out.
+ */
+export async function loadHistory(
+  supabase: SupabaseClient,
+  {
+    search,
+    kind,
+    categories,
+    cursor,
+  }: { search: string; kind: HistoryKind | null; categories: readonly string[]; cursor: HistoryCursor | null },
+): Promise<{ rows: HistoryRow[]; days: HistoryDay[]; older: HistoryCursor | null }> {
+  const { data, error } = await supabase.rpc("finance_history", {
+    p_search: search || null,
+    p_kind: kind,
+    p_categories: categories.length ? categories : null,
+    p_before_day: cursor?.day ?? null,
+    p_before_key: cursor?.key ?? null,
+    p_limit: HISTORY_PAGE_SIZE,
+  });
+  if (error) throw new Error(`finance_history: ${error.code} ${error.message}`);
+  const body = record(data);
+  const raw = list(body.rows);
+  const rows: HistoryRow[] = raw.flatMap((row) =>
+    isHistoryKind(row.kind)
+      ? [
+          {
+            key: String(row.key),
+            day: String(row.day),
+            kind: row.kind,
+            id: String(row.id),
+            category: String(row.category),
+            method: String(row.method ?? ""),
+            amount: money(row.amount),
+            counterparty: text(row.counterparty),
+            note: text(row.note),
+            created_at: String(row.created_at),
+            added_by: text(row.added_by),
+            employee_id: text(row.employee_id),
+            purchase_id: text(row.purchase_id),
+          },
+        ]
+      : [],
+  );
+  const last = raw.at(-1);
+  const older = body.more === true && last ? { day: String(last.day), key: String(last.key) } : null;
+  const days: HistoryDay[] = list(body.days).map((day) => ({
+    day: String(day.day),
+    count: money(day.count),
+    expenses: money(day.expenses),
+    salaries: money(day.salaries),
+    other_income: money(day.other_income),
+    investor_support: money(day.investor_support),
+  }));
+  return { rows, days, older };
 }

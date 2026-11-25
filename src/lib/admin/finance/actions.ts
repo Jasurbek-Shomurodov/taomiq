@@ -13,10 +13,15 @@ import {
   isPaymentMethod,
   kindToRow,
 } from "./categories";
-import { formatMonth, isCalendarDay } from "./month";
+import { FEE_LIMITS, isFeeMethod, readFeeRateInput } from "./fees";
+import { formatEntryDay, formatMonth, isCalendarDay } from "./month";
 import { isRateUnit, isSalaryEventKind, PAYROLL_LIMITS } from "./payroll";
+import { loadBackdateDays, loadLockedThrough } from "./queries";
 import {
+  BACKDATE_SETTING_KEY,
   CLOSE_LIMITS,
+  backdateEarliest,
+  readBackdateInput,
   FINANCE_SETTING_KEYS,
   FINANCE_SETTING_LIMITS,
   isFinanceSettingName,
@@ -24,7 +29,7 @@ import {
 } from "./settings";
 
 /*
- * Finance ledger, payroll, month close and settings writes (migrations 0013, 0014 and 0015), owner only. Each action
+ * Finance ledger, payroll, month close and settings writes (migrations 0013, 0014, 0015 and 0024), owner only. Each action
  * checks the owner first (requireOwner redirects anyone else), then validates everything the table checks again, so a
  * refusal from the database is the exception. Database errors are logged with their code and shown as a sentence in
  * the owner's language, never raw.
@@ -47,6 +52,46 @@ function isMonthClosed(error: { message: string }): boolean {
 const DEADLOCK = "40P01";
 
 const text = (form: FormData, key: string) => String(form.get(key) ?? "").trim();
+
+type Dictionary = ReturnType<typeof getAdminDictionary>;
+type Session = Awaited<ReturnType<typeof requireOwner>>;
+
+/**
+ * Why a day typed by hand is too far back (migration 0024: today or up to finance_backdate_days back, 3 when not
+ * set), or null when it is inside the window or in a closed month (that refusal comes from the database, and is
+ * reported as a closed month). When the setting cannot be read the database still checks
+ * (backdate_limit), so the check is skipped rather than guessed.
+ */
+async function backdateRefusal(session: Session, t: Dictionary, day: string, today: string): Promise<string | null> {
+  let days: number;
+  let lockedThrough: string | null;
+  try {
+    [days, lockedThrough] = await Promise.all([loadBackdateDays(session.supabase), loadLockedThrough(session.supabase)]);
+  } catch (error) {
+    console.error("finance: read backdate days failed", error instanceof Error ? error.message : error);
+    return null;
+  }
+  // A day in a closed month: the closed-month guard refuses it first (month_closed) and the action says so, rather
+  // than suggesting to raise the limit.
+  if (lockedThrough !== null && day <= lockedThrough) return null;
+  const earliest = backdateEarliest(today, days);
+  return day < earliest ? t.finance.backdate.tooOld(days, formatEntryDay(earliest, session.staff.locale)) : null;
+}
+
+/** The database's own refusal of a day too far back (backdate_limit; detail: the earliest day, hint: the days). */
+function backdateError(
+  error: { message: string; details?: string | null; hint?: string | null },
+  t: Dictionary,
+  session: Session,
+): string | null {
+  if (!error.message.includes("backdate_limit")) return null;
+  const earliest = error.details ?? "";
+  const hint = error.hint ?? "";
+  return isCalendarDay(earliest) && /^\d{1,2}$/.test(hint)
+    ? t.finance.backdate.tooOld(Number(hint), formatEntryDay(earliest, session.staff.locale))
+    : t.finance.backdate.tooOldPlain;
+}
+
 /** Length as Postgres char_length counts it: code points, not UTF-16 units. */
 const length = (value: string) => [...value].length;
 
@@ -56,7 +101,8 @@ const length = (value: string) => [...value].length;
  * the form clears its amount, name and comment.
  */
 export async function addFinanceEntry(_prev: FormState, form: FormData): Promise<FormState> {
-  const { supabase, staff } = await requireOwner();
+  const session = await requireOwner();
+  const { supabase, staff } = session;
   const t = getAdminDictionary(staff.locale);
   const e = t.finance.records.errors;
 
@@ -92,6 +138,8 @@ export async function addFinanceEntry(_prev: FormState, form: FormData): Promise
   if (kind === "investor" && !counterparty) return { error: e.investorName };
   const note = text(form, "note");
   if (length(note) > FINANCE_LIMITS.noteMax) return { error: e.noteLong(FINANCE_LIMITS.noteMax) };
+  const tooOld = await backdateRefusal(session, t, date, today);
+  if (tooOld) return { error: tooOld };
 
   const { error } = await supabase.from("finance_entries").insert({
     entry_type: pair.entry_type,
@@ -105,6 +153,8 @@ export async function addFinanceEntry(_prev: FormState, form: FormData): Promise
   if (error) {
     console.error("finance: add entry failed", error.code, error.message);
     if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
+    const outside = backdateError(error, t, session);
+    if (outside) return { error: outside };
     // 42501: a row-level security refusal (not the owner, or a date after today in Tashkent). 23514: a check.
     if (error.code === "42501") return { error: e.denied };
     if (error.code === "23514") return { error: e.invalid };
@@ -267,7 +317,8 @@ export async function addSalaryRate(_prev: FormState, form: FormData): Promise<F
 
 /** A payment, bonus, fine or absence. A payment needs a method, a fine a reason, an absence no amount. */
 export async function addSalaryEvent(_prev: FormState, form: FormData): Promise<FormState> {
-  const { supabase, staff } = await requireOwner();
+  const session = await requireOwner();
+  const { supabase, staff } = session;
   const t = getAdminDictionary(staff.locale);
   const e = t.finance.payroll.errors;
 
@@ -290,6 +341,8 @@ export async function addSalaryEvent(_prev: FormState, form: FormData): Promise<
   const note = text(form, "note");
   if (length(note) > PAYROLL_LIMITS.noteMax) return { error: e.noteLong(PAYROLL_LIMITS.noteMax) };
   if (kind === "fine" && !note) return { error: e.fineNote };
+  const tooOld = await backdateRefusal(session, t, date, today);
+  if (tooOld) return { error: tooOld };
 
   // An absence only means something on a day of employment.
   if (kind === "absence") {
@@ -317,6 +370,8 @@ export async function addSalaryEvent(_prev: FormState, form: FormData): Promise<
   if (error) {
     console.error("payroll: add event failed", error.code, error.message);
     if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
+    const outside = backdateError(error, t, session);
+    if (outside) return { error: outside };
     if (error.code === "23505") return { error: e.absentAlready };
     if (error.code === "23503") return { error: e.gone };
     if (error.code === "42501") return { error: e.denied };
@@ -566,4 +621,83 @@ export async function saveFinanceSetting(_prev: FormState, form: FormData): Prom
 
   refresh();
   return { ok: s.saved };
+}
+
+// ---------- finance analysis, round two (migration 0024) ----------
+
+/**
+ * Saves how many days back a record may be dated by hand (finance_backdate_days, 0..31). The form sends `value`; the
+ * input rule is readBackdateInput (settings.ts), the same one the field uses. The database checks the value again.
+ */
+export async function saveBackdateDays(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase, staff } = await requireOwner();
+  const t = getAdminDictionary(staff.locale);
+  const b = t.finance.backdate;
+  const days = readBackdateInput(text(form, "value"));
+  if (days === null) return { error: b.errors.range };
+
+  const { error } = await supabase
+    .from("settings")
+    .upsert({ key: BACKDATE_SETTING_KEY, value: days }, { onConflict: "key" });
+  if (error) {
+    console.error("finance: save backdate days failed", error.code, error.message);
+    if (error.code === "42501") return { error: b.errors.denied };
+    if (error.code === "23514") return { error: b.errors.range };
+    return { error: b.errors.saveFailed };
+  }
+
+  refresh();
+  return { ok: t.finance.settings.saved };
+}
+
+/**
+ * Adds a bank fee rate for card or transfer payments from a day on (finance_fee_rates). The form sends `method`,
+ * `rate` (a percent, "1,5") and `effective_from`. One rate per method and day: a second one is refused (rateExists).
+ */
+export async function addFeeRate(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase, staff } = await requireOwner();
+  const t = getAdminDictionary(staff.locale);
+  const e = t.finance.fees.errors;
+
+  const method = text(form, "method");
+  if (!isFeeMethod(method)) return { error: e.method };
+  const bp = readFeeRateInput(text(form, "rate"));
+  if (bp === null) return { error: e.rate(FEE_LIMITS.pctMax) };
+  const from = text(form, "effective_from");
+  if (!isCalendarDay(from)) return { error: e.date };
+  if (from < FEE_LIMITS.firstDay) return { error: e.dateTooEarly(FEE_LIMITS.firstDay) };
+  // A new rate may be agreed ahead; a year is plenty.
+  const today = tashkentDay(new Date())!;
+  if (from > addDays(today, 366)) return { error: e.dateTooFar };
+
+  const { error } = await supabase.from("finance_fee_rates").insert({ method, rate_bp: bp, effective_from: from });
+  if (error) {
+    console.error("finance: add fee rate failed", error.code, error.message);
+    if (error.code === "23505") return { error: e.exists };
+    if (error.code === "42501") return { error: e.denied };
+    if (error.code === "23514") return { error: e.rate(FEE_LIMITS.pctMax) };
+    return { error: e.saveFailed };
+  }
+
+  refresh();
+  return { ok: t.finance.fees.added };
+}
+
+/** Deletes one fee rate; the days it covered fall back to the rate before it, or to none. */
+export async function deleteFeeRate(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase, staff } = await requireOwner();
+  const t = getAdminDictionary(staff.locale);
+  const e = t.finance.fees.errors;
+  const id = text(form, "id");
+  if (!UUID_RE.test(id)) return { error: e.gone };
+
+  const { data, error } = await supabase.from("finance_fee_rates").delete().eq("id", id).select("id");
+  if (error) {
+    console.error("finance: delete fee rate failed", error.code, error.message);
+    return { error: e.deleteFailed };
+  }
+
+  refresh();
+  if (!data?.length) return { error: e.gone };
+  return { ok: t.finance.fees.deleted };
 }

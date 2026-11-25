@@ -7,7 +7,9 @@ import type { Locale } from "@/i18n/config";
 import type { FormState } from "@/lib/admin/actions";
 import { addSalaryEvent } from "@/lib/admin/finance/actions";
 import { FINANCE_LIMITS, PAYMENT_METHODS, type PaymentMethod } from "@/lib/admin/finance/categories";
+import { formatEntryDay } from "@/lib/admin/finance/month";
 import { PAYROLL_LIMITS, SALARY_EVENT_KINDS, type SalaryEventKind } from "@/lib/admin/finance/payroll";
+import { backdateEarliest } from "@/lib/admin/finance/settings";
 import { FormMessage } from "../FormMessage";
 
 /**
@@ -15,7 +17,18 @@ import { FormMessage } from "../FormMessage";
  * an absence for the day only. The server checks everything again (addSalaryEvent). After a save the amount and the
  * comment clear; the kind and the date stay, for the next one.
  */
-export function EventForm({ employeeId, locale, today }: { employeeId: string; locale: Locale; today: string }) {
+export function EventForm({
+  employeeId,
+  locale,
+  today,
+  backdateDays,
+}: {
+  employeeId: string;
+  locale: Locale;
+  today: string;
+  /** How many days back an event may be dated (finance_backdate_days); null when unknown (the database still checks). */
+  backdateDays: number | null;
+}) {
   const [state, action, pending] = useActionState<FormState, FormData>(addSalaryEvent, {});
   const t = getAdminDictionary(locale);
   const p = t.finance.payroll;
@@ -53,6 +66,7 @@ export function EventForm({ employeeId, locale, today }: { employeeId: string; l
   }
 
   const isFine = kind === "fine";
+  const earliest = backdateDays === null ? FINANCE_LIMITS.firstDay : backdateEarliest(today, backdateDays);
 
   return (
     <form onSubmit={submit} className="grid gap-5">
@@ -84,13 +98,19 @@ export function EventForm({ employeeId, locale, today }: { employeeId: string; l
             type="date"
             name="event_date"
             required
-            min={FINANCE_LIMITS.firstDay}
+            min={earliest}
             max={today}
             value={date}
             onChange={(event) => edit(setDate)(event.currentTarget.value)}
             disabled={pending}
+            aria-describedby={backdateDays === null ? undefined : `${id}-date-hint`}
             className="adm-input tabular-nums"
           />
+          {backdateDays !== null && (
+            <span id={`${id}-date-hint`} className="adm-caption font-normal">
+              {t.finance.backdate.hint(backdateDays, formatEntryDay(earliest, locale))}
+            </span>
+          )}
         </label>
 
         {kind !== "absence" && (

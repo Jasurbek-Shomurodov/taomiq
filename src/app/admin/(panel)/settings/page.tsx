@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
 import { requireOwner } from "@/lib/admin/auth";
-import { loadFinanceSettings } from "@/lib/admin/finance/queries";
+import { loadBackdateDays, loadFeeRates, loadFinanceSettings } from "@/lib/admin/finance/queries";
 import { FINANCE_SETTING_NAMES } from "@/lib/admin/finance/settings";
 import {
   integrations,
@@ -17,7 +17,9 @@ import { Panel } from "../../kit/Panel";
 import { LanguageSegmented } from "../../LanguageSwitch";
 import {
   AnchorField,
+  BackdateField,
   CutoffField,
+  FeeRatesField,
   FinanceField,
   PhoneField,
   SettingRow,
@@ -55,9 +57,11 @@ export default async function SettingsPage() {
   // Read the clock only after the session (a request-time read). Tashkent day, as the menu cycle counts it.
   const today = tashkentDay(new Date())!;
 
-  const [business, finance, migrations] = await Promise.all([
+  const [business, finance, backdate, feeRates, migrations] = await Promise.all([
     settle("settings read", () => loadBusinessSettings(supabase)),
     settle("finance settings read", () => loadFinanceSettings(supabase)),
+    settle("backdate read", () => loadBackdateDays(supabase)),
+    settle("fee rates read", () => loadFeeRates(supabase)),
     settle("migrations read", () => loadAppliedMigrations(supabase)),
   ]);
 
@@ -106,6 +110,21 @@ export default async function SettingsPage() {
           ) : (
             <Notice tone="negative" retry={{ href: SELF, label: t.common.retry }} className="m-4 sm:m-5">
               {t.finance.settings.loadFailed}
+            </Notice>
+          )}
+          {/* Slice 8 (migration 0024): how far back records may be dated, and bank fee rates for the estimate. */}
+          {backdate ? (
+            <BackdateField initial={backdate.value} locale={locale} />
+          ) : (
+            <Notice tone="negative" retry={{ href: SELF, label: t.common.retry }} className="m-4 sm:m-5">
+              {s.loadFailed}
+            </Notice>
+          )}
+          {feeRates ? (
+            <FeeRatesField rates={feeRates.value} today={today} locale={locale} />
+          ) : (
+            <Notice tone="negative" retry={{ href: SELF, label: t.common.retry }} className="m-4 sm:m-5">
+              {t.finance.fees.loadFailed}
             </Notice>
           )}
         </Section>
