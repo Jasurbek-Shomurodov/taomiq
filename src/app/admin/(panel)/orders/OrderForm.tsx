@@ -32,6 +32,9 @@ import { TopBarActions } from "../../shell/TopBarSlot";
  * A field's problem shows once the form was sent (or the server named it), so nothing is red while it is typed.
  */
 
+/** Contact fields a new order starts with (a customer page's "New order for this customer"); the rest start empty. */
+export type NewOrderInitial = { name: string; phone: string; address: string; window?: string };
+
 export type FormProgram = { id: string; name: string; variants: { id: string; kcal: number; price: number }[] };
 export type FormDuration = { days: number; markup: number };
 
@@ -398,8 +401,11 @@ export function NewOrderForm({
   durations,
   windows,
   today,
+  initial,
   locale,
 }: {
+  /** Filled in from a customer (name, phone as shown, last address, last window when still offered). */
+  initial?: NewOrderInitial;
   programs: FormProgram[];
   durations: FormDuration[];
   windows: string[];
@@ -420,10 +426,10 @@ export function NewOrderForm({
   const [schedule, setSchedule] = useState<Schedule>("daily");
   const [startDate, setStartDate] = useState(addDays(today, 1));
   const [contact, setContactState] = useState<Contact>({
-    name: "",
-    phone: "",
-    address: "",
-    window: windows[0] ?? "",
+    name: initial?.name ?? "",
+    phone: initial?.phone ?? "",
+    address: initial?.address ?? "",
+    window: initial?.window ?? windows[0] ?? "",
     comment: "",
     exclusions: "",
   });

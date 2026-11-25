@@ -2,7 +2,8 @@ import { CalendarClock, ChefHat } from "lucide-react";
 import { getAdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { requireStaff } from "@/lib/admin/auth";
-import { ENDING_SOON_DAYS, loadEndingSoon } from "@/lib/admin/deliveries";
+import { loadEndingCustomers } from "@/lib/admin/customer-queries";
+import { ENDING_SOON_DAYS } from "@/lib/admin/customers";
 import { loadRationCount } from "@/lib/admin/kitchen";
 import { formatDay } from "@/lib/admin/orders";
 import { canHandleOrders } from "@/lib/admin/roles";
@@ -14,10 +15,11 @@ const DASH = "—";
 
 /**
  * The days ahead (docs/plans/kitchen-day-sheet.md, slice 3). Everyone: tomorrow's rations to cook, opening the
- * production sheet (tomorrow is its default day). Owners and managers also: firm orders whose last delivery day falls
- * within ENDING_SOON_DAYS days from today, opening the delivery sheet of the earliest such day. The endings read goes
- * through public.delivery_orders, which carries personal data, so it is never called for anyone who does not handle
- * orders (canHandleOrders). Days are Tashkent days. A failed read prints "—" and a notice, never a made-up 0.
+ * production sheet (tomorrow is its default day). Owners and managers also: customers whose current plan ends within
+ * ENDING_SOON_DAYS days from today (and who have not paid a renewal), opening the Customers page's "ending" filter.
+ * The tile and that filter are the same number: public.customers_ending (migration 0020) applies the same is_ending
+ * rule of private.customer_rows as the filter, only to the phones that can be ending. It refuses anyone who does not
+ * handle orders, so it is never called for them (canHandleOrders). Days are Tashkent days. A failed read prints "—" and a notice, never a made-up 0.
  */
 export async function DaysAheadOverview({ locale }: { locale: Locale }) {
   const { supabase, staff } = await requireStaff();
@@ -27,7 +29,7 @@ export async function DaysAheadOverview({ locale }: { locale: Locale }) {
   const today = tashkentDay(new Date())!;
   const [rations, ending] = await Promise.all([
     loadRationCount(supabase, addDays(today, 1)),
-    handlesOrders ? loadEndingSoon(supabase, today) : Promise.resolve(null),
+    handlesOrders ? loadEndingCustomers(supabase) : Promise.resolve(null),
   ]);
   const retry = { href: "/", label: t.common.retry };
 
@@ -59,10 +61,10 @@ export async function DaysAheadOverview({ locale }: { locale: Locale }) {
             label={t.home.endingSoon(ENDING_SOON_DAYS)}
             value={ending ? ending.count : DASH}
             icon={CalendarClock}
-            href={ending?.firstDay ? `/deliveries?date=${ending.firstDay}` : "/deliveries"}
+            href="/customers?filter=ending"
             tone={(ending?.count ?? 0) > 0 ? "caution" : "accent"}
             footer={
-              ending?.firstDay ? <span>{t.home.endingNext(formatDay(ending.firstDay, locale))}</span> : undefined
+              ending?.next ? <span>{t.home.endingNext(formatDay(ending.next, locale))}</span> : undefined
             }
           />
         )}

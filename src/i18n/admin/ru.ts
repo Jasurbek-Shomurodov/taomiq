@@ -1,5 +1,6 @@
 import { plural, type Locale } from "@/i18n/config";
 import type { AuditArea } from "@/lib/admin/audit";
+import type { CustomerFilter, CustomerState } from "@/lib/admin/customers";
 import type { DishStatusFilter } from "@/lib/admin/dish-status";
 import type { EntryCategory, EntryKind, PaymentMethod } from "@/lib/admin/finance/categories";
 import type { RateUnit, SalaryEventKind } from "@/lib/admin/finance/payroll";
@@ -68,6 +69,7 @@ const ru = {
     overview: "Обзор",
     orders: "Заказы",
     deliveries: "Доставки",
+    customers: "Клиенты",
     menu: "Меню на 30 дней",
     dishes: "Блюда",
     production: "Производство",
@@ -142,7 +144,7 @@ const ru = {
     endingSoon: (days: number) => `Заканчиваются в ближайшие ${days} ${plural(days, ["день", "дня", "дней"])}`,
     endingNext: (day: string) => `Ближайший последний день: ${day}`,
     tomorrowFailed: "Не удалось загрузить рационы на завтра.",
-    endingFailed: "Не удалось загрузить заказы, которые скоро заканчиваются.",
+    endingFailed: "Не удалось загрузить клиентов, у которых скоро заканчивается план.",
   },
   dishes: {
     title: "Блюда",
@@ -1469,6 +1471,108 @@ const ru = {
       invalid: "База отклонила значение: проверьте поле.",
       saveFailed: "Не удалось сохранить. Попробуйте ещё раз.",
     },
+  },
+  /** Customers (owners and managers): one row per phone number across every order. */
+  customers: {
+    lead: "Один клиент — один номер телефона: все его заказы, с сайта и добавленные вручную.",
+    filtersAria: "Фильтры клиентов",
+    filters: {
+      all: "Все",
+      active: "Активные",
+      ending: "Заканчиваются",
+      lapsed: "Ушли",
+      new: "Новые",
+    } satisfies Record<CustomerFilter, string>,
+    /** The line under the toolbar: what the open filter means and how it is sorted. */
+    filterLead: {
+      all: "Все, кто хоть раз оформлял заказ. Сверху — с самым свежим заказом.",
+      active: "План идёт сегодня. Сверху — у кого он закончится раньше.",
+      ending: (days: number) =>
+        `Последний день плана — сегодня или в ближайшие ${days} ${plural(days, ["день", "дня", "дней"])}, продление не оплачено. Позвоните и предложите продолжить.`,
+      lapsed: (days: number) =>
+        `План закончился ${days} и больше ${plural(days, ["день", "дня", "дней"])} назад, новых заказов нет. Сверху — кто ушёл недавно.`,
+      new: (days: number) => `Первый заказ — за последние ${days} ${plural(days, ["день", "дня", "дней"])}.`,
+    },
+    states: {
+      ending: "Заканчивается",
+      active: "Активен",
+      upcoming: "Скоро старт",
+      pending: "Есть заявка",
+      lapsed: "Ушёл",
+      ended: "План закончился",
+      none: "Без плана",
+    } satisfies Record<CustomerState, string>,
+    searchLabel: "Поиск клиентов",
+    searchPlaceholder: "Имя, телефон или номер заказа",
+    found: (count: number) => `Найдено: ${count} ${plural(count, ["клиент", "клиента", "клиентов"])}`,
+    clearSearch: "Сбросить поиск",
+    searchEmpty: (term: string) => `По запросу «${term}» клиентов нет.`,
+    searchFilterEmpty: (term: string, filter: string) => `По запросу «${term}» в разделе «${filter}» клиентов нет.`,
+    none: "Клиентов пока нет. Они появятся здесь с первым заказом — с сайта или добавленным вручную.",
+    filterEmpty: (filter: string) => `В разделе «${filter}» сейчас никого нет.`,
+    showAll: "Показать всех",
+    pageEmpty: "На этой странице клиентов нет.",
+    previous: "← Назад",
+    next: "Дальше →",
+    loadFailed: "Не удалось загрузить клиентов. Обновите страницу через минуту.",
+    // The list
+    customer: "Клиент",
+    phone: "Телефон",
+    orders: "Заказы",
+    totalPaid: "Оплачено, сум",
+    lastOrder: "Последний заказ",
+    planEnds: "План до",
+    status: "Статус",
+    ordersPaid: (orders: number, paid: number) => `${orders} · оплачено ${paid}`,
+    ordersCount: (count: number) => `${count} ${plural(count, ["заказ", "заказа", "заказов"])}`,
+    endedOn: (day: string) => `закончился ${day}`,
+    newMark: "новый",
+    call: "Позвонить",
+    callAria: (name: string) => `Позвонить: ${name}`,
+    // The customer page
+    back: "Клиенты",
+    heading: "Клиент",
+    newOrder: "Новый заказ для клиента",
+    newOrderShort: "Новый заказ",
+    since: (day: string) => `Клиент с ${day}`,
+    lastOrderAt: (when: string) => `Последний заказ: ${when}`,
+    figures: {
+      orders: "Заказов",
+      paid: (count: number) => `Оплачено: ${count}`,
+      totalPaid: "Оплачено всего",
+      totalNote: "Оплаченные, доставляемые и завершённые заказы.",
+      planEnds: "Текущий план до",
+      lastPlanEnd: "Последний план закончился",
+      noPlan: "Плана ещё не было",
+      firstOrder: "Первый заказ",
+    },
+    contact: "Контакты",
+    lastAddress: "Последний адрес",
+    lastWindow: "Время доставки",
+    account: "Аккаунт на сайте",
+    accountYes: "Есть",
+    accountNo: "Нет",
+    source: "Откуда пришёл",
+    direct: "Без метки",
+    note: "Заметка о клиенте",
+    notePlaceholder: "Например: звонить после 18:00, оставлять у охраны.",
+    noteHidden: "Видят владелец и менеджеры. Клиенту не показывается.",
+    noteSaved: "Заметка сохранена.",
+    noteTooLong: (max: number) => `Заметка длиннее ${max} символов.`,
+    noteUpdated: (when: string, who: string | null) => (who ? `Изменено ${when}, ${who}` : `Изменено ${when}`),
+    history: "Заказы клиента",
+    historyEmpty: "У клиента нет заказов.",
+    historyFailed: "Не удалось загрузить заказы клиента.",
+    historyLimit: (count: number) => `Показаны последние ${count} заказов.`,
+    until: (day: string) => `до ${day}`,
+    notFound: "Клиент не найден.",
+    notFoundLead: "Ссылка ведёт на заказ, которого нет. Найдите клиента в списке.",
+    changed: "Пока страница была открыта, телефон в заказе клиента изменили. Обновите страницу и проверьте заметку.",
+    detailFailed: "Не удалось загрузить клиента.",
+    /** The new-order form opened from a customer page. */
+    prefilled: (name: string, phone: string) =>
+      `Подставлено из последнего заказа клиента: ${name}, ${phone}, адрес и время доставки. Проверьте их с клиентом.`,
+    prefillFailed: "Не удалось подставить данные клиента. Заполните их вручную.",
   },
   /** Audit (owner only): who changed money, payroll, the team, settings, prices and orders, and when. */
   audit: {

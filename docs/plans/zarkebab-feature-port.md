@@ -382,3 +382,82 @@ zarkebab: `/admin/ingredients` (catalog), `/admin/bazaar` (receipts, history, an
   - Sheet: ingredients × days grid for a month, tap a cell for quantity, amount, buyer, unit cost vs usual.
 - Finance Month: food cost % keeps using ingredients spending; nothing changes in the formulas.
 - Three locales; `loading.tsx` per route.
+
+### Slice 7 · Tech cards, dish cost and the shopping list
+
+zarkebab: `/admin/tech-cards` (recipe per dish, batch output, cost per portion, margin, cost-overrun list, PDF),
+purchases vs theoretical usage, archive instead of delete. Depends on slice 6.
+
+**Migration (next number, additive).**
+
+- `tech_cards`: `dish_id` primary key → `dishes`, `batch_output_g int > 0` (cooked weight the recipe yields),
+  `method text`, `notes text`, `updated_at`, `updated_by`.
+- `tech_card_lines`: `dish_id`, `ingredient_id`, `quantity numeric(12,3) > 0`, `unit` (`g`, `ml`, `pcs`),
+  `sort`. Unique `(dish_id, ingredient_id)`. The unit must be compatible with the ingredient's purchase unit
+  (kg ↔ g, l ↔ ml, pcs ↔ pcs, pack ↔ pcs through `pieces_per_unit`), checked in a trigger.
+- RLS: all staff read (cooks need the recipe); owner and manager write. **Prices are not in these tables**, so a
+  cook never sees money.
+- `dishes.archived_at timestamptz null` — archive instead of delete; an archived dish is hidden from pickers and
+  from the public menu readers (treat as `active = false`), and the existing delete stays blocked while the dish
+  is on the menu.
+- Functions (security definer):
+  - `dish_costs()` owner/manager: per dish, cost per 100 g = Σ(line quantity in purchase units × ingredient
+    `usual_price`) / `batch_output_g` × 100; `complete` is false when a card is missing, has no lines, or any
+    ingredient has no price. Incomplete cost is null, never zero.
+  - `ration_costs(p_cycle_day int null)` owner: per calorie level and cycle day, Σ(menu grams × dish cost) for
+    the five slots, the level's price per day, margin in UZS and %, and how many of the day's dishes lack a cost;
+    plus the 30-day average per level.
+  - `shopping_list(p_day date)` all staff, **quantities only**: firm rations for the day (the `kitchen_orders`
+    rule) × menu grams ÷ batch output × recipe lines, summed per ingredient in purchase units, with the dishes
+    that could not be counted (no card). Owner and manager variant `shopping_list_costed` adds usual price and
+    amount.
+  - `ingredient_usage(p_from, p_to)` owner/manager: bought (slice 6) vs theoretical use from delivered ration
+    days in the period, and the difference. It is labelled as an estimate, not a stock balance.
+
+**Code.**
+
+- `/tech-cards` (Kitchen & stock): tiles (dishes, complete cards, need setup, average cost per 100 g — owner and
+  manager only), search, All / Ready / Not complete filter. Editor page per dish: ingredient rows from the
+  catalog (search, quantity, unit), batch output, method, notes; owner and manager see line cost, batch cost,
+  cost per 100 g and per typical portion. Copy a recipe from another dish. A cook opens it read-only.
+- The dish "verified tech card" flag stays a manual flag; the editor shows a hint when the flag is on but the
+  card is not complete.
+- `/kitchen`: new "Shopping list" block and print view for the day (and a "next 3 days" total), listing dishes
+  that could not be counted.
+- Finance → Month: a "Ration cost" panel (owner): average cost and margin per calorie level, and the
+  cost-overrun list (levels or days where cost exceeds the price per day).
+- `/purchases` gains a Usage tab (owner, manager).
+- PDF of chosen tech cards (name, ingredients, method; cost only when the owner asks for it): print stylesheet
+  first (`@media print`, as the kitchen sheet does); no PDF library unless print is not enough.
+- Three locales; `loading.tsx` per route.
+
+### Slice 8 · Finance analysis, round two
+
+zarkebab: backdate limit, All Accounting history, indicators (savings rate, daily burn, runway, all-time
+balance), flow by payment method with fee rates, records, Sankey.
+
+**Migration (next number, additive).**
+
+- Backdate rule for `finance_entries` and payroll events: the day may be today or up to N days back, N from a
+  new owner setting `finance_backdate_days` (default 3; the Settings screen gets the field; 0–31). Enforced in
+  the existing before-insert guards. Existing rows are not touched. The owner can raise N for a catch-up.
+- `finance_fee_rates`: `method` (card, transfer), `rate_bp int` (basis points), `effective_from date`; owner
+  only. Estimated bank fees = paid order totals by method × the rate in force that day; shown as an estimate and
+  never written to the ledger.
+- Functions (owner): `finance_history(p_from, p_to, p_search, p_kind, p_before, p_limit)` — every ledger row and
+  payroll payment with day totals; `finance_indicators(p_month)` — money in, spent, left, savings rate
+  (result / income), daily burn (spending / days elapsed), runway in days (all-time balance / daily burn, null
+  when burn is 0), all-time balance (all income and investor money − all spending − salary paid);
+  `finance_method_flow(p_from, p_to)` — in and out per payment method, with estimated fees;
+  `finance_records()` — best month, best 10 days, best single day, longest run of profitable months.
+
+**Code.**
+
+- Finance → Records: "All history" view with search, kind filter, day headers with totals, paging; the add form
+  refuses a day outside the window with a clear message naming the limit.
+- Finance → Month: an Indicators row (savings rate, daily burn, runway, all-time balance) with "?" explainers;
+  "By payment method" panel with fees.
+- Finance → Year: Records panel; **Money flow** (Sankey: sources — orders, other income, investor — into the
+  month, out to spending groups and result) as a hand-built SVG in `kit/Sankey.tsx` with a visually hidden table.
+- Settings: backdate days, fee rates editor.
+- Three locales. Formulas as pure functions in `src/lib/admin/finance/`.

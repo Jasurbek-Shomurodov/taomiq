@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   ChefHat,
+  Contact,
   History,
   LayoutDashboard,
   Settings,
@@ -28,6 +29,7 @@ export const NAV = [
   { key: "overview", href: "/", icon: LayoutDashboard, group: "overview", roles: STAFF_ROLES },
   { key: "orders", href: "/orders", icon: ShoppingBag, group: "sales", roles: ORDERS_ROLES },
   { key: "deliveries", href: "/deliveries", icon: Truck, group: "sales", roles: ORDERS_ROLES },
+  { key: "customers", href: "/customers", icon: Contact, group: "sales", roles: ORDERS_ROLES },
   { key: "production", href: "/kitchen", icon: ChefHat, group: "kitchen", roles: STAFF_ROLES },
   { key: "menu", href: "/menu", icon: CalendarDays, group: "kitchen", roles: STAFF_ROLES },
   { key: "dishes", href: "/dishes", icon: UtensilsCrossed, group: "kitchen", roles: STAFF_ROLES },
