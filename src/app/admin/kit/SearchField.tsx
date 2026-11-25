@@ -27,6 +27,8 @@ export function SearchInput({
   );
 }
 
+const DEFAULT_RESET = ["page"] as const;
+
 /**
  * A search box that writes ?q= to the address (router.replace, debounced), so the server page filters and the
  * search survives a reload. Clearing it removes q; any page number is dropped, since the result set changed.
@@ -39,6 +41,7 @@ export function SearchField({
   param = "q",
   delay = 300,
   maxLength,
+  reset = DEFAULT_RESET,
   className = "",
 }: {
   /** Accessible name. */
@@ -47,6 +50,8 @@ export function SearchField({
   param?: string;
   delay?: number;
   maxLength?: number;
+  /** Parameters a new search drops, since the result set changed: the page number, or a paging cursor. */
+  reset?: readonly string[];
   className?: string;
 }) {
   const router = useRouter();
@@ -78,7 +83,7 @@ export function SearchField({
     const term = next.trim();
     if (term) params.set(param, term);
     else params.delete(param);
-    params.delete("page");
+    for (const key of reset) params.delete(key);
     setWritten(term);
     const query = params.toString();
     router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
@@ -91,7 +96,7 @@ export function SearchField({
   }
 
   // The other parameters ride along when the form is sent without scripts (the page number is dropped).
-  const kept = [...searchParams.entries()].filter(([key]) => key !== param && key !== "page");
+  const kept = [...searchParams.entries()].filter(([key]) => key !== param && !reset.includes(key));
 
   return (
     <form

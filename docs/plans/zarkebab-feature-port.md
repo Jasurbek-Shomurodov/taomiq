@@ -297,3 +297,88 @@ with name, phone (tap to call), orders, total (owner), last order, plan ends, st
 order, and "New order for this customer" which opens `/orders/new` pre-filled (name, phone, last address and
 window). Dashboard: the "ending within 3 days" tile links to `/customers?filter=ending`. Three locales.
 No export in this slice (slice 5).
+
+### Slice 5 · Reports and Excel
+
+zarkebab: `/admin/reports` (Overview, Best selling, Sales by category, by hour, Payment methods, Order types,
+Waiter performance, Order history) with Excel export; dashboard income, payment donut and busy hours.
+
+**Migration (next number, additive).** One owner-only security-definer function per report, all taking
+`p_from date, p_to date` (Tashkent days, at most 366 days), all on the cash basis used by finance (orders in
+`paid`, `active`, `completed`, dated by `coalesce(paid_at, created_at)`), none returning customer data:
+
+- `report_overview` — orders, revenue, average order value, average plan length, new vs returning customers
+  (by phone: first paid order inside the period or before it), cancelled count and share, the same figures for
+  the previous period of equal length.
+- `report_programs` — per program and calorie level: orders, ration-days sold (`days`), revenue, share.
+- `report_durations` — per plan length and per schedule (every day / weekdays).
+- `report_time` — orders by weekday and by hour of `created_at` (when people order), 7 × 24 grid.
+- `report_sources` — `source.utm_source` / `ref` (staff-added shown as its own line, direct when empty): orders,
+  paid orders, revenue, conversion from placed to paid.
+- `report_payment_methods` — count and revenue per method, "not recorded" for orders paid before slice 2.
+- `report_renewals` — of customers whose plan ended in the period, how many placed another paid order within 14
+  days; average gap in days.
+- `report_staff` — per staff member: orders added by hand, status moves made (from `order_events`).
+
+**Code.**
+
+- `/reports`, `requireOwner()`, sidebar row in Business. Period picker in the top bar: presets (today, 7 days,
+  30 days, this month, last month, this year) and custom from–to in `?from=&to=`; invalid input falls back to
+  the last 30 days. Tabs in `?tab=`: Overview, Programs, Time, Sources, Payments, Renewals, Staff, Order history.
+- Order history tab: paid orders in the period with number, paid day, program, days, total, method; links to the
+  order; 50 per page.
+- Kit: reuse `StatTile`, `ChangeBadge`, `BarChart`, `ProgressRow`; add `Heatmap` (weekday × hour, div grid with a
+  visually hidden table) and `PeriodPicker`.
+- Excel: add `exceljs`, imported only from a server route handler `src/app/admin/(panel)/reports/export/route.ts`
+  (owner check, same period validation, `Content-Disposition` with an ASCII file name). One workbook per
+  request: `?what=reports` (a sheet per tab), `?what=finance` (records of the period), `?what=payroll`
+  (employees, rates, events of the period), `?what=orders` (order history **without** name, phone or address).
+  Money cells are numbers, dates are dates, the header row is frozen. Extend the ESLint restricted-imports rule
+  so the public site cannot import `exceljs`. An "Excel" button on Reports, Finance records and Payroll.
+- Dashboard (owner block): revenue today vs yesterday at the same hour already exists as "value"; add a
+  payment-method split for the last 30 days and the ordering-hours strip, and a "last updated" time.
+- Three locales (sheet names and headers follow the staff language).
+
+### Slice 6 · Ingredients and purchases
+
+zarkebab: `/admin/ingredients` (catalog), `/admin/bazaar` (receipts, history, analytics),
+`/admin/ingredients/sheet` (ingredients × days).
+
+**Migration (next number, additive).**
+
+- `ingredient_categories`: `id`, `name_uz`, `name_uzc`, `name_ru`, `sort`. Seeded with a basic set (meat and
+  poultry, fish, dairy and eggs, vegetables, fruit and berries, grains and legumes, oils and sauces, spices,
+  packaging, other). Owner can add more.
+- `ingredients`: `id`, names in three locales, `category_id`, `unit` (`kg`, `l`, `pcs`, `pack`), `usual_price`
+  (integer UZS per unit, null = unknown), `pieces_per_unit` (null or > 0, e.g. 30 eggs in a tray),
+  `archived_at`, timestamps. Unique active name (case-insensitive, per `name_ru` and `name_uz`).
+- `purchases`: `id`, `day date` (today or up to 3 days back, enforced in a trigger; a closed month refuses it as
+  for finance records), `buyer_id` null → `finance_employees`, `buyer_name` snapshot, `payment_method`
+  (cash, card, transfer), `note`, `total bigint`, `finance_entry_id` (unique), `request_id uuid unique`
+  (idempotency), `created_by`, timestamps.
+- `purchase_lines`: `purchase_id`, `ingredient_id`, `ingredient_name` snapshot, `unit` snapshot, `quantity
+  numeric(12,3) > 0`, `amount bigint > 0`, `usual_price` snapshot. Unit cost is derived.
+- RLS: owner and manager read and write ingredients, categories and purchases (the manager buys); **the linked
+  finance entry stays owner-only**. Written only through functions:
+  `purchase_save(p_request_id, p_id, p_day, p_buyer_id, p_method, p_note, p_lines jsonb)` creates or edits the
+  receipt and its lines and creates or updates exactly one `finance_entries` row (category ingredients, amount =
+  total, same day and method, counterparty = buyer); `purchase_delete(p_id)` removes both. A repeated
+  `request_id` returns the first result. `finance_entries` rows that belong to a purchase cannot be edited or
+  deleted from Finance records (trigger; the row shows a link to the purchase instead).
+- `purchases_analytics(p_from, p_to)` and `purchase_grid(p_from, p_to)` (owner, manager).
+- Audit: purchases appear in the audit feed (area `purchases`).
+
+**Code.**
+
+- `/ingredients` (Kitchen & stock group): search, category filter, Active / Archived, card or table; editor page
+  with "fill Cyrillic from Latin" as in dishes; archive and restore (no delete).
+- `/purchases` with tabs New / History / Analytics / Sheet:
+  - New: day, buyer, method, note, lines (ingredient picker with search, quantity, unit shown, amount paid; unit
+    cost and the difference from the usual price appear as you type, tone when above); running total; Save
+    disabled until valid; "add ingredient" inline when it is not in the catalog (owner and manager).
+  - History: search, category and method filters, paging, open, edit, delete with a confirm that names the action.
+  - Analytics: total, average per day, receipts, distinct ingredients, days with purchases, daily bar chart, by
+    category / method / buyer, top ingredients with average and latest unit cost and an up/down mark.
+  - Sheet: ingredients × days grid for a month, tap a cell for quantity, amount, buyer, unit cost vs usual.
+- Finance Month: food cost % keeps using ingredients spending; nothing changes in the formulas.
+- Three locales; `loading.tsx` per route.
