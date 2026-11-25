@@ -17,6 +17,9 @@ export type OrderAlertInput = Omit<OrderAlert, "pricePerDay" | "total">;
 const botToken = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const staffChatId = process.env.TELEGRAM_STAFF_CHAT_ID ?? "";
 
+/** Whether the alert is on (both variables set). The Settings screen shows it; the values never leave this file. */
+export const isOrderAlertConfigured = Boolean(botToken && staffChatId);
+
 const TIMEOUT_MS = 5000;
 /** An upload is slower than a text message; a timeout means "maybe delivered", so give it room. */
 const PHOTO_TIMEOUT_MS = 15_000;

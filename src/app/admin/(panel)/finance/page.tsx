@@ -550,7 +550,7 @@ function EstimatePanel({
   const e = t.finance.estimate;
   const left = remainingDays(today);
   const settingsLink = (
-    <Link href="/finance/close#settings" className="adm-btn adm-btn-outline adm-btn-sm">
+    <Link href="/settings#finance" className="adm-btn adm-btn-outline adm-btn-sm">
       <Settings2 aria-hidden="true" />
       {e.settingsLink}
     </Link>

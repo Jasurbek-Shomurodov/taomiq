@@ -15,7 +15,13 @@ import {
 } from "./categories";
 import { formatMonth, isCalendarDay } from "./month";
 import { isRateUnit, isSalaryEventKind, PAYROLL_LIMITS } from "./payroll";
-import { CLOSE_LIMITS, FINANCE_SETTING_KEYS, FINANCE_SETTING_LIMITS, type FinanceSettingName } from "./settings";
+import {
+  CLOSE_LIMITS,
+  FINANCE_SETTING_KEYS,
+  FINANCE_SETTING_LIMITS,
+  isFinanceSettingName,
+  readFinanceSettingInput,
+} from "./settings";
 
 /*
  * Finance ledger, payroll, month close and settings writes (migrations 0013, 0014 and 0015), owner only. Each action
@@ -524,55 +530,36 @@ export async function reopenFinanceMonth(_prev: FormState, form: FormData): Prom
 }
 
 /**
- * Saves the three finance settings at once. An empty field clears that setting (its row is deleted); a filled one is
- * written as a JSON number. Whole UZS for rent and the break-even target; a percent with up to 2 decimals for the tax.
+ * Saves one finance setting (the settings screen saves each field on its own). The form sends `name` (monthlyRent,
+ * breakEvenDaily or taxRatePct) and `value`; an empty value clears that setting (its row is deleted), a filled one is
+ * written as a JSON number. The input rule is readFinanceSettingInput (settings.ts), the same one the field uses.
  */
-export async function saveFinanceSettings(_prev: FormState, form: FormData): Promise<FormState> {
+export async function saveFinanceSetting(_prev: FormState, form: FormData): Promise<FormState> {
   const { supabase, staff } = await requireOwner();
   const t = getAdminDictionary(staff.locale);
   const s = t.finance.settings;
   const e = s.errors;
 
-  const values: Record<FinanceSettingName, number | null> = { monthlyRent: null, breakEvenDaily: null, taxRatePct: null };
-  for (const name of ["monthlyRent", "breakEvenDaily"] as const) {
-    const raw = text(form, FINANCE_SETTING_KEYS[name]).replace(/[\s  ]/g, "");
-    if (!raw) continue;
-    if (!/^\d+$/.test(raw)) return { error: e.amount(s.fields[name]) };
-    const amount = Number(raw);
-    if (!Number.isSafeInteger(amount) || amount > FINANCE_SETTING_LIMITS.amountMax) {
-      return { error: e.amountRange(s.fields[name], formatSum(FINANCE_SETTING_LIMITS.amountMax)) };
-    }
-    values[name] = amount;
-  }
-  const taxRaw = text(form, FINANCE_SETTING_KEYS.taxRatePct).replace(/\s/g, "").replace(",", ".");
-  if (taxRaw) {
-    if (!/^\d{1,3}(\.\d{1,2})?$/.test(taxRaw)) return { error: e.tax };
-    const rate = Number(taxRaw);
-    if (!(rate >= 0 && rate <= FINANCE_SETTING_LIMITS.taxMax)) return { error: e.tax };
-    values.taxRatePct = rate;
+  const name = text(form, "name");
+  if (!isFinanceSettingName(name)) return { error: e.invalid };
+  const field = s.fields[name];
+  const input = readFinanceSettingInput(name, text(form, "value"));
+  if ("error" in input) {
+    if (input.error === "amount") return { error: e.amount(field) };
+    if (input.error === "amountRange") return { error: e.amountRange(field, formatSum(FINANCE_SETTING_LIMITS.amountMax)) };
+    return { error: e.tax };
   }
 
-  const names = Object.keys(values) as FinanceSettingName[];
-  const upserts = names.flatMap((name) =>
-    values[name] === null ? [] : [{ key: FINANCE_SETTING_KEYS[name], value: values[name] }],
-  );
-  const cleared = names.filter((name) => values[name] === null).map((name) => FINANCE_SETTING_KEYS[name]);
-
-  if (upserts.length > 0) {
-    const { error } = await supabase.from("settings").upsert(upserts, { onConflict: "key" });
-    if (error) {
-      console.error("finance: save settings failed", error.code, error.message);
-      if (error.code === "42501") return { error: e.denied };
-      if (error.code === "23514") return { error: e.invalid };
-      return { error: e.saveFailed };
-    }
-  }
-  if (cleared.length > 0) {
-    const { error } = await supabase.from("settings").delete().in("key", cleared);
-    if (error) {
-      console.error("finance: clear settings failed", error.code, error.message);
-      return { error: e.saveFailed };
-    }
+  const key = FINANCE_SETTING_KEYS[name];
+  const { error } =
+    input.value === null
+      ? await supabase.from("settings").delete().eq("key", key)
+      : await supabase.from("settings").upsert({ key, value: input.value }, { onConflict: "key" });
+  if (error) {
+    console.error("finance: save setting failed", key, error.code, error.message);
+    if (error.code === "42501") return { error: e.denied };
+    if (error.code === "23514") return { error: e.invalid };
+    return { error: e.saveFailed };
   }
 
   refresh();

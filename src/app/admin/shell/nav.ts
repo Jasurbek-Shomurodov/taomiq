@@ -2,6 +2,7 @@ import {
   CalendarDays,
   ChefHat,
   LayoutDashboard,
+  Settings,
   ShoppingBag,
   Tags,
   Truck,
@@ -32,6 +33,7 @@ export const NAV = [
   { key: "programs", href: "/programs", icon: Tags, group: "business", roles: OWNER },
   { key: "finance", href: "/finance", icon: Wallet, group: "business", roles: OWNER },
   { key: "team", href: "/team", icon: Users, group: "business", roles: OWNER },
+  { key: "settings", href: "/settings", icon: Settings, group: "business", roles: OWNER },
 ] as const satisfies readonly {
   key: string;
   href: string;

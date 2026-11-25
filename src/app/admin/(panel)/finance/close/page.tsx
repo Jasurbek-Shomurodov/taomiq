@@ -1,4 +1,13 @@
-import { CalendarCheck, CalendarClock, Lock, NotebookPen, TrendingDown, TrendingUp, TriangleAlert } from "lucide-react";
+import {
+  CalendarCheck,
+  CalendarClock,
+  Lock,
+  NotebookPen,
+  Settings2,
+  TrendingDown,
+  TrendingUp,
+  TriangleAlert,
+} from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -19,7 +28,7 @@ import {
 } from "@/lib/admin/finance/math";
 import { formatMonth, formatMonthShort } from "@/lib/admin/finance/month";
 import { loadCloseOverview, loadFinanceSettings } from "@/lib/admin/finance/queries";
-import type { FinanceSettings } from "@/lib/admin/finance/settings";
+import { FINANCE_SETTING_NAMES, type FinanceSettings } from "@/lib/admin/finance/settings";
 import { Badge, type Tone } from "../../../kit/Badge";
 import type { ChartBar } from "../../../kit/BarChart";
 import { BeforeHydration } from "../../../kit/BeforeHydration";
@@ -31,7 +40,6 @@ import { StatTile } from "../../../kit/StatTile";
 import { FinanceTabs } from "../FinanceTabs";
 import { DASH, Help, Labeled, Money, pct, resultClass, resultTone, sumText } from "../figures";
 import { CloseMonthForm, ReopenMonthForm } from "./CloseForms";
-import { SettingsForm } from "./SettingsForm";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { staff } = await requireOwner();
@@ -503,6 +511,10 @@ function History({ log, locale, t }: { log: CloseLogEntry[]; locale: Locale; t: 
   );
 }
 
+/**
+ * The finance settings the Month estimate uses, read-only here: they are changed on the Settings screen
+ * (/settings#finance), one field at a time.
+ */
 function SettingsPanel({
   settings,
   locale,
@@ -513,11 +525,38 @@ function SettingsPanel({
   t: AdminDictionary;
 }) {
   const s = t.finance.settings;
+  const shown = (name: (typeof FINANCE_SETTING_NAMES)[number]) => {
+    const value = settings?.[name] ?? null;
+    if (value === null) return s.notSet;
+    return name === "taxRatePct"
+      ? `${new Intl.NumberFormat(htmlLang[locale], { maximumFractionDigits: 2 }).format(value)} %`
+      : sumText(value, t);
+  };
   return (
-    <Panel title={s.title} description={s.lead}>
+    <Panel
+      title={s.title}
+      description={s.moved}
+      actions={
+        <Link href="/settings#finance" className="adm-btn adm-btn-outline adm-btn-sm">
+          <Settings2 aria-hidden="true" />
+          {s.open}
+        </Link>
+      }
+    >
       <div id="settings" className="scroll-mt-32">
         {settings ? (
-          <SettingsForm settings={settings} locale={locale} />
+          <dl className="grid gap-x-6 gap-y-4 [grid-template-columns:repeat(auto-fit,minmax(12rem,1fr))]">
+            {FINANCE_SETTING_NAMES.map((name) => (
+              <div key={name} className="grid content-start gap-1">
+                <dt className="adm-caption font-medium">{s.fields[name]}</dt>
+                <dd
+                  className={`text-lg font-semibold tabular-nums ${settings[name] === null ? "text-adm-muted" : "text-adm-text"}`}
+                >
+                  {shown(name)}
+                </dd>
+              </div>
+            ))}
+          </dl>
         ) : (
           <Notice tone="negative" retry={{ href: SELF, label: t.common.retry }}>
             {s.loadFailed}

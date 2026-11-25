@@ -12,6 +12,12 @@ export const FINANCE_SETTING_KEYS = {
 
 export type FinanceSettingName = keyof typeof FINANCE_SETTING_KEYS;
 
+export const FINANCE_SETTING_NAMES = Object.keys(FINANCE_SETTING_KEYS) as FinanceSettingName[];
+
+export function isFinanceSettingName(value: string): value is FinanceSettingName {
+  return (FINANCE_SETTING_NAMES as string[]).includes(value);
+}
+
 export type FinanceSettings = {
   /** The rent a month is expected to pay, whole UZS; null when not set. */
   monthlyRent: number | null;
@@ -39,6 +45,33 @@ function amountValue(value: unknown): number | null {
 function rateValue(value: unknown): number | null {
   const n = typeof value === "number" ? value : Number.NaN;
   return Number.isFinite(n) && n >= 0 && n <= FINANCE_SETTING_LIMITS.taxMax ? n : null;
+}
+
+export type FinanceSettingInputError = "amount" | "amountRange" | "tax";
+
+/**
+ * One setting as typed into its field: null clears it (an empty field), a number sets it. Amounts are whole UZS and may
+ * be grouped with spaces ("6 000 000"); the tax rate is a percent with up to 2 decimals, "." or ",". The same rule as
+ * private.check_finance_setting; the settings screen uses it to enable Save and the action to check again.
+ */
+export function readFinanceSettingInput(
+  name: FinanceSettingName,
+  raw: string,
+): { value: number | null } | { error: FinanceSettingInputError } {
+  if (name === "taxRatePct") {
+    const text = raw.replace(/\s/g, "").replace(",", ".");
+    if (!text) return { value: null };
+    if (!/^\d{1,3}(\.\d{1,2})?$/.test(text)) return { error: "tax" };
+    const rate = Number(text);
+    return rate >= 0 && rate <= FINANCE_SETTING_LIMITS.taxMax ? { value: rate } : { error: "tax" };
+  }
+  // \s covers the no-break spaces formatSum groups with.
+  const text = raw.replace(/\s/g, "");
+  if (!text) return { value: null };
+  if (!/^\d+$/.test(text)) return { error: "amount" };
+  const amount = Number(text);
+  if (!Number.isSafeInteger(amount) || amount > FINANCE_SETTING_LIMITS.amountMax) return { error: "amountRange" };
+  return { value: amount };
 }
 
 /** The settings from public.settings rows ({ key, value }); anything missing or malformed is null (not set). */

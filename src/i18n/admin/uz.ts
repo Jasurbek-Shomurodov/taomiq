@@ -59,6 +59,7 @@ const uz: AdminDictionary = {
     programs: "Dasturlar va narxlar",
     team: "Jamoa",
     finance: "Moliya",
+    settings: "Sozlamalar",
     signOut: "Chiqish",
   },
   roles: { owner: "Egasi", manager: "Menejer", admin: "Administrator" },
@@ -728,6 +729,9 @@ const uz: AdminDictionary = {
       saving: "Saqlanmoqda…",
       saved: "Sozlamalar saqlandi.",
       loadFailed: "Prognoz sozlamalarini yuklab boʻlmadi.",
+      moved: "«Sozlamalar» boʻlimida oʻzgartiriladi.",
+      open: "Sozlamalarni ochish",
+      notSet: "berilmagan",
       errors: {
         amount: (field) => `${field}: summani butun son bilan kiriting, faqat raqamlar.`,
         amountRange: (field, max) => `${field}: summa ${max} soʻmdan oshmasin.`,
@@ -1147,6 +1151,110 @@ const uz: AdminDictionary = {
         eventGone: "Bu yozuv allaqachon oʻchirilgan — sahifa yangilandi.",
         deleteFailed: "Oʻchirib boʻlmadi. Qayta urinib koʻring.",
       },
+    },
+  },
+  settings: {
+    lead: "Biznes sozlamalari. Har bir maydon alohida — oʻzining «Saqlash» tugmasi bilan saqlanadi.",
+    loadFailed: "Sozlamalarni yuklab boʻlmadi.",
+    save: "Saqlash",
+    saving: "Saqlanmoqda…",
+    saved: "Saqlandi.",
+    sections: {
+      delivery: { title: "Yetkazib berish", lead: "Xaridor buyurtma shaklida nimani tanlaydi." },
+      menu: { title: "Menyu", lead: "Har bir sanada 30 kunlik menyuning qaysi kuni beriladi." },
+      contacts: {
+        title: "Kontaktlar",
+        lead: "Hozirdan saqlanadi; saytda keyinroq, kontaktlar sahifasi bilan birga chiqadi.",
+      },
+      finance: {
+        title: "Moliya",
+        lead: "Moliyadagi «Oy» boʻlimi prognozi uchun kerak. Boʻsh maydon — sozlama berilmagan.",
+      },
+      appearance: {
+        title: "Koʻrinish",
+        lead: "Faqat siz uchun: til hisobingizda, mavzu esa shu qurilmada saqlanadi.",
+      },
+      system: {
+        title: "Tizim",
+        lead: "Faqat oʻqish uchun. Kalitlar va parollar koʻrsatilmaydi — faqat ulanganmi yoki yoʻq.",
+      },
+    },
+    windows: {
+      label: "Yetkazib berish vaqtlari",
+      hint: "Xaridor buyurtmada tanlaydigan ikki soatlik vaqtlar. Yetkazib berish varagʻida ham shu tartibda boradi.",
+      from: "Dan",
+      to: "Gacha",
+      window: (n) => `${n}-vaqt`,
+      add: "Vaqt qoʻshish",
+      remove: (n) => `${n}-vaqtni oʻchirish`,
+      lastOne: "Bitta vaqt qolishi kerak.",
+      removedNote:
+        "Oʻchirilgan vaqtli buyurtmalar oʻzgarmaydi: yetkazib berish varagʻida ular oxirida boradi.",
+    },
+    cutoff: {
+      label: "Ertangi buyurtmalarni qabul qilish",
+      hint: "Toshkent vaqti boʻyicha soat, 0 dan 23 gacha.",
+      preview: (time) =>
+        time === null
+          ? "Har qanday buyurtma eng erta indindan boshlanadi."
+          : `${time} gacha berilgan buyurtma ertadan, ${time} dan keyin — indindan boshlanishi mumkin.`,
+    },
+    anchor: {
+      label: "Menyu siklining boshlanishi",
+      hint: "Shu kuni 30 kundan 1-kun beriladi, keyin kunlar aylana boʻylab davom etadi.",
+      warning:
+        "Oʻzgartirish har bir sanada menyuning qaysi kuni berilishini suradi — saytda, ishlab chiqarishda va berilgan buyurtmalarda ham. Faqat siklni qaytadan boshlamoqchi boʻlsangiz oʻzgartiring.",
+      today: (day) => `Shu sana bilan bugun 30 kundan ${day}-kun beriladi.`,
+    },
+    phone: {
+      label: "Telefon",
+      hint: "Oʻzbekistondagi raqam. Boʻsh maydon — telefon koʻrsatilmaydi.",
+      placeholder: "+998 90 123-45-67",
+    },
+    telegram: {
+      label: "Telegram",
+      hint: "Foydalanuvchi nomi yoki t.me havolasi. Boʻsh maydon — Telegram koʻrsatilmaydi.",
+      placeholder: "@taomiq",
+    },
+    appearance: {
+      language: "Panel tili",
+      theme: "Mavzu",
+      light: "Kunduzgi",
+      dark: "Tungi",
+    },
+    system: {
+      migrations: "Baza migratsiyalari",
+      migrationsValue: (count) => `Qoʻllangan: ${count}`,
+      migrationsLatest: (name) => `Oxirgisi: ${name}`,
+      migrationsNone: "Bu baza migratsiyalar jurnalini yuritmaydi.",
+      migrationsFailed: "Migratsiyalar jurnalini oʻqib boʻlmadi.",
+      integrations: "Ulanishlar",
+      on: "Ulangan",
+      off: "Ulanmagan",
+      env: "Muhit oʻzgaruvchilari",
+      names: {
+        database: "Maʼlumotlar bazasi (Supabase)",
+        ordering: "Saytdan buyurtma qabul qilish",
+        telegramAlert: "Buyurtmalar haqida Telegram xabarlari",
+        turnstile: "Botlardan himoya (Turnstile)",
+        analytics: "Analitika (PostHog)",
+        customerSignIn: "Xaridorlar kirishi",
+        staffGoogle: "Xodimlarning Google orqali kirishi",
+      },
+    },
+    errors: {
+      windowsEmpty: "Kamida bitta yetkazib berish vaqti qolishi kerak.",
+      windowsTooMany: (max) => `${max} tadan koʻp vaqt boʻlmasin.`,
+      windowsTime: "Har bir vaqtning boshlanishi va tugashini kiriting.",
+      windowsOrder: "Vaqtning boshlanishi tugashidan oldin boʻlishi kerak.",
+      windowsDuplicate: "Ikkita bir xil vaqt bor: takrorini oʻchiring.",
+      cutoff: "Soat — 0 dan 23 gacha butun son.",
+      anchor: "Sanani tanlang.",
+      phone: "Oʻzbekistondagi raqam: +998 va 9 ta raqam.",
+      telegram: "Telegram foydalanuvchi nomi: 5–32 ta lotin harfi, raqam yoki «_», birinchisi — harf.",
+      denied: "Baza oʻzgarishni rad etdi: egasi sifatida qayta kiring.",
+      invalid: "Baza qiymatni rad etdi: maydonni tekshiring.",
+      saveFailed: "Saqlab boʻlmadi. Qayta urinib koʻring.",
     },
   },
 };
