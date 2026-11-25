@@ -161,16 +161,33 @@ export async function listMonthEntries(
   month: FinanceMonth,
   kind: EntryKind | null,
 ): Promise<{ entries: FinanceEntry[]; partial: boolean }> {
-  const page = async (from: number, to: number): Promise<FinanceEntry[]> => {
+  return listEntriesBetween(supabase, month.from, month.to, kind, ENTRIES_CAP);
+}
+
+/** The most records one Excel file holds (a year of a small business, many times over). */
+export const EXPORT_ENTRIES_CAP = 20000;
+
+/**
+ * Every record dated from `from` to `to` (both included, optionally of one kind), in the order of listMonthEntries,
+ * up to `cap` rows. The month history and the Excel export (reports/export) read through it.
+ */
+export async function listEntriesBetween(
+  supabase: SupabaseClient,
+  from: string,
+  to: string,
+  kind: EntryKind | null,
+  cap: number,
+): Promise<{ entries: FinanceEntry[]; partial: boolean }> {
+  const page = async (start: number, end: number): Promise<FinanceEntry[]> => {
     let query = supabase
       .from("finance_entries")
       .select(ENTRY_COLUMNS)
-      .gte("entry_date", month.from)
-      .lte("entry_date", month.to)
+      .gte("entry_date", from)
+      .lte("entry_date", to)
       .order("entry_date", { ascending: false })
       .order("created_at", { ascending: false })
       .order("id", { ascending: true })
-      .range(from, to);
+      .range(start, end);
     if (kind === "expense") query = query.eq("entry_type", "expense");
     if (kind === "investor") query = query.eq("entry_type", "income").eq("category", "investor_support");
     if (kind === "other_income") query = query.eq("entry_type", "income").eq("category", "other_income");
@@ -192,7 +209,7 @@ export async function listMonthEntries(
       kind: rowKind(String(row.entry_type), String(row.category)),
     }));
   };
-  const { rows, partial } = await readCapped(page, ENTRIES_CAP);
+  const { rows, partial } = await readCapped(page, cap);
   return { entries: rows, partial };
 }
 
@@ -444,4 +461,90 @@ export async function loadFinanceSettings(supabase: SupabaseClient): Promise<Fin
     .in("key", Object.values(FINANCE_SETTING_KEYS));
   if (error) throw new Error(`settings: ${error.code} ${error.message}`);
   return parseFinanceSettings((data ?? []) as { key: unknown; value: unknown }[]);
+}
+
+// ---------- payroll for the Excel export ----------
+
+export type ExportSalaryRate = SalaryRate & { employee_id: string };
+export type ExportSalaryEvent = SalaryEvent & { employee_id: string };
+
+/**
+ * Every rate of every person (newest start first) and every payroll event dated from `from` to `to` (newest first),
+ * for the payroll workbook (reports/export). Read through RLS; events page by page up to EXPORT_ENTRIES_CAP.
+ */
+export async function loadPayrollExport(
+  supabase: SupabaseClient,
+  from: string,
+  to: string,
+): Promise<{ rates: ExportSalaryRate[]; events: ExportSalaryEvent[]; partial: boolean }> {
+  const ratesRead = (start: number, end: number) =>
+    supabase
+      .from("finance_salary_rates")
+      .select("id, employee_id, effective_from, amount, rate_unit, note")
+      .order("effective_from", { ascending: false })
+      .order("id", { ascending: true })
+      .range(start, end);
+  const eventsRead = (start: number, end: number) =>
+    supabase
+      .from("finance_salary_events")
+      .select("id, employee_id, kind, event_date, amount, payment_method, note, created_at")
+      .gte("event_date", from)
+      .lte("event_date", to)
+      .order("event_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(start, end);
+
+  const read = async (
+    what: string,
+    query: (start: number, end: number) => PromiseLike<{ data: unknown[] | null; error: { code: string; message: string } | null }>,
+    start: number,
+    end: number,
+  ): Promise<Record<string, unknown>[]> => {
+    const { data, error } = await query(start, end);
+    if (error) {
+      if (error.code === "PGRST103") return [];
+      throw new Error(`${what}: ${error.code} ${error.message}`);
+    }
+    return (data ?? []) as Record<string, unknown>[];
+  };
+
+  const [rates, events] = await Promise.all([
+    readCapped((start, end) => read("finance_salary_rates", ratesRead, start, end), EXPORT_ENTRIES_CAP),
+    readCapped((start, end) => read("finance_salary_events", eventsRead, start, end), EXPORT_ENTRIES_CAP),
+  ]);
+  return {
+    rates: rates.rows.flatMap((row) => {
+      const unit = rateUnit(row.rate_unit);
+      return unit
+        ? [
+            {
+              id: String(row.id),
+              employee_id: String(row.employee_id),
+              effective_from: String(row.effective_from),
+              amount: money(row.amount),
+              rate_unit: unit,
+              note: text(row.note),
+            },
+          ]
+        : [];
+    }),
+    events: events.rows.flatMap((row) =>
+      isSalaryEventKind(row.kind)
+        ? [
+            {
+              id: String(row.id),
+              employee_id: String(row.employee_id),
+              kind: row.kind,
+              event_date: String(row.event_date),
+              amount: row.amount === null || row.amount === undefined ? null : money(row.amount),
+              payment_method: text(row.payment_method),
+              note: text(row.note),
+              created_at: String(row.created_at),
+            },
+          ]
+        : [],
+    ),
+    partial: rates.partial || events.partial,
+  };
 }

@@ -8,6 +8,7 @@ import { requireOwner } from "@/lib/admin/auth";
 import { categoryIcon, isEntryKind, isPaymentMethod, type EntryKind } from "@/lib/admin/finance/categories";
 import { financeMonth, formatEntryDay, formatMonth } from "@/lib/admin/finance/month";
 import { ENTRIES_CAP, listMonthEntries, loadLockedThrough, type FinanceEntry } from "@/lib/admin/finance/queries";
+import { customPeriod } from "@/lib/admin/reports";
 import { addDays, tashkentDay } from "@/lib/admin/stats";
 import { BeforeHydration } from "../../../kit/BeforeHydration";
 import type { Tone } from "../../../kit/Badge";
@@ -17,6 +18,7 @@ import { Panel } from "../../../kit/Panel";
 import { Segmented } from "../../../kit/Segmented";
 import { FinanceMonthSwitcher } from "../FinanceMonthSwitcher";
 import { FinanceTabs } from "../FinanceTabs";
+import { ExcelLink } from "../../reports/parts";
 import { DeleteEntry } from "./DeleteEntry";
 import { EntryForm } from "./EntryForm";
 
@@ -127,17 +129,27 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
           locale={locale}
           hrefFor={(monthParam) => href(monthParam, kind)}
         />
-        <Segmented
-          label={r.filter}
-          value={kind ?? "all"}
-          items={[
-            { key: "all", label: r.all, href: href(monthParam, null) },
-            { key: "expense", label: t.finance.kindsPlural.expense, href: href(monthParam, "expense") },
-            { key: "investor", label: t.finance.kindsPlural.investor, href: href(monthParam, "investor") },
-            { key: "other_income", label: t.finance.kindsPlural.other_income, href: href(monthParam, "other_income") },
-          ]}
-          className="max-w-full"
-        />
+        <div className="flex max-w-full flex-wrap items-center gap-3">
+          <Segmented
+            label={r.filter}
+            value={kind ?? "all"}
+            items={[
+              { key: "all", label: r.all, href: href(monthParam, null) },
+              { key: "expense", label: t.finance.kindsPlural.expense, href: href(monthParam, "expense") },
+              { key: "investor", label: t.finance.kindsPlural.investor, href: href(monthParam, "investor") },
+              { key: "other_income", label: t.finance.kindsPlural.other_income, href: href(monthParam, "other_income") },
+            ]}
+            className="max-w-full"
+          />
+          {/* Every record of the month (all kinds), up to today for the running month. */}
+          <ExcelLink
+            kind="finance"
+            period={customPeriod(month.from, month.isCurrent ? today : month.to)}
+            what={t.reports.excelRecords(monthName)}
+            locale={locale}
+            small
+          />
+        </div>
       </div>
 
       {closed && <Notice tone="info">{r.closedNotice}</Notice>}

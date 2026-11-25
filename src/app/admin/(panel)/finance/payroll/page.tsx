@@ -7,6 +7,7 @@ import { requireOwner } from "@/lib/admin/auth";
 import { balanceState, payrollSummary, rateGap, type PayrollRow } from "@/lib/admin/finance/math";
 import { formatEntryDay, formatMonth } from "@/lib/admin/finance/month";
 import { loadPayroll } from "@/lib/admin/finance/queries";
+import { customPeriod } from "@/lib/admin/reports";
 import { tashkentDay } from "@/lib/admin/stats";
 import { BeforeHydration } from "../../../kit/BeforeHydration";
 import { EmptyState } from "../../../kit/EmptyState";
@@ -14,6 +15,7 @@ import { Notice } from "../../../kit/Notice";
 import { Panel } from "../../../kit/Panel";
 import { StatTile } from "../../../kit/StatTile";
 import { FinanceTabs } from "../FinanceTabs";
+import { ExcelLink } from "../../reports/parts";
 import { Labeled, Money, sumText } from "../figures";
 import { BalanceBadge, rateLine } from "./parts";
 import { EmployeeForm } from "./EmployeeForm";
@@ -51,7 +53,17 @@ export default async function FinancePayrollPage() {
         <FinanceTabs locale={locale} />
       </BeforeHydration>
 
-      <p className="adm-caption">{p.lead}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="adm-caption">{p.lead}</p>
+        {/* This month so far: everyone with their balance today, every rate, this month's payments and events. */}
+        <ExcelLink
+          kind="payroll"
+          period={customPeriod(`${today.slice(0, 7)}-01`, today)}
+          what={t.reports.excelPayroll(formatMonth(today.slice(0, 7), locale))}
+          locale={locale}
+          small
+        />
+      </div>
 
       {!rows ? (
         <Notice tone="negative" retry={{ href: "/finance/payroll", label: t.common.retry }}>

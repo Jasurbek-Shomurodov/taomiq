@@ -2,13 +2,20 @@ import { Suspense } from "react";
 import { getAdminDictionary } from "@/i18n/admin";
 import { requireStaff } from "@/lib/admin/auth";
 import { canHandleOrders } from "@/lib/admin/roles";
-import { DashboardCatalogueSkeleton, DashboardDaysSkeleton, DashboardOrdersSkeleton } from "../kit/Skeleton";
+import {
+  DashboardCatalogueSkeleton,
+  DashboardDaysSkeleton,
+  DashboardOrdersSkeleton,
+  DashboardReportsSkeleton,
+} from "../kit/Skeleton";
 import { CatalogueOverview } from "./CatalogueOverview";
 import { DaysAheadOverview } from "./DaysAheadOverview";
 import { OrdersOverview, type ChartMode } from "./OrdersOverview";
+import { ReportsOverview } from "./ReportsOverview";
 
 /**
- * The overview. Owners get the order figures first (orders hold personal data, so nobody else's page reads them);
+ * The overview. Owners get the order figures first (orders hold personal data, so nobody else's page reads them),
+ * then the payment-method split and the ordering hours of the last 30 days (the report functions, owner only);
  * everyone gets tomorrow's rations (owners and managers also the orders ending soon), then the dish tiles and the
  * menu readiness. Each part streams in its own boundary, so slow or failed figures never hold up the others.
  */
@@ -25,6 +32,13 @@ export default async function AdminHome({ searchParams }: PageProps<"/admin">) {
       {staff.role === "owner" && (
         <Suspense fallback={<DashboardOrdersSkeleton />}>
           <OrdersOverview locale={staff.locale} chart={chart} />
+        </Suspense>
+      )}
+
+      {/* Owner only too: payment methods and ordering hours of the last 30 days, and when the figures were read. */}
+      {staff.role === "owner" && (
+        <Suspense fallback={<DashboardReportsSkeleton />}>
+          <ReportsOverview locale={staff.locale} />
         </Suspense>
       )}
 

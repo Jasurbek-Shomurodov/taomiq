@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  ChartNoAxesCombined,
   ChefHat,
   Contact,
   History,
@@ -35,6 +36,7 @@ export const NAV = [
   { key: "dishes", href: "/dishes", icon: UtensilsCrossed, group: "kitchen", roles: STAFF_ROLES },
   { key: "programs", href: "/programs", icon: Tags, group: "business", roles: OWNER },
   { key: "finance", href: "/finance", icon: Wallet, group: "business", roles: OWNER },
+  { key: "reports", href: "/reports", icon: ChartNoAxesCombined, group: "business", roles: OWNER },
   { key: "team", href: "/team", icon: Users, group: "business", roles: OWNER },
   { key: "audit", href: "/audit", icon: History, group: "business", roles: OWNER },
   { key: "settings", href: "/settings", icon: Settings, group: "business", roles: OWNER },

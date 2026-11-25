@@ -112,6 +112,28 @@ export function DashboardOrdersSkeleton() {
   );
 }
 
+/** The overview's report panels (owner): the payment-method split and the ordering-hours strip side by side. */
+export function DashboardReportsSkeleton() {
+  return (
+    <div className="grid gap-5 lg:grid-cols-2">
+      <div className="adm-panel grid gap-4">
+        <Skeleton className="h-4 w-44" />
+        <Skeleton className="h-3 w-full rounded-full" />
+        {Array.from({ length: 3 }, (_, j) => (
+          <div key={j} className="grid gap-2">
+            <Skeleton className="h-3.5 w-full" />
+            <Skeleton className="h-1.5 w-full rounded-full" />
+          </div>
+        ))}
+      </div>
+      <div className="adm-panel grid gap-4">
+        <Skeleton className="h-4 w-40" />
+        <Skeleton className="h-40 w-full rounded-lg sm:h-48" />
+      </div>
+    </div>
+  );
+}
+
 /** The overview's catalogue part (everyone): dish tiles and the menu-readiness rows. */
 /** The overview's days-ahead tiles: tomorrow's rations for everyone, plus endings for owners and managers. */
 export function DashboardDaysSkeleton({ tiles = 2 }: { tiles?: number }) {

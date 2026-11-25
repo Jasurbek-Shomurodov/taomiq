@@ -2,6 +2,14 @@ import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 
+// exceljs builds the back office's Excel files and is imported only by the export route's folder
+// (src/app/admin/(panel)/reports/export), on the server. Nothing else may import it: not the public site, not a page,
+// not a client component.
+const EXCELJS_PATTERN = {
+  group: ["exceljs", "exceljs/*"],
+  message: "exceljs is for the admin's Excel export only (src/app/admin/(panel)/reports/export).",
+};
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -31,10 +39,23 @@ const eslintConfig = defineConfig([
               group: ["lucide-react", "lucide-react/*"],
               message: "lucide-react icons are for the admin panel only (src/app/admin). The public site draws its own.",
             },
+            EXCELJS_PATTERN,
           ],
         },
       ],
     },
+  },
+  // The rest of the source (the admin, lib, the shadcn primitives, scripts): exceljs only. The files of the block above
+  // are left out here, because a second no-restricted-imports entry for the same file would replace the first.
+  {
+    files: ["src/**/*.{ts,tsx,js,mjs}", "scripts/**/*.{js,mjs,ts}", "e2e/**/*.ts"],
+    ignores: ["src/app/*/**", "src/app/*.{ts,tsx}", "src/components/*.{ts,tsx}", "src/app/admin/*/reports/export/**"],
+    rules: { "no-restricted-imports": ["error", { patterns: [EXCELJS_PATTERN] }] },
+  },
+  {
+    files: ["src/app/admin/**/*.{ts,tsx}"],
+    ignores: ["src/app/admin/*/reports/export/**"],
+    rules: { "no-restricted-imports": ["error", { patterns: [EXCELJS_PATTERN] }] },
   },
   // Override default ignores of eslint-config-next.
   globalIgnores([

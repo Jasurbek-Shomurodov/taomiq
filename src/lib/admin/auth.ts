@@ -44,6 +44,29 @@ export async function requireOwner() {
 }
 
 /**
+ * The owner check for a route handler (the Excel export), which answers with a status instead of a redirect and does
+ * not pass through the panel layout or a page's requireOwner(). The same reads as requireStaff: the verified session
+ * user, then their own staff row (RLS lets a member read only their own). Null for no session, no staff row, any other
+ * role, or a failed read; the database functions refuse anyone but the owner anyway.
+ */
+export async function ownerSessionOrNull() {
+  if (!isSupabaseConfigured) return null;
+  const supabase = await createSessionClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+  const { data: staff, error } = await supabase
+    .from("staff")
+    .select("user_id, name, role, locale")
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (error || !staff || staff.role !== "owner") return null;
+  const locale = typeof staff.locale === "string" && isLocale(staff.locale) ? staff.locale : defaultAdminLocale;
+  return { supabase, staff: { ...staff, locale, email: user.email ?? "" } as StaffMember };
+}
+
+/**
  * Orders and deliveries gate (customers' names, phones and addresses): owners and managers (canHandleOrders,
  * lib/admin/roles.ts). Admins are sent back to the overview. The database holds the same rule
  * (private.can_handle_orders(), migration 0011: the orders policies and public.delivery_orders).
