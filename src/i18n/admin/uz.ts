@@ -80,6 +80,13 @@ const uz: AdminDictionary = {
     newOrders: (count) => `Yangi buyurtmalar: ${count}`,
     loading: "Yuklanmoqda…",
     theme: { dark: "Tungi rejim", toDark: "Tungi rejimni yoqish", toLight: "Kunduzgi rejimni yoqish" },
+    live: {
+      newOrders: (count) => (count === 1 ? "Yangi buyurtma" : `Yangi buyurtmalar: ${count}`),
+      open: "Ochish",
+      dismiss: "Xabarni yopish",
+      offline: "Aloqa yoʻq — raqamlar eskirgan boʻlishi mumkin",
+      offlineShort: "Aloqa yoʻq",
+    },
   },
   home: {
     hello: (name) => (name ? `Assalomu alaykum, ${name}` : "Assalomu alaykum"),

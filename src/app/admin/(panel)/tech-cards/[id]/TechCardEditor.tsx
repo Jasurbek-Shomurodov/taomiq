@@ -98,6 +98,10 @@ export function TechCardEditor({
       lines,
     };
   });
+  // The card's version as this editor loaded it, for the stale-write guard: never a newer one from a later server
+  // render while the typed edits stay, which would let this save overwrite a colleague's change unseen. (The page
+  // also keys the editor by updatedAt, so a saved card remounts it; the guard does not depend on that.)
+  const [loadedAt] = useState(recipe?.updatedAt ?? "");
   const [batch, setBatch] = useState(initial.batch);
   const [method, setMethod] = useState(initial.method);
   const [notes, setNotes] = useState(initial.notes);
@@ -248,7 +252,7 @@ export function TechCardEditor({
         className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start"
       >
         <input type="hidden" name="dish_id" value={dish.id} />
-        <input type="hidden" name="loaded_at" value={recipe?.updatedAt ?? ""} />
+        <input type="hidden" name="loaded_at" value={loadedAt} />
         <input type="hidden" name="batch_output_g" value={batch} />
         <input type="hidden" name="method" value={method} />
         <input type="hidden" name="notes" value={notes} />

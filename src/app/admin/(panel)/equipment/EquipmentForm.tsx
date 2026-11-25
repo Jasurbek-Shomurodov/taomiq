@@ -96,6 +96,10 @@ export function EquipmentForm({
     count: isNew ? "0" : "",
     photo: shownPhoto ?? "",
   }));
+  // The stored photo as this form loaded it (photo_url_prev): saveEquipment writes a new photo only while the row
+  // still holds this one. Kept from the first render, so a later server render cannot move it forward under an open
+  // form and let a stale photo replace a colleague's. A save leaves the page.
+  const [loadedPhoto] = useState(item?.photo_url ?? "");
   const [photoTouched, setPhotoTouched] = useState(false);
   const [photo, setPhoto] = useState(initial.photo);
   const [uploading, setUploading] = useState(false);
@@ -152,7 +156,7 @@ export function EquipmentForm({
         className="grid min-w-0 content-start gap-5"
       >
         {item && <input type="hidden" name="id" value={item.id} />}
-        <input type="hidden" name="photo_url_prev" value={item?.photo_url ?? ""} />
+        <input type="hidden" name="photo_url_prev" value={loadedPhoto} />
         <input type="hidden" name="photo_touched" value={photoTouched ? "1" : ""} />
         <div ref={noticeRef} className="empty:hidden">
           {(state.error || hasEquipmentErrors(errors)) && <Notice tone="negative">{state.error ?? te.problems}</Notice>}

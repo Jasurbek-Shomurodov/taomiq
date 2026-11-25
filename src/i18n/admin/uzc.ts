@@ -80,6 +80,13 @@ const uzc: AdminDictionary = {
     newOrders: (count) => `Янги буюртмалар: ${count}`,
     loading: "Юкланмоқда…",
     theme: { dark: "Тунги режим", toDark: "Тунги режимни ёқиш", toLight: "Кундузги режимни ёқиш" },
+    live: {
+      newOrders: (count) => (count === 1 ? "Янги буюртма" : `Янги буюртмалар: ${count}`),
+      open: "Очиш",
+      dismiss: "Хабарни ёпиш",
+      offline: "Алоқа йўқ — рақамлар эскирган бўлиши мумкин",
+      offlineShort: "Алоқа йўқ",
+    },
   },
   home: {
     hello: (name) => (name ? `Ассалому алайкум, ${name}` : "Ассалому алайкум"),

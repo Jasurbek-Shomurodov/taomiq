@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import type { Ref } from "react";
+import type { ReactNode, Ref } from "react";
 import { activeNavKey, type NavKey } from "./nav";
 import { ThemeToggle, type ThemeLabels } from "./ThemeToggle";
 import { attachActionsSlot, attachBackSlot, attachTabsSlot, attachTitleSlot, useSlotFilled } from "./TopBarSlot";
@@ -27,6 +27,7 @@ export function TopBar({
   themeLabels,
   onOpenDrawer,
   drawerButtonRef,
+  status,
 }: {
   /** Nav labels in the panel's language, the default titles. */
   titles: Partial<Record<NavKey, string>>;
@@ -34,6 +35,8 @@ export function TopBar({
   themeLabels: ThemeLabels;
   onOpenDrawer: () => void;
   drawerButtonRef?: Ref<HTMLButtonElement>;
+  /** The shell's own state before the page's actions: the connection notice (live.tsx). */
+  status?: ReactNode;
 }) {
   const section = activeNavKey(usePathname());
   const hasTitle = useSlotFilled("title");
@@ -60,6 +63,7 @@ export function TopBar({
       </div>
       <div ref={attachTabsSlot} className="adm-topbar-tabs" />
       <div className="adm-topbar-trail">
+        {status}
         <div ref={attachActionsSlot} className="flex items-center gap-2" />
         <ThemeToggle labels={themeLabels} />
       </div>

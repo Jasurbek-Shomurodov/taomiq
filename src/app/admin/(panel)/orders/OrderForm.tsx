@@ -663,7 +663,7 @@ export type EditableOrder = {
 };
 
 export function EditOrderForm({
-  order,
+  order: rendered,
   windows,
   today,
   scheduleEditable,
@@ -679,6 +679,12 @@ export function EditOrderForm({
   const [state, action, pending] = useActionState<StaffOrderState, FormData>(editOrder, {});
   const t = getAdminDictionary(locale);
   const f = t.orderForm;
+
+  // The order as this form loaded it, for the life of the form: the stale-write guard (loaded_at and the loaded
+  // schedule) and "what changed" compare against it. A background re-render of the page (an action elsewhere, a
+  // refreshed session) can bring newer props while the typed edits stay; taking its updated_at would let this save
+  // overwrite a colleague's change unseen. A save leaves the page (redirect), so the next edit starts afresh.
+  const [order] = useState(rendered);
 
   const initial: Contact = {
     name: order.customer_name,

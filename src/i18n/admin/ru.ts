@@ -103,6 +103,14 @@ const ru = {
     loading: "Загружаем…",
     // The top bar's light/dark switch: one name, its state in aria-pressed; the tooltip says what a press does.
     theme: { dark: "Тёмная тема", toDark: "Включить тёмную тему", toLight: "Включить светлую тему" },
+    // Live updates (shell/live.tsx): the toast when new orders arrive and the top bar's connection notice.
+    live: {
+      newOrders: (count: number) => (count === 1 ? "Новый заказ" : `Новых заказов: ${count}`),
+      open: "Открыть",
+      dismiss: "Закрыть уведомление",
+      offline: "Нет связи — цифры могут быть устаревшими",
+      offlineShort: "Нет связи",
+    },
   },
   home: {
     hello: (name: string) => (name ? `Здравствуйте, ${name}` : "Здравствуйте"),

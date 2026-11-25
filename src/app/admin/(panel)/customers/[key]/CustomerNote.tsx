@@ -34,6 +34,9 @@ export function CustomerNote({
   const c = t.customers;
   const id = useId();
   const [state, action, pending] = useActionState<FormState, FormData>(saveCustomerNote, {});
+  // The phone this note was opened for, kept from the first render: a later server render cannot swap it under the
+  // typed text, so the database's key-and-phone check still refuses a key that moved to another phone.
+  const [loadedPhone] = useState(phone);
   // Controlled, so the text survives React's form reset when saving fails.
   const [value, setValue] = useState(note);
   const [saved, setSaved] = useState(note);
@@ -49,7 +52,7 @@ export function CustomerNote({
   return (
     <form action={action} className="adm-panel">
       <input type="hidden" name="key" value={customerKey} />
-      <input type="hidden" name="phone" value={phone} />
+      <input type="hidden" name="phone" value={loadedPhone} />
       <label htmlFor={id} className="adm-heading block">
         {c.note}
       </label>

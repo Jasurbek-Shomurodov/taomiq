@@ -25,9 +25,7 @@ import {
   type OrderStatus,
   type PaymentMethod,
 } from "./orders";
-import { newOrderCount } from "./queries";
-import { canHandleOrders, isGrantableRole } from "./roles";
-import { pendingRequestCount } from "./team";
+import { isGrantableRole } from "./roles";
 
 export type FormState = { error?: string; ok?: string };
 
@@ -118,29 +116,6 @@ export async function setAdminLocale(form: FormData): Promise<void> {
     }
   }
   refresh();
-}
-
-/**
- * The new-orders count for the sidebar pill, read again on each client navigation (shell/NewOrdersPill.tsx), since
- * the layout itself is not re-rendered then. Owners and managers only, checked here like requireOrdersAccess() but
- * without redirecting: it runs in the background mid-navigation, so anyone else (or no session, or a failed read)
- * just gets null and sees no pill. RLS returns no orders to anyone else either way.
- */
-export async function readNewOrderCount(): Promise<number | null> {
-  if (!isSupabaseConfigured) return null;
-  try {
-    const supabase = await createSessionClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
-    const { data: staff } = await supabase.from("staff").select("role").eq("user_id", user.id).maybeSingle();
-    if (!canHandleOrders(staff?.role)) return null;
-    return await newOrderCount(supabase);
-  } catch (error) {
-    console.error("new order count refresh failed", error instanceof Error ? error.message : error);
-    return null;
-  }
 }
 
 // ---------- dishes ----------
@@ -590,26 +565,4 @@ export async function declineAccess(_prev: FormState, form: FormData): Promise<F
 
 export async function removeStaff(_prev: FormState, form: FormData): Promise<FormState> {
   return teamCall(form, "remove_staff", (t) => t.team.notRemovable);
-}
-
-/**
- * The waiting-requests count for the pill on the Team row, read again on each client navigation
- * (shell/TeamRequestsPill.tsx). Same rules as readNewOrderCount(): owners only, never redirects, null on anything
- * else or on a failed read (no pill then).
- */
-export async function readPendingRequestCount(): Promise<number | null> {
-  if (!isSupabaseConfigured) return null;
-  try {
-    const supabase = await createSessionClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) return null;
-    const { data: staff } = await supabase.from("staff").select("role").eq("user_id", user.id).maybeSingle();
-    if (staff?.role !== "owner") return null;
-    return await pendingRequestCount(supabase);
-  } catch (error) {
-    console.error("team request count refresh failed", error instanceof Error ? error.message : error);
-    return null;
-  }
 }

@@ -86,6 +86,10 @@ export function StatusControls({
   const cancellable = canCancel(status);
   const [method, setMethod] = useState<PaymentMethod | null>(null);
   const [reason, setReason] = useState("");
+  // The status the person saw when they opened the paid or cancel question: the move applies only from it. A server
+  // render while the dialog is open (someone else moved the order) must not carry the answer over to the new status.
+  // The plain next-step button needs no copy: its label and `from` change together with the status.
+  const [askedFrom, setAskedFrom] = useState(status);
   const reasonId = useId();
   const reasonHintId = useId();
 
@@ -99,7 +103,7 @@ export function StatusControls({
           {next && next.to === "paid" && (
             <form action={action}>
               <input type="hidden" name="id" value={id} />
-              <input type="hidden" name="from" value={status} />
+              <input type="hidden" name="from" value={askedFrom} />
               <input type="hidden" name="to" value="paid" />
               <input type="hidden" name="payment_method" value={method ?? ""} />
               <ConfirmDialog
@@ -112,7 +116,10 @@ export function StatusControls({
                 pendingLabel={t.common.saving}
                 cancelLabel={t.common.cancel}
                 pending={pending}
-                onOpen={() => setMethod(null)}
+                onOpen={() => {
+                  setMethod(null);
+                  setAskedFrom(status);
+                }}
                 confirmDisabled={method === null}
               >
                 <MethodChoice value={method} onChange={setMethod} disabled={pending} t={t} />
@@ -132,7 +139,7 @@ export function StatusControls({
           {cancellable && (
             <form action={action}>
               <input type="hidden" name="id" value={id} />
-              <input type="hidden" name="from" value={status} />
+              <input type="hidden" name="from" value={askedFrom} />
               <input type="hidden" name="to" value="cancelled" />
               <input type="hidden" name="cancel_reason" value={reason} />
               <ConfirmDialog
@@ -146,7 +153,10 @@ export function StatusControls({
                 cancelLabel={t.order.cancelKeep}
                 destructive
                 pending={pending}
-                onOpen={() => setReason("")}
+                onOpen={() => {
+                  setReason("");
+                  setAskedFrom(status);
+                }}
                 confirmDisabled={!isCancelReason(reason)}
               >
                 <label htmlFor={reasonId} className="adm-label">
@@ -194,12 +204,14 @@ export function PaymentMethodControl({
   const [state, action, pending] = useActionState<FormState, FormData>(changePaymentMethod, {});
   const t = getAdminDictionary(locale);
   const [choice, setChoice] = useState<PaymentMethod | null>(method);
+  // The method the person saw when they opened the question: the change applies only from it (as StatusControls).
+  const [askedFrom, setAskedFrom] = useState(method);
 
   return (
     <div className="grid gap-1">
       <form action={action} className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <input type="hidden" name="id" value={id} />
-        <input type="hidden" name="from" value={method ?? ""} />
+        <input type="hidden" name="from" value={askedFrom ?? ""} />
         <input type="hidden" name="payment_method" value={choice ?? ""} />
         <span className={method ? "text-adm-text" : "text-adm-muted"}>
           {method ? t.finance.methods[method] : t.order.noPaymentMethod}
@@ -214,8 +226,11 @@ export function PaymentMethodControl({
           pendingLabel={t.common.saving}
           cancelLabel={t.common.cancel}
           pending={pending}
-          onOpen={() => setChoice(method)}
-          confirmDisabled={choice === null || choice === method}
+          onOpen={() => {
+            setChoice(method);
+            setAskedFrom(method);
+          }}
+          confirmDisabled={choice === null || choice === askedFrom}
         >
           <MethodChoice value={choice} onChange={setChoice} disabled={pending} t={t} />
         </ConfirmDialog>

@@ -41,6 +41,8 @@ async function Shell({ children }: { children: React.ReactNode }) {
           </Suspense>
         ) : null,
       }}
+      // The live updates read only the counts this role is shown above, and nothing at all for the rest.
+      live={{ orders: canHandleOrders(staff.role), requests: isOwner }}
       account={{ name: staff.name, email: staff.email, role: t.roles[staff.role] }}
       labels={{
         mainNav: t.shell.mainNav,

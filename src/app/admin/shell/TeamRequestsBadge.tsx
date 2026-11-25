@@ -5,7 +5,8 @@ import { TeamRequestsPill } from "./TeamRequestsPill";
 /**
  * The waiting-requests pill on the Team row, seeded on the server: access requests in status "pending". Owners only
  * (the layout renders it only for them, and RLS returns nothing to anyone else). A failed read (for example before
- * migration 0008 is applied) seeds null, never 0, and shows no pill; it is read again on each navigation.
+ * migration 0008 is applied) seeds null, never 0, and shows no pill; the shell's live updates (live.tsx) read it
+ * again on a timer and on each navigation.
  */
 export async function TeamRequestsBadge() {
   const { supabase, staff } = await requireStaff();
@@ -16,5 +17,6 @@ export async function TeamRequestsBadge() {
   } catch (error) {
     console.error("team request badge failed", error instanceof Error ? error.message : error);
   }
-  return <TeamRequestsPill initialCount={count} locale={staff.locale} />;
+  // A new object per server render: the pill takes it even when the number is unchanged (live.tsx).
+  return <TeamRequestsPill server={{ count }} locale={staff.locale} />;
 }

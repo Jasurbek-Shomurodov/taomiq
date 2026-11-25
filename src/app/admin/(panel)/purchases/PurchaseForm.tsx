@@ -119,6 +119,11 @@ export function PurchaseForm({
   const tp = t.purchases;
   const baseId = useId();
 
+  // The receipt's version as this form loaded it, for the stale-write guard: never a newer one from a later server
+  // render while the typed edits stay, which would let this save overwrite a colleague's change unseen. (The page
+  // also keys the form by updated_at, so a newer version remounts it today; the guard does not depend on that.)
+  const [loaded] = useState(() => (purchase ? { at: purchase.updated_at, day: purchase.day } : null));
+
   const [ingredients, setIngredients] = useState(initialIngredients);
   const byId = new Map(ingredients.map((item) => [item.id, item]));
 
@@ -252,8 +257,8 @@ export function PurchaseForm({
         className="grid gap-5"
       >
         {purchase && <input type="hidden" name="id" value={purchase.id} />}
-        {purchase && <input type="hidden" name="loaded_at" value={purchase.updated_at} />}
-        {purchase && <input type="hidden" name="loaded_day" value={purchase.day} />}
+        {loaded && <input type="hidden" name="loaded_at" value={loaded.at} />}
+        {loaded && <input type="hidden" name="loaded_day" value={loaded.day} />}
         <input type="hidden" name="day" value={day} />
         <input type="hidden" name="buyer_id" value={buyerId} />
         <input type="hidden" name="payment_method" value={method} />

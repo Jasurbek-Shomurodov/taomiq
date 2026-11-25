@@ -6,7 +6,7 @@ import { NewOrdersPill } from "./NewOrdersPill";
 /**
  * The new-orders pill on the Orders row, seeded on the server: orders waiting in status "new". Owners and managers
  * only (the layout renders it only for them, and RLS returns nothing to anyone else). A failed read seeds null, never
- * 0; the pill then reads the count again on each navigation (NewOrdersPill).
+ * 0; the shell's live updates (live.tsx) read it again on a timer and on each navigation.
  */
 export async function NewOrdersBadge() {
   const { supabase, staff } = await requireStaff();
@@ -17,5 +17,6 @@ export async function NewOrdersBadge() {
   } catch (error) {
     console.error("new order badge failed", error instanceof Error ? error.message : error);
   }
-  return <NewOrdersPill initialCount={count} locale={staff.locale} />;
+  // A new object per server render: the pill takes it even when the number is unchanged (live.tsx).
+  return <NewOrdersPill server={{ count }} locale={staff.locale} />;
 }

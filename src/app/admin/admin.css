@@ -767,6 +767,67 @@
     border-color: color-mix(in srgb, var(--adm-info) 30%, transparent);
   }
 
+  /* A message about something that happened in the background (kit/Toast.tsx): bottom centre on phones, bottom
+     right from md. Over the page and the top bar, under the drawer and dialogs (z-index 50). The empty region lets
+     clicks through. */
+  .adm-toast-region {
+    position: fixed;
+    z-index: 40;
+    right: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+    left: 16px;
+    display: flex;
+    justify-content: center;
+    pointer-events: none;
+  }
+  @media (min-width: 48rem) {
+    .adm-toast-region {
+      right: 24px;
+      bottom: 24px;
+      left: auto;
+      justify-content: flex-end;
+    }
+  }
+  .adm-toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 24rem;
+    padding: 8px 8px 8px 14px;
+    border: 1px solid var(--adm-border);
+    border-radius: var(--adm-radius-card);
+    background: var(--adm-surface);
+    color: var(--adm-text);
+    box-shadow: var(--adm-shadow-pop);
+    pointer-events: auto;
+  }
+  /* Closed, the message stays in the page as an empty live region with no box, so the next one is announced. */
+  .adm-toast:not([data-open]) {
+    padding: 0;
+    border-width: 0;
+    background: none;
+    box-shadow: none;
+    pointer-events: none;
+  }
+  .adm-toast > svg {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    color: var(--adm-accent-ink);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .adm-toast[data-open] {
+      animation: adm-toast-in var(--duration-base) var(--adm-ease) both;
+    }
+  }
+  @keyframes adm-toast-in {
+    from {
+      opacity: 0;
+      translate: 0 8px;
+    }
+  }
+
   /* Content-shaped loading blocks with a slow shimmer. */
   .adm-skeleton {
     display: block;

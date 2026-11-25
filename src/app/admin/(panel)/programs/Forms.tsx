@@ -95,7 +95,16 @@ function useChangedSinceSubmit() {
 }
 
 export function ProgramForm({ program, locale }: { program: Program; locale: Locale }) {
-  const [state, action, pending] = useActionState<FormState, FormData>(saveProgram, {});
+  // The photo as this form last loaded or saved it (photo_url_prev): saveProgram replaces the photo only while the
+  // row still holds this one. Not taken from later server renders, which would move it forward under an open form
+  // and let a stale photo replace a colleague's; a successful save moves it to the photo this form sent, which the
+  // row then holds (the form stays mounted after a save).
+  const [loadedPhoto, setLoadedPhoto] = useState(program.photo_url ?? "");
+  const [state, action, pending] = useActionState<FormState, FormData>(async (prev, form) => {
+    const result = await saveProgram(prev, form);
+    if (result.ok) setLoadedPhoto(String(form.get("photo_url") ?? "").trim());
+    return result;
+  }, {});
   const { changed, markEdited, markSubmitted } = useChangedSinceSubmit();
   const [uploading, setUploading] = useState(false);
   const t = getAdminDictionary(locale);
@@ -125,7 +134,7 @@ export function ProgramForm({ program, locale }: { program: Program; locale: Loc
 
           <Row label={p.photo} htmlFor={`program-photo-${id}`}>
             {/* What this form was loaded with: saveProgram refuses to replace a photo that changed elsewhere. */}
-            <input type="hidden" name="photo_url_prev" value={program.photo_url ?? ""} />
+            <input type="hidden" name="photo_url_prev" value={loadedPhoto} />
             <PhotoField
               bucket="program-photos"
               name="photo_url"
