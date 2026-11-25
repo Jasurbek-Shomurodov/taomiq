@@ -14,8 +14,20 @@ import { isStaffRole } from "./roles";
  * be checked without a database. Not server-only: nothing here reads a secret or the clock.
  */
 
-/** The filter chips, in display order (the database's areas, plus the order changes and the purchases, 0022). */
-export const AUDIT_AREAS = ["finance", "payroll", "purchases", "orders", "team", "settings", "catalog"] as const;
+/**
+ * The filter chips, in display order (the database's areas, plus the order changes, the purchases (0022) and the
+ * equipment register (0025)).
+ */
+export const AUDIT_AREAS = [
+  "finance",
+  "payroll",
+  "purchases",
+  "equipment",
+  "orders",
+  "team",
+  "settings",
+  "catalog",
+] as const;
 export type AuditArea = (typeof AUDIT_AREAS)[number];
 
 export function isAuditArea(value: unknown): value is AuditArea {
@@ -30,7 +42,7 @@ export const AUDIT_SEARCH_MAX = 60;
 
 /** A row of the feed, as the page renders it. `summary` is the database's JSON: read it defensively. */
 export type AuditItem = {
-  /** The feed's tie-breaking key: a source letter (l, c, o, p) and the row id, 20 characters. */
+  /** The feed's tie-breaking key: a source letter (l, c, o, p, e) and the row id, 20 characters. */
   key: string;
   /** timestamptz exactly as the database returned it (microseconds kept: it is the paging cursor). */
   at: string;
@@ -48,7 +60,7 @@ export type AuditItem = {
 export type AuditCursor = { before: string; key: string };
 
 const AT_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}(?::?\d{2})?)$/;
-const KEY_RE = /^[lcop]\d{19}$/;
+const KEY_RE = /^[lcope]\d{19}$/;
 
 /** The cursor from the address, or null when either half is missing or malformed (the newest page then). */
 export function parseAuditCursor(before: string | undefined, key: string | undefined): AuditCursor | null {
@@ -145,6 +157,10 @@ export function auditHref(item: AuditItem): string | null {
     case "purchases": {
       const id = subjectId(item.subject);
       return UUID_RE.test(id) ? `/purchases/${id}` : null;
+    }
+    case "equipment": {
+      const id = subjectId(item.subject);
+      return UUID_RE.test(id) ? `/equipment/${id}` : null;
     }
     default:
       return null;
@@ -552,6 +568,32 @@ export function auditLine(item: AuditItem, t: AdminDictionary, locale: Locale): 
           s.note_changed === true && d.noteChanged,
         ]),
       };
+    }
+
+    case "equipment": {
+      // The register's history (0025): added, counted, confirmed, renamed, archived, restored. The name is a snapshot.
+      const name = str(s.name) ?? str(s.to) ?? "—";
+      const count = num(s.count);
+      switch (item.action) {
+        case "added":
+          return { title: l.equipmentAdded(name), facts: compact([count !== null && d.countValue(count)]), notes: [] };
+        case "counted":
+          return {
+            title: l.equipmentCounted(name),
+            facts: [],
+            notes: [d.change(d.countLabel, String(num(s.from) ?? "—"), String(num(s.to) ?? "—"))],
+          };
+        case "confirmed":
+          return { title: l.equipmentConfirmed(name), facts: compact([count !== null && d.countValue(count)]), notes: [] };
+        case "renamed":
+          return { title: l.equipmentRenamed(str(s.from) ?? "—", str(s.to) ?? "—"), facts: [], notes: [] };
+        case "archived":
+          return { title: l.equipmentArchived(name), facts: compact([count !== null && d.countValue(count)]), notes: [] };
+        case "restored":
+          return { title: l.equipmentRestored(name), facts: compact([count !== null && d.countValue(count)]), notes: [] };
+        default:
+          return { title: l.other, facts: [], notes: [] };
+      }
     }
 
     default:

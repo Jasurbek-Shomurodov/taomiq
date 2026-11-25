@@ -461,3 +461,48 @@ balance), flow by payment method with fee rates, records, Sankey.
   month, out to spending groups and result) as a hand-built SVG in `kit/Sankey.tsx` with a visually hidden table.
 - Settings: backdate days, fee rates editor.
 - Three locales. Formulas as pure functions in `src/lib/admin/finance/`.
+
+### Slice 13 · Equipment register
+
+zarkebab: `/admin/inventory` — equipment with name, photo, count, note, "counted at / by", archive; no count
+history there. taomiq adds a short history because the audit pattern already exists.
+
+**Migration (next number, additive).**
+
+- `equipment`: `id`, `name` (1–120, unique among active rows, case-insensitive), `count int >= 0`, `note text`
+  (≤ 500), `photo_url text null`, `counted_at timestamptz`, `counted_by uuid`, `counted_by_name text` (snapshot),
+  `archived_at`, timestamps. `counted_*` are stamped by a trigger whenever `count` changes (and on insert); a
+  client cannot set them.
+- `equipment_events`: append-only (same guards as `purchase_events`): `equipment_id`, `at`, `actor`,
+  `actor_name`, `kind` (`added`, `counted`, `renamed`, `archived`, `restored`), `detail jsonb` (count from → to,
+  name from → to). Written by a trigger.
+- RLS: owner and manager read and write `equipment` (insert, update of name / count / note / photo / archived);
+  no delete. `equipment_events` readable by owner and manager. Cooks have no access.
+- Storage: a new private bucket `equipment-photos` if the existing dish and program photo buckets are created by
+  migrations (follow the same pattern and policies, owner and manager write); otherwise reuse the existing upload
+  path the dish editor uses. Photos are resized in the browser before upload (max 1280 px, JPEG) if the dish
+  uploader already does that; if not, apply the existing uploader's limits unchanged.
+- Audit: equipment events appear in the owner's audit feed as area `equipment` (extend `audit_feed` with
+  `create or replace`, identical signature, as slice 6 did for purchases).
+
+**Code.** `/equipment` in Kitchen & stock (owner, manager): search, Active / Archived, cards with photo, name,
+count, note, "counted {date} by {name}"; quick count control (minus, number, plus, Save disabled until changed)
+that saves on its own; add and edit as a full page with the photo uploader; archive and restore with a confirm
+that names the action; a History panel on the item page. Three locales; `loading.tsx` per route.
+
+### Slice 10a · Live updates (the part of slice 10 that needs no new role)
+
+zarkebab subscribes to realtime changes. taomiq's back office is server-rendered with no client data layer, so
+the smallest honest version is a visibility-aware poll, not a socket.
+
+- No migration. One owner/manager-safe server action already exists for the sidebar counts
+  (`readNewOrderCount`, `readPendingRequestCount` in `src/lib/admin/actions.ts`).
+- A small client component in the shell polls those counts every 30 s while the tab is visible (pause when
+  hidden, refresh immediately on focus and on `online`), updates the sidebar badges, and when the new-order count
+  rises shows a toast "New order" with a link to `/orders?status=new`, plays no sound, and updates the document
+  title prefix `(N)`.
+- On `/` (dashboard) and `/orders` the same signal triggers `router.refresh()` so tiles and the list show the new
+  order without navigation; never while a dialog is open or a form on the page is dirty.
+- A connection notice in the top bar when the poll fails twice in a row ("No connection — figures may be old"),
+  cleared on the next success.
+- Three locales.

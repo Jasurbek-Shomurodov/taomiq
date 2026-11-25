@@ -32,8 +32,8 @@ export function canHandleOrders(role: unknown): boolean {
 }
 
 /**
- * Who works with ingredients and market purchases (the manager buys). Same list as private.can_handle_stock()
- * (migration 0022). Admins (kitchen staff) do not: the screens show money.
+ * Who works with ingredients, market purchases (the manager buys) and the equipment register. Same list as
+ * private.can_handle_stock() (migrations 0022, 0025). Admins (kitchen staff) do not: the stock screens show money.
  */
 export const STOCK_ROLES = ["owner", "manager"] as const satisfies readonly StaffRole[];
 

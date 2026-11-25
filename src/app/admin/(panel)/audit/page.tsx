@@ -1,4 +1,5 @@
 import {
+  CookingPot,
   History,
   SearchX,
   Settings,
@@ -55,6 +56,7 @@ const AREA_ICONS: Record<AuditArea, LucideIcon> = {
   finance: Wallet,
   payroll: UserRound,
   purchases: ShoppingBasket,
+  equipment: CookingPot,
   orders: ShoppingBag,
   team: Users,
   settings: Settings,
