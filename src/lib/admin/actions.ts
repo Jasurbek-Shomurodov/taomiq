@@ -9,6 +9,7 @@ import { CATALOG_TAG } from "@/lib/data/catalog";
 import { CYCLE_DAYS, SLOTS, type Slot } from "@/lib/data/types";
 import { isSupabaseConfigured, supabaseUrl } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
+import { scheduleTelegramDrain } from "@/lib/telegram/drain";
 import { TURNSTILE_FIELD } from "@/lib/turnstile/shared";
 import { recordAccessRequest } from "./access";
 import { requireOrdersAccess, requireOwner, requireStaff } from "./auth";
@@ -442,6 +443,8 @@ export async function setOrderStatus(_prev: FormState, form: FormData): Promise<
     return { error: t.common.saveFailed(error.code || "—") };
   }
 
+  // A move to paid or cancelled queues an owner-group message (migration 0026): delivered after the response.
+  scheduleTelegramDrain();
   refresh();
   if (!data?.length) return { error: t.order.statusChanged };
   return { ok: t.order.statusSet(t.orders.statuses[to]) };
@@ -511,6 +514,7 @@ async function teamCall(
     return { error: gone(t) };
   }
   if (code !== null) return { error: t.team.failed };
+  scheduleTelegramDrain();
   redirect(TEAM_PATH, RedirectType.replace);
 }
 
@@ -533,6 +537,7 @@ export async function approveAccess(_prev: FormState, form: FormData): Promise<F
     return { error: t.team.gone };
   }
   if (code !== null) return { error: t.team.failed };
+  scheduleTelegramDrain();
 
   if (role !== "admin" && (await teamRpc(supabase, "set_staff_role", { p_user_id: userId, p_role: role })) !== null) {
     redirect(`${TEAM_PATH}?${new URLSearchParams({ error: "role", user: userId })}`, RedirectType.replace);
@@ -556,6 +561,7 @@ export async function changeStaffRole(_prev: FormState, form: FormData): Promise
     return { error: t.team.roleGone };
   }
   if (code !== null) return { error: t.team.failed };
+  scheduleTelegramDrain();
   redirect(TEAM_PATH, RedirectType.replace);
 }
 

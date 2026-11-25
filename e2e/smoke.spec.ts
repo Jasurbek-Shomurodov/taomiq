@@ -562,6 +562,20 @@ test("the analytics path is never locale-redirected, and is not served without t
   }
 });
 
+test("the daily Telegram run is not locale-redirected and refuses without its secret configured", async ({ request }) => {
+  // Demo mode has no CRON_SECRET (scripts/e2e-server.mjs): 503 for every caller, with or without a bearer header,
+  // for the schedule's GET and for POST. Never a redirect to /uz/api/…, and never a run.
+  const callers: Record<string, string>[] = [{}, { Authorization: "Bearer guess" }];
+  for (const headers of callers) {
+    for (const method of ["get", "post"] as const) {
+      const response = await request[method]("/api/telegram/daily", { headers, maxRedirects: 0 });
+      expect(response.status(), `${method} ${JSON.stringify(headers)}`).toBe(503);
+      expect(response.headers()["cache-control"]).toContain("no-store");
+      expect(await response.json()).toEqual({ error: "not_configured" });
+    }
+  }
+});
+
 test("robots.txt and sitemap.xml are served on the public host", async ({ request }) => {
   const robots = await request.get("/robots.txt");
   expect(robots.status()).toBe(200);

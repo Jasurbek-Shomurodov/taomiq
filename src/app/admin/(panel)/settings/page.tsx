@@ -10,7 +10,18 @@ import {
   loadBusinessSettings,
   type AppliedMigrations,
 } from "@/lib/admin/settings-queries";
+import { formatAuditTime } from "@/lib/admin/audit";
 import { tashkentDay } from "@/lib/admin/stats";
+import {
+  cronSecret,
+  isOwnerTelegramConfigured,
+  telegramBotToken,
+  telegramOwnerChatId,
+} from "@/lib/telegram/config";
+import { loadTelegramSettings, loadTelegramStatus, type TelegramStatus } from "@/lib/telegram/queries";
+import { formatMessageDay, renderTelegramMessage } from "@/lib/telegram/render";
+import { outboxReason } from "@/lib/telegram/rules";
+import type { Locale } from "@/i18n/config";
 import { Badge } from "../../kit/Badge";
 import { Notice } from "../../kit/Notice";
 import { Panel } from "../../kit/Panel";
@@ -27,6 +38,14 @@ import {
   ThemeChoice,
   WindowsField,
 } from "./Controls";
+import {
+  OutboxStatusBadge,
+  ResendButton,
+  TelegramBacklogField,
+  TelegramLocaleField,
+  TelegramSwitchesField,
+  TelegramTestField,
+} from "./TelegramControls";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { staff } = await requireOwner();
@@ -57,12 +76,14 @@ export default async function SettingsPage() {
   // Read the clock only after the session (a request-time read). Tashkent day, as the menu cycle counts it.
   const today = tashkentDay(new Date())!;
 
-  const [business, finance, backdate, feeRates, migrations] = await Promise.all([
+  const [business, finance, backdate, feeRates, migrations, telegram, outbox] = await Promise.all([
     settle("settings read", () => loadBusinessSettings(supabase)),
     settle("finance settings read", () => loadFinanceSettings(supabase)),
     settle("backdate read", () => loadBackdateDays(supabase)),
     settle("fee rates read", () => loadFeeRates(supabase)),
     settle("migrations read", () => loadAppliedMigrations(supabase)),
+    settle("telegram settings read", () => loadTelegramSettings(supabase)),
+    settle("telegram status read", () => loadTelegramStatus(supabase)),
   ]);
 
   const failed = (
@@ -127,6 +148,22 @@ export default async function SettingsPage() {
               {t.finance.fees.loadFailed}
             </Notice>
           )}
+        </Section>
+
+        {/* Slice 9a (migration 0026): the owner group's messages. */}
+        <Section id="telegram" title={s.sections.telegram.title} lead={s.sections.telegram.lead}>
+          <TelegramConnection t={t} />
+          {telegram ? (
+            <>
+              <TelegramSwitchesField initial={telegram.value.switches} locale={locale} />
+              <TelegramLocaleField initial={telegram.value.locale} locale={locale} />
+            </>
+          ) : (
+            failed
+          )}
+          <TelegramTestField configured={isOwnerTelegramConfigured} locale={locale} />
+          {outbox && outbox.value.pending > 0 && <TelegramBacklogField pending={outbox.value.pending} locale={locale} />}
+          <TelegramDeliveries outbox={outbox} t={t} locale={locale} />
         </Section>
 
         <Section id="appearance" title={s.sections.appearance.title} lead={s.sections.appearance.lead}>
@@ -202,5 +239,114 @@ function SystemRows({ migrations, t }: { migrations: { value: AppliedMigrations 
         </ul>
       </SettingRow>
     </>
+  );
+}
+
+/** Which of the Telegram section's variables are set, by name only. */
+function TelegramConnection({ t }: { t: AdminDictionary }) {
+  const tg = t.settings.tg;
+  const vars = [
+    { name: "TELEGRAM_BOT_TOKEN", on: Boolean(telegramBotToken) },
+    { name: "TELEGRAM_OWNER_CHAT_ID", on: Boolean(telegramOwnerChatId) },
+    { name: "CRON_SECRET", on: Boolean(cronSecret) },
+  ] as const;
+  return (
+    <SettingRow label={tg.connection} hint={tg.connectionHint}>
+      <div className="grid gap-3 sm:pt-1.5">
+        <ul className="grid gap-3">
+          {vars.map((item) => (
+            <li key={item.name} className="flex flex-wrap items-start justify-between gap-x-4 gap-y-1">
+              <div className="min-w-0">
+                <p className="break-all text-sm font-medium text-adm-text">
+                  <code className="font-mono text-[12px]">{item.name}</code>
+                </p>
+                <p className="adm-caption">{tg.vars[item.name]}</p>
+              </div>
+              <Badge tone={item.on ? "positive" : "neutral"} status>
+                {item.on ? tg.set : tg.notSet}
+              </Badge>
+            </li>
+          ))}
+        </ul>
+        {!isOwnerTelegramConfigured && (
+          <Notice tone="caution">{tg.notConfigured}</Notice>
+        )}
+      </div>
+    </SettingRow>
+  );
+}
+
+/** "25.11.2026 14:05" in Tashkent. */
+function deliveryTime(iso: string, locale: Locale): string {
+  const day = tashkentDay(iso);
+  return day ? `${formatMessageDay(day)} ${formatAuditTime(iso, locale)}` : "—";
+}
+
+/** The latest 20 messages with their status, a reason for a failure, and "Send again" for a failed or uncertain one. */
+function TelegramDeliveries({
+  outbox,
+  t,
+  locale,
+}: {
+  outbox: { value: TelegramStatus } | null;
+  t: AdminDictionary;
+  locale: Locale;
+}) {
+  const tg = t.settings.tg;
+  if (!outbox) {
+    return (
+      <SettingRow label={tg.deliveries}>
+        <Notice tone="negative" retry={{ href: `${SELF}#telegram`, label: t.common.retry }}>
+          {tg.loadFailed}
+        </Notice>
+      </SettingRow>
+    );
+  }
+  const { counts, recent, waitingRetry } = outbox.value;
+  return (
+    <SettingRow label={tg.deliveries} hint={tg.deliveriesHint}>
+      <div className="grid gap-3 sm:pt-2.5">
+        <p className="adm-caption tabular-nums">{tg.week(counts.sent, counts.failed, counts.uncertain)}</p>
+        {waitingRetry > 0 && <p className="adm-caption tabular-nums">{tg.waitingRetry(waitingRetry)}</p>}
+        {recent.length === 0 ? (
+          <p className="adm-muted text-sm">{tg.empty}</p>
+        ) : (
+          <ul className="grid gap-2">
+            {recent.map((item) => {
+              const what =
+                item.kind === "test"
+                  ? tg.kindTest
+                  : renderTelegramMessage(item.kind, item.payload, locale).split("\n")[0];
+              const reason = item.lastError ? outboxReason(item.lastError) : null;
+              const reasonText =
+                item.lastError && reason
+                  ? reason === "refused" || reason === "other"
+                    ? tg.reasons[reason](item.lastError)
+                    : tg.reasons[reason]
+                  : null;
+              return (
+                <li
+                  key={item.id}
+                  className="grid gap-1.5 rounded-adm-control border border-adm-border px-3 py-2"
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                    <p className="min-w-0 flex-1 text-sm font-medium text-adm-text">{what}</p>
+                    <OutboxStatusBadge status={item.status} locale={locale} />
+                  </div>
+                  <p className="adm-caption tabular-nums">
+                    {deliveryTime(item.sentAt ?? item.createdAt, locale)}
+                    {item.attempts > 1 && <> · {tg.attempts(item.attempts)}</>}
+                  </p>
+                  {reasonText && item.status !== "sent" && <p className="adm-caption">{reasonText}</p>}
+                  {(item.status === "failed" || item.status === "uncertain") && (
+                    <ResendButton id={item.id} what={what} locale={locale} />
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+    </SettingRow>
   );
 }

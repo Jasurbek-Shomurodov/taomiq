@@ -3,6 +3,7 @@
 import { refresh } from "next/cache";
 import { getAdminDictionary } from "@/i18n/admin";
 import { formatSum } from "@/i18n/config";
+import { scheduleTelegramDrain } from "@/lib/telegram/drain";
 import type { FormState } from "../actions";
 import { requireOwner } from "../auth";
 import { addDays, tashkentDay } from "../stats";
@@ -161,6 +162,7 @@ export async function addFinanceEntry(_prev: FormState, form: FormData): Promise
     return { error: e.saveFailed };
   }
 
+  scheduleTelegramDrain();
   refresh();
   return { ok: t.finance.records.added };
 }
@@ -182,6 +184,7 @@ export async function deleteFinanceEntry(_prev: FormState, form: FormData): Prom
     return { error: e.deleteFailed };
   }
 
+  scheduleTelegramDrain();
   refresh();
   if (!data?.length) return { error: e.gone };
   return { ok: t.finance.records.deleted };
@@ -271,6 +274,7 @@ export async function addEmployee(_prev: FormState, form: FormData): Promise<For
     return { error: e.saveFailed };
   }
 
+  scheduleTelegramDrain();
   refresh();
   return { ok: t.finance.payroll.added };
 }
@@ -311,6 +315,7 @@ export async function addSalaryRate(_prev: FormState, form: FormData): Promise<F
     return { error: e.saveFailed };
   }
 
+  scheduleTelegramDrain();
   refresh();
   return { ok: t.finance.payroll.rateAdded };
 }
@@ -379,6 +384,7 @@ export async function addSalaryEvent(_prev: FormState, form: FormData): Promise<
     return { error: e.saveFailed };
   }
 
+  scheduleTelegramDrain();
   refresh();
   return { ok: t.finance.payroll.eventAdded[kind] };
 }
@@ -419,6 +425,7 @@ export async function endEmployment(_prev: FormState, form: FormData): Promise<F
   }
   if (!data?.length) return { error: e.gone };
 
+  scheduleTelegramDrain();
   refresh();
   return { ok: t.finance.payroll.ended };
 }
@@ -463,6 +470,7 @@ export async function resumeEmployment(_prev: FormState, form: FormData): Promis
   }
   if (!data?.length) return { error: e.gone };
 
+  scheduleTelegramDrain();
   refresh();
   return { ok: t.finance.payroll.resumed };
 }
@@ -482,6 +490,7 @@ export async function deleteSalaryEvent(_prev: FormState, form: FormData): Promi
     return { error: e.deleteFailed };
   }
 
+  scheduleTelegramDrain();
   refresh();
   if (!data?.length) return { error: e.eventGone };
   return { ok: t.finance.payroll.deleted };
@@ -505,6 +514,7 @@ export async function deleteSalaryRate(_prev: FormState, form: FormData): Promis
     return { error: e.deleteFailed };
   }
 
+  scheduleTelegramDrain();
   refresh();
   if (!data?.length) return { error: e.eventGone };
   return { ok: t.finance.payroll.rateDeleted };
@@ -550,6 +560,7 @@ export async function closeFinanceMonth(_prev: FormState, form: FormData): Promi
     return { error: e.closeFailed };
   }
 
+  scheduleTelegramDrain();
   refresh();
   return { ok: c.closedOk(name) };
 }
@@ -582,6 +593,7 @@ export async function reopenFinanceMonth(_prev: FormState, form: FormData): Prom
     return { error: e.reopenFailed };
   }
 
+  scheduleTelegramDrain();
   refresh();
   return { ok: c.reopenedOk(name) };
 }

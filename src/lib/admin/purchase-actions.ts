@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { getAdminDictionary } from "@/i18n/admin";
+import { scheduleTelegramDrain } from "@/lib/telegram/drain";
 import type { FormState } from "./actions";
 import { requireStockAccess } from "./auth";
 import {
@@ -126,6 +127,8 @@ export async function savePurchase(_prev: PurchaseFormState, form: FormData): Pr
     return { error: t.errors.failed };
   }
 
+  // A saved receipt queues an owner-group message (migration 0026): delivered after the response.
+  scheduleTelegramDrain();
   const answer = (data ?? {}) as { id?: unknown; total?: unknown };
   const savedId = answer.id;
   if (typeof savedId !== "string" || !UUID_RE.test(savedId)) redirect("/purchases?tab=history");
@@ -152,6 +155,7 @@ export async function deletePurchase(_prev: FormState, form: FormData): Promise<
     if (error.code === "42501") return { error: t.errors.notAllowed };
     return { error: t.errors.deleteFailed };
   }
+  scheduleTelegramDrain();
   // Gone already (deleted in another tab) ends the same way: the receipt is not there.
   redirect("/purchases?tab=history&deleted=1");
 }

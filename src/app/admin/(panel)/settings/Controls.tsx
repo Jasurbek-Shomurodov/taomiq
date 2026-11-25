@@ -96,7 +96,7 @@ export function SettingRow({
  * save, during render (a state update of the same component), so the control can take the saved value as its new
  * starting point.
  */
-function useSave(action: Action, onSaved: () => void) {
+export function useSave(action: Action, onSaved: () => void) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(action, {});
   const [message, setMessage] = useState<FormState>({});
   const [seen, setSeen] = useState(state);
@@ -109,7 +109,7 @@ function useSave(action: Action, onSaved: () => void) {
 }
 
 /** Save and, beside it, the last outcome; while nothing is wrong with the value, also why Save is off (`problem`). */
-function SaveLine({
+export function SaveLine({
   pending,
   disabled,
   message,

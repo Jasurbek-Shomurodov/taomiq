@@ -1,6 +1,10 @@
 # Plan · Second port from zarkebab: everything that fits a meal-plan business
 
-Status: planned 25 Nov 2026. Source: a full read of `~/Desktop/zar-kebab-pos` (routes in `src/App.jsx`,
+Status (25 Nov 2026): slices 1–8, 13 and 10a are built and in production (commits c14d35e, 7bcd2a4, c633abf,
+254b16b, 9a60931, d848c4d, d0b9717, 6661ffc, e47c34d, e84bd68; migrations 0017–0025). Not built: 9 (Telegram round
+two: needs a second chat id and a webhook secret from the owner), 10 viewer role (changes the `staff.role` check
+constraint: needs the owner's yes), 11 (attendance: depends on 9), 12 (public pages: need real text, address,
+hours), 14 (assistant: paid AI usage), 15 (backup: needs a storage bucket and keys). Planned 25 Nov 2026. Source: a full read of `~/Desktop/zar-kebab-pos` (routes in `src/App.jsx`,
 `src/lib/permissions.js`, `docs/agent/*.md`, migrations 001–285) against the taomiq code on the same day.
 
 Earlier ports took the workspace shell (`admin-portal-upgrade.md`) and the money side
@@ -506,3 +510,81 @@ the smallest honest version is a visibility-aware poll, not a socket.
 - A connection notice in the top bar when the poll fails twice in a row ("No connection — figures may be old"),
   cleared on the next success.
 - Three locales.
+
+### Slice 9a · Telegram round two: owner group events and the morning digest
+
+zarkebab: database-first Telegram queue with delivery status and retry; an Investor group that hears about
+expenses, purchases, order changes and month closes; a morning report. Split in two: **9a** (this spec) needs no
+webhook; **9b** (employee link by one-time code, salary notices with a "received" button, attendance) needs the
+bot webhook and comes after.
+
+**What the owner sets outside the repo (nothing works until then, and nothing breaks without it).**
+
+- `TELEGRAM_OWNER_CHAT_ID` — the chat id of the owner/investor group (the existing bot `TELEGRAM_BOT_TOKEN` is
+  added to that group). Without it every message is recorded as skipped.
+- `CRON_SECRET` — protects the daily endpoint. Entered by the owner in Vercel; never typed by an agent.
+
+**Rules.**
+
+- No customer name, phone, address, comment or exclusions in any message. Order messages carry the order number,
+  program, calorie level, days, total and the staff member's name. Free text typed by staff (cancel reason, finance
+  note, purchase note, close reason) is **not** sent; the message says "see the back office".
+- A message is written to the database first, inside the same transaction as the change, then delivered. A
+  failed delivery never fails the change.
+- A timeout or a 5xx from Telegram means "maybe delivered": the row becomes `uncertain` and is not re-sent
+  automatically (the owner can resend from Settings). A clear refusal (4xx other than 429) is `failed`; 429 and
+  network refusals before the request was sent are retried, at most 5 attempts with growing gaps.
+- Rows still pending after 24 hours are marked `skipped` (so switching the chat on later does not flood it).
+
+**Migration (next number, additive).**
+
+- `telegram_outbox`: `id bigint identity`, `created_at`, `kind` (`finance`, `investor`, `purchase`, `order`,
+  `payroll`, `close`, `team`, `digest`, `test`), `dedupe_key text unique`, `payload jsonb` (facts only, no
+  sentence: the app renders the text in the chosen language), `status` (`pending`, `sending`, `sent`, `failed`,
+  `uncertain`, `skipped`), `attempts int`, `next_attempt_at`, `lease_until`, `last_error text` (a short code),
+  `sent_at`. RLS on: owner select; no client writes at all. Indexes on `(status, next_attempt_at)` and
+  `(created_at desc)`.
+- Writers are security-definer triggers that reuse what already exists: after insert on `audit_log` (areas
+  finance, payroll, team; the summary is already PII-free), on `purchase_events`, on `finance_close_log`, and on
+  `order_events` for kinds `status` (to paid, to cancelled), `edited` (field names only) and `payment_method`.
+  One outbox row per source row, `dedupe_key = '<source>:<id>'`. The trigger checks the owner's switches (below)
+  and writes nothing for a switched-off kind. A trigger must never raise: wrap the insert so a failure here
+  cannot roll back the owner's change, and say in the report how that was tested.
+- Functions for the server (execute for `service_role` only): `telegram_claim(p_limit int)` — marks up to N due
+  rows `sending` with a 2-minute lease (`for update skip locked`; an expired lease counts as `uncertain`, not
+  pending) and returns them; `telegram_finish(p_id, p_status, p_error)`; `telegram_expire()` — pending older than
+  24 h → `skipped`. For the owner: `telegram_resend(p_id)` (failed or uncertain → pending, new attempt count),
+  `telegram_status()` (counts by status for the last 7 days and the latest 20 rows), `telegram_test()` (inserts
+  one `test` row).
+- `daily_digest(p_day date)` (execute for `service_role` only): the figures for the digest, as jsonb — yesterday:
+  orders placed, orders paid and their sum, cancelled, expenses recorded, purchases, investor money; today:
+  rations to cook per calorie level (the `kitchen_orders` rule), deliveries; plans ending within 3 days (the
+  `customers_ending` rule); orders waiting in `new`; outbox rows failed or uncertain. No personal data.
+- Settings keys (owner-only read through a new restrictive policy on prefix `telegram\_`, like the finance one in
+  0015; validated by a check trigger): `telegram_owner_kinds` — a jsonb object of booleans per kind (default:
+  finance, investor, purchase, order, close, digest on; payroll and team off), `telegram_owner_locale` (`ru`,
+  `uz`, `uzc`; default `ru`).
+
+**Code.**
+
+- `src/lib/telegram/` (server-only): `send.ts` (one function to send text with the existing timeout rules and the
+  sent / failed / uncertain / retry classification; reuse what `src/lib/order/telegram.ts` already does, without
+  changing the order alert's behaviour), `render.ts` (pure: payload + locale → text, plain text with no markup
+  parsing so staff-entered names cannot break formatting), `drain.ts` (claim → send → finish, at most 20 rows per
+  run, stops early near the function's time limit).
+- Delivery is triggered in-process with `after()` at the end of the server actions that cause events (finance
+  record add/delete, payroll events, purchase save/delete, order status / edit / payment method, month close and
+  reopen, team changes), and by the daily endpoint for anything left over. No minute-by-minute schedule.
+- Daily endpoint: a route handler that checks `Authorization: Bearer <CRON_SECRET>` (constant-time compare, 401
+  otherwise, and 503 when the secret is not configured), runs `telegram_expire`, builds the digest for the
+  Tashkent day, queues it with `dedupe_key = 'digest:<day>'` (so a repeated call sends nothing twice) and drains.
+  Schedule it once a day at 03:00 UTC (08:00 Tashkent) with Vercel's scheduler: read the current Vercel docs for
+  scheduled jobs before choosing between `crons` and `schedules` in `vercel.json` and for the Hobby plan's limits
+  (the project is on Hobby), and state what you chose and why. The path must be reachable on production and must
+  not be rewritten by `src/proxy.ts` into a locale or admin path.
+- Settings → new "Telegram" section (owner): what is configured (variable names only), a switch per kind,
+  language, "Send a test message", the last 20 deliveries with status and time, counts of failed and uncertain
+  with a "Send again" button per row. Three locales for the UI; message texts in the three locales too.
+- `.env.example`: document `TELEGRAM_OWNER_CHAT_ID` and `CRON_SECRET`.
+
+**Not in 9a:** PNG cards, messages to employees, the webhook, attendance, customer notifications.

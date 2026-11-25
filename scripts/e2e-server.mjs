@@ -30,6 +30,9 @@ const DEMO_ENV = {
   SUPABASE_SECRET_KEY: "",
   TELEGRAM_BOT_TOKEN: "",
   TELEGRAM_STAFF_CHAT_ID: "",
+  TELEGRAM_OWNER_CHAT_ID: "",
+  // The daily Telegram run answers 503 without its secret (e2e/smoke.spec.ts checks that).
+  CRON_SECRET: "",
   // Customer sign-in off: no login link, /login and /account are 404 (also implied by the empty Supabase keys).
   NEXT_PUBLIC_AUTH_METHODS: "",
   // Back-office Google sign-in off: no Google button on the admin login (also implied by the empty Supabase keys).

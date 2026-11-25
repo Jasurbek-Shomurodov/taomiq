@@ -1,4 +1,12 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "regions": ["fra1"]
+  "regions": ["fra1"],
+  "schedules": {
+    "telegram-daily": {
+      "schedule": "0 8 * * *",
+      "timezone": "Asia/Tashkent",
+      "path": "/api/telegram/daily",
+      "requestMethod": "GET"
+    }
+  }
 }

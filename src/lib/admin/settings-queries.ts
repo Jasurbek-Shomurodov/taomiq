@@ -7,6 +7,7 @@ import { DEFAULT_CUTOFF_HOUR, DEFAULT_DELIVERY_WINDOWS } from "@/lib/order/rules
 import { isOrderAlertConfigured } from "@/lib/order/telegram";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { isOrderingConfigured } from "@/lib/supabase/secret";
+import { isDailyEndpointConfigured, isOwnerTelegramConfigured } from "@/lib/telegram/config";
 import { isTurnstileConfigured } from "@/lib/turnstile/config";
 import { isCalendarDay } from "./finance/month";
 import { isAdminGoogleLoginOn } from "./google";
@@ -80,7 +81,9 @@ export type IntegrationKey =
   | "turnstile"
   | "analytics"
   | "customerSignIn"
-  | "staffGoogle";
+  | "staffGoogle"
+  | "telegramOwner"
+  | "dailyRun";
 
 export type Integration = {
   key: IntegrationKey;
@@ -109,5 +112,8 @@ export function integrations(): Integration[] {
       detail: authMethods.length > 0 ? authMethods.join(", ") : undefined,
     },
     { key: "staffGoogle", env: ["ADMIN_GOOGLE_LOGIN"], on: isAdminGoogleLoginOn() },
+    // Slice 9a (migration 0026): the owner group's messages also need the secret key, as "ordering" does.
+    { key: "telegramOwner", env: ["TELEGRAM_BOT_TOKEN", "TELEGRAM_OWNER_CHAT_ID"], on: isOwnerTelegramConfigured },
+    { key: "dailyRun", env: ["CRON_SECRET"], on: isDailyEndpointConfigured },
   ];
 }

@@ -4,6 +4,7 @@ import { refresh } from "next/cache";
 import { redirect } from "next/navigation";
 import { getAdminDictionary } from "@/i18n/admin";
 import { isLocale } from "@/i18n/config";
+import { scheduleTelegramDrain } from "@/lib/telegram/drain";
 import type { FormState } from "./actions";
 import { requireOrdersAccess } from "./auth";
 import {
@@ -163,6 +164,8 @@ export async function editOrder(_prev: StaffOrderState, form: FormData): Promise
     return { error: t.errors.failed };
   }
 
+  // An edit queues an owner-group message (migration 0026): delivered after the response.
+  scheduleTelegramDrain();
   redirect(`/orders/${id}`);
 }
 
@@ -195,6 +198,7 @@ export async function changePaymentMethod(_prev: FormState, form: FormData): Pro
     return { error: getAdminDictionary(staff.locale).common.saveFailed(error.code || "—") };
   }
 
+  scheduleTelegramDrain();
   refresh();
   if (!data?.length) return { error: t.statusChanged };
   return { ok: t.methodSaved };

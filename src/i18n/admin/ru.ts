@@ -12,6 +12,7 @@ import type { EditedField, ForwardStatus, OrderStatus } from "@/lib/admin/orders
 import type { ReportPreset, ReportTab } from "@/lib/admin/reports";
 import type { CostState, RecipeState, TechCardFilter, TechLineProblem, TechUnit, UncountedDish } from "@/lib/admin/tech-cards";
 import type { Slot } from "@/lib/data/types";
+import type { OutboxStatus, TelegramKind } from "@/lib/telegram/rules";
 
 /**
  * Back-office texts in Russian: the reference dictionary. uz.ts and uzc.ts are typed as
@@ -1621,6 +1622,10 @@ const ru = {
         title: "Оформление",
         lead: "Только для вас: язык сохраняется в вашей учётной записи, тема — на этом устройстве.",
       },
+      telegram: {
+        title: "Telegram",
+        lead: "Сообщения в группу владельца: оплаты и отмены заказов, расходы, закупки, закрытие месяца и сводка каждое утро.",
+      },
       system: {
         title: "Система",
         lead: "Только для чтения. Ключи и пароли здесь не показываются — только подключено ли.",
@@ -1668,6 +1673,90 @@ const ru = {
       light: "Светлая",
       dark: "Тёмная",
     },
+    tg: {
+      connection: "Подключение",
+      connectionHint: "Переменные задаются в Vercel; значения здесь не показываются.",
+      vars: {
+        TELEGRAM_BOT_TOKEN: "бот (тот же, что для уведомлений о заказах)",
+        TELEGRAM_OWNER_CHAT_ID: "группа владельца; бот должен быть в ней",
+        CRON_SECRET: "ежедневный запуск в 8:00",
+      },
+      set: "Задана",
+      notSet: "Не задана",
+      notConfigured:
+        "Группа не подключена: сообщения не отправляются, ждут сутки и пропускаются. Всё остальное работает как обычно.",
+      kinds: "Какие сообщения присылать",
+      kindsHint:
+        "Без имён, телефонов и адресов клиентов и без комментариев сотрудников: только факты и где посмотреть подробности.",
+      kindNames: {
+        order: "Заказы: оплата, отмена, изменения",
+        finance: "Расходы и прочие доходы",
+        investor: "Деньги инвестора",
+        purchase: "Закупки",
+        close: "Закрытие и открытие месяца",
+        digest: "Утренняя сводка в 8:00",
+        payroll: "Зарплаты: выплаты, премии, штрафы, ставки",
+        team: "Команда: доступ и роли",
+      } satisfies Record<TelegramKind, string>,
+      language: "Язык сообщений",
+      languageHint: "Для всей группы, не только для вас.",
+      test: "Проверка",
+      testHint: "Отправит в группу короткое сообщение, чтобы убедиться, что бот пишет туда.",
+      testButton: "Отправить тестовое сообщение",
+      testSending: "Отправляем…",
+      testQueued: "Отправлено. Сообщение придёт в течение минуты; статус — в списке ниже.",
+      testAgain: "Тестовое сообщение уже отправлено. Подождите полминуты.",
+      testOff: "Сначала подключите группу: задайте переменные выше.",
+      deliveries: "Последние сообщения",
+      deliveriesHint: "20 последних, новые сверху.",
+      week: (sent: number, failed: number, uncertain: number) =>
+        `За 7 дней: отправлено ${sent}, с ошибкой ${failed}, неизвестно, дошло ли, ${uncertain}.`,
+      empty: "Сообщений пока нет. Они появятся здесь, как только что-то случится, или после проверки.",
+      loadFailed: "Не удалось загрузить сообщения.",
+      kindTest: "Проверка связи",
+      statuses: {
+        pending: "В очереди",
+        sending: "Отправляется",
+        sent: "Отправлено",
+        failed: "Ошибка",
+        uncertain: "Дошло ли — неизвестно",
+        skipped: "Пропущено",
+      } satisfies Record<OutboxStatus, string>,
+      attempts: (n: number) => `попыток: ${n}`,
+      reasons: {
+        forbidden: "Telegram отказал: проверьте ID группы и что бот в ней состоит.",
+        refused: (code: string) => `Telegram отказал (${code}).`,
+        rateLimited: "Telegram попросил подождать; повторы закончились.",
+        timeout: "Telegram не ответил вовремя: сообщение могло дойти.",
+        serverError: "Ошибка на стороне Telegram: сообщение могло дойти.",
+        network: "Сбой связи во время отправки: сообщение могло дойти.",
+        leaseExpired: "Отправка прервалась: сообщение могло дойти.",
+        notConfigured: "Группа тогда не была подключена.",
+        expired: "Ждало дольше суток и пропущено.",
+        skippedByOwner: "Пропущено кнопкой «Начать с этого момента».",
+        other: (code: string) => `Код: ${code}`,
+      },
+      waitingRetry: (n: number) =>
+        `Ждут повтора: ${n}. Они уйдут со следующим изменением в админке или с утренним запуском в 8:00.`,
+      backlog: {
+        label: "Начать с этого момента",
+        hint: "Пропустить всё, что ждёт отправки, например перед первым подключением группы.",
+        pending: (n: number) => `Ждут отправки: ${n}.`,
+        button: "Начать с этого момента",
+        title: "Пропустить ожидающие сообщения?",
+        text: (n: number) =>
+          `${n} ${plural(n, ["сообщение", "сообщения", "сообщений"])} не будут отправлены в группу. Новые события будут приходить как обычно. Отменить нельзя.`,
+        confirm: "Пропустить",
+        skipping: "Пропускаем…",
+        done: (n: number) => `Пропущено: ${n}.`,
+      },
+      resend: "Отправить снова",
+      resending: "Отправляем…",
+      resent: "Снова в очереди.",
+      resendGone: "Это сообщение уже отправляется или отправлено. Обновите страницу.",
+      failed: "Не удалось. Попробуйте ещё раз.",
+      denied: "База отклонила действие: войдите снова как владелец.",
+    },
     system: {
       migrations: "Миграции базы",
       migrationsValue: (count: number) => `Применено: ${count}`,
@@ -1686,6 +1775,8 @@ const ru = {
         analytics: "Аналитика (PostHog)",
         customerSignIn: "Вход покупателей",
         staffGoogle: "Вход сотрудников через Google",
+        telegramOwner: "Сообщения владельцу в Telegram",
+        dailyRun: "Ежедневный запуск (сводка в 8:00)",
       },
     },
     errors: {
