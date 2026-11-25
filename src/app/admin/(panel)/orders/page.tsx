@@ -1,4 +1,4 @@
-import { Inbox, SearchX } from "lucide-react";
+import { Inbox, Plus, SearchX } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
@@ -13,7 +13,7 @@ import { Notice } from "../../kit/Notice";
 import { Panel } from "../../kit/Panel";
 import { SearchField } from "../../kit/SearchField";
 import { Skeleton } from "../../kit/Skeleton";
-import { TopBarTabs } from "../../shell/TopBarSlot";
+import { TopBarActions, TopBarTabs } from "../../shell/TopBarSlot";
 import { OrdersTable } from "./OrdersTable";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -84,12 +84,24 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
     </nav>
   );
 
+  // The primary button of the list: an order taken by phone or Telegram (/orders/new).
+  const addOrder = (
+    <Link href="/orders/new" className="adm-btn adm-btn-primary">
+      <Plus aria-hidden="true" />
+      <span className="max-[400px]:sr-only">{t.orders.add}</span>
+    </Link>
+  );
+
   // One tree for every state, so the search box keeps its place (and focus) whatever the search returns.
   return (
     <div className="adm-page">
       <TopBarTabs>{tabs}</TopBarTabs>
-      {/* The top bar fills only once the scripts run; until then the same tabs sit on the page. */}
-      <BeforeHydration>{tabs}</BeforeHydration>
+      <TopBarActions>{addOrder}</TopBarActions>
+      {/* The top bar fills only once the scripts run; until then the same tabs and button sit on the page. */}
+      <BeforeHydration>
+        {tabs}
+        <div className="flex justify-end">{addOrder}</div>
+      </BeforeHydration>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <Suspense fallback={<Skeleton className="h-11 w-full rounded-adm-control sm:max-w-sm" />}>
@@ -123,7 +135,16 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
               {status ? t.orders.searchStatusEmpty(typed, t.orders.tabs[status]) : t.orders.searchEmpty(typed)}
             </EmptyState>
           ) : (
-            <EmptyState icon={Inbox}>
+            <EmptyState
+              icon={Inbox}
+              action={
+                result.page === 1 && !status ? (
+                  <Link href="/orders/new" className="adm-btn adm-btn-outline">
+                    {t.orders.add}
+                  </Link>
+                ) : undefined
+              }
+            >
               {result.page > 1
                 ? t.orders.pageEmpty
                 : status

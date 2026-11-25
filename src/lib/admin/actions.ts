@@ -14,7 +14,17 @@ import { recordAccessRequest } from "./access";
 import { requireOrdersAccess, requireOwner, requireStaff } from "./auth";
 import { adminGoogleCallbackUrl, isAdminGoogleLoginOn } from "./google";
 import { ADMIN_LOCALE_COOKIE, ADMIN_LOCALE_COOKIE_OPTIONS, cookieLocale, rememberStaffLocale } from "./locale";
-import { STAFF_NOTE_MAX, canMove, isOrderStatus } from "./orders";
+import {
+  CANCEL_REASON_MAX,
+  CANCEL_REASON_MIN,
+  STAFF_NOTE_MAX,
+  canMove,
+  isCancelReason,
+  isOrderStatus,
+  isPaymentMethod,
+  type OrderStatus,
+  type PaymentMethod,
+} from "./orders";
 import { newOrderCount } from "./queries";
 import { canHandleOrders, isGrantableRole } from "./roles";
 import { pendingRequestCount } from "./team";
@@ -381,7 +391,9 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 /**
  * Moves an order one step along new → confirmed → paid → active → completed, or cancels an open one.
  * The update only applies if the order is still in the status the page showed, so a stale tab or a
- * double click never skips a step.
+ * double click never skips a step. Marking it paid needs the payment method (`payment_method`), cancelling needs
+ * a reason (`cancel_reason`); the database holds the same rules (private.check_order_status_fields, 0018) and records
+ * the move in the order's history.
  */
 export async function setOrderStatus(_prev: FormState, form: FormData): Promise<FormState> {
   const { supabase, staff } = await requireOrdersAccess();
@@ -393,16 +405,33 @@ export async function setOrderStatus(_prev: FormState, form: FormData): Promise<
     return { error: t.order.badTransition };
   }
 
+  const update: { status: OrderStatus; payment_method?: PaymentMethod; cancel_reason?: string } = { status: to };
+  if (to === "paid") {
+    const method = text(form, "payment_method");
+    if (!isPaymentMethod(method)) return { error: t.order.methodRequired };
+    update.payment_method = method;
+  }
+  if (to === "cancelled") {
+    const reason = text(form, "cancel_reason");
+    if (!isCancelReason(reason)) return { error: t.order.reasonRequired(CANCEL_REASON_MIN, CANCEL_REASON_MAX) };
+    update.cancel_reason = reason;
+  }
+
   const { data, error } = await supabase
     .from("orders")
-    .update({ status: to })
+    .update(update)
     .eq("id", id)
     .eq("status", from)
     .select("id");
   if (error) {
     // check_order_status() in the database enforces the same rule as canMove().
     if (error.message.includes("invalid_transition")) return { error: t.order.badTransition };
-    return { error: t.common.saveFailed(error.message) };
+    if (error.message.includes("payment_method_required")) return { error: t.order.methodRequired };
+    if (error.message.includes("cancel_reason_required")) {
+      return { error: t.order.reasonRequired(CANCEL_REASON_MIN, CANCEL_REASON_MAX) };
+    }
+    console.error("orders: status change failed", error.code);
+    return { error: t.common.saveFailed(error.code || "—") };
   }
 
   refresh();

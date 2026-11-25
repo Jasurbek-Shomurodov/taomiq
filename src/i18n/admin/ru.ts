@@ -2,7 +2,8 @@ import { plural, type Locale } from "@/i18n/config";
 import type { DishStatusFilter } from "@/lib/admin/dish-status";
 import type { EntryCategory, EntryKind, PaymentMethod } from "@/lib/admin/finance/categories";
 import type { RateUnit, SalaryEventKind } from "@/lib/admin/finance/payroll";
-import type { ForwardStatus, OrderStatus } from "@/lib/admin/orders";
+import type { StaffOrderField } from "@/lib/admin/order-form";
+import type { EditedField, ForwardStatus, OrderStatus } from "@/lib/admin/orders";
 import type { Slot } from "@/lib/data/types";
 
 /**
@@ -370,6 +371,13 @@ const ru = {
     clearSearch: "Сбросить поиск",
     searchEmpty: (term: string) => `По запросу «${term}» заказов нет.`,
     searchStatusEmpty: (term: string, tab: string) => `По запросу «${term}» в разделе «${tab}» заказов нет.`,
+    /** The top bar button that opens the manual order form. */
+    add: "Новый заказ",
+    /** The small mark on a row of an order added in the back office. */
+    byStaff: "сотрудник",
+    byStaffTitle: "Добавлен сотрудником вручную",
+    /** The payment method beside the sum of a paid order. */
+    paidBy: (method: string) => `Оплата: ${method}`,
   },
   order: {
     title: "Заказ",
@@ -406,6 +414,8 @@ const ru = {
     source: "Откуда пришёл",
     noSource: "Без меток",
     consent: (date: string) => `Согласие на обработку данных: ${date}`,
+    /** In place of the consent line on an order added in the back office. */
+    takenByStaff: "Принят сотрудником по телефону или в Telegram; согласие на сайте не давалось.",
     status: "Статус",
     closed: "Заказ закрыт, статус больше не меняется.",
     cancel: "Отменить заказ",
@@ -422,6 +432,125 @@ const ru = {
     notFound: "Заказ не найден.",
     noteTooLong: (max: number) => `Заметка длиннее ${max} символов.`,
     noteSaved: "Заметка сохранена.",
+    /** The top bar button that opens the edit form. */
+    edit: "Изменить",
+    addedBy: (name: string) => `Добавлен сотрудником: ${name}`,
+    addedByStaff: "Добавлен сотрудником",
+    // Payment method
+    paymentMethod: "Способ оплаты",
+    noPaymentMethod: "Не указан",
+    changeMethod: "Изменить",
+    setMethod: "Указать",
+    changeMethodTitle: "Способ оплаты",
+    changeMethodText: "Как клиент оплатил заказ. Изменение попадёт в историю заказа.",
+    methodLegend: "Способ оплаты",
+    methodSaved: "Способ оплаты сохранён.",
+    methodRequired: "Выберите способ оплаты.",
+    methodNotPaid: "Способ оплаты указывается только у оплаченного заказа.",
+    markPaidTitle: "Отметить оплату?",
+    markPaidText: (total: string) => `Заказ на ${total}. Выберите, как клиент оплатил.`,
+    // Cancelling
+    cancelReason: "Причина отмены",
+    cancelReasonPlaceholder: "Например: клиент передумал, не дозвонились",
+    cancelReasonHint: (min: number) => `Не меньше ${min} символов. Видна в истории заказа.`,
+    reasonRequired: (min: number, max: number) => `Укажите причину отмены: от ${min} до ${max} символов.`,
+    // History (public.order_events)
+    history: "История",
+    historyEmpty: "Изменений пока нет.",
+    historyBefore: "Изменения, сделанные до появления истории, не записаны.",
+    historyFailed: "Не удалось загрузить историю заказа.",
+    actorSite: "Клиент на сайте",
+    actorStaff: "Сотрудник",
+    actorSystem: "Система",
+    events: {
+      createdSite: "Заказ оформлен на сайте",
+      createdStaff: "Заказ добавлен вручную",
+      status: (from: string, to: string) => `Статус: ${from} → ${to}`,
+      paidWith: (method: string) => `Способ оплаты: ${method}`,
+      reason: (reason: string) => `Причина: ${reason}`,
+      edited: "Изменены данные заказа",
+      payment: (from: string, to: string) => `Способ оплаты: ${from} → ${to}`,
+      note: "Изменена заметка для команды",
+      accountUnlinked: "Заказ отвязан от аккаунта клиента (сменился телефон)",
+    },
+    fields: {
+      customer_name: "Имя",
+      phone: "Телефон",
+      address: "Адрес",
+      delivery_window: "Время доставки",
+      comment: "Комментарий курьеру",
+      exclusions: "Исключения",
+      start_date: "Первая доставка",
+      weekdays_only: "Только будни",
+    } satisfies Record<EditedField, string>,
+    yes: "да",
+    no: "нет",
+    empty: "пусто",
+  },
+  /** The manual order form (/orders/new) and the edit of an open order (/orders/[id]/edit). Owners and managers. */
+  orderForm: {
+    newTitle: "Новый заказ",
+    editTitle: (number: number) => `Изменить заказ № ${number}`,
+    backToOrder: "К заказу",
+    lead: "Заказ, принятый по телефону или в Telegram. Он сразу будет подтверждён; цена считается как на сайте.",
+    editLead: "Изменения попадут в историю заказа.",
+    fixed: "Программу, срок и цену изменить нельзя: отмените заказ и добавьте новый.",
+    sections: {
+      plan: "Программа",
+      schedule: "Расписание",
+      delivery: "Доставка",
+      customer: "Клиент",
+      team: "Для команды",
+    },
+    program: "Программа",
+    level: "Калорийность",
+    days: "Срок",
+    daysOption: (days: number) => `${days} ${plural(days, ["день", "дня", "дней"])}`,
+    schedule: "График",
+    everyDay: "Каждый день",
+    weekdaysOnly: "Только будни (пн–пт)",
+    startDate: "Первая доставка",
+    startHint: "С сегодняшнего дня и до 60 дней вперёд. Время приёма заказов сайта здесь не действует.",
+    scheduleLocked: "Заказ уже начался: дату первой доставки и график изменить нельзя.",
+    window: "Время доставки",
+    windowRemoved: (window: string) => `${window} (убрано из настроек)`,
+    address: "Адрес",
+    comment: "Комментарий курьеру",
+    name: "Имя",
+    phone: "Телефон",
+    phoneHint: "+998 и 9 цифр",
+    linkedPhone: "Заказ привязан к аккаунту клиента. Если сменить телефон, он отвяжется; владелец номера увидит заказ после входа.",
+    exclusions: "Исключения из меню",
+    note: "Заметка для команды",
+    language: "Язык клиента",
+    pricePerDay: "Цена за день",
+    total: "Итого",
+    priceHint: "Предварительно: окончательную цену считает сервер по тем же правилам.",
+    create: "Создать заказ",
+    creating: "Создаём…",
+    loadFailed: "Не удалось загрузить программы и настройки. Обновите страницу через минуту.",
+    noPrograms: "Нет активных программ или сроков. Включите их на странице «Программы».",
+    problems: "Проверьте отмеченные поля.",
+    fieldErrors: {
+      plan: "Выберите программу и калорийность.",
+      duration: "Выберите срок.",
+      start: "Выберите дату с сегодняшнего дня до 60 дней вперёд; для будней — не субботу и не воскресенье.",
+      window: "Выберите время доставки.",
+      name: "Имя: от 2 до 80 символов.",
+      phone: "Номер: 9 цифр после +998, например 90 123 45 67. Другие коды стран не принимаются.",
+      address: "Адрес: от 5 до 300 символов.",
+      comment: "Комментарий: не длиннее 500 символов.",
+      exclusions: "Исключения: не длиннее 500 символов.",
+      note: "Заметка: не длиннее 2000 символов.",
+    } satisfies Record<StaffOrderField, string>,
+    errors: {
+      failed: "Не удалось сохранить заказ. Попробуйте ещё раз.",
+      notAllowed: "Нет доступа к заказам.",
+      notFound: "Заказ не найден.",
+      stale: "Заказ изменился, пока форма была открыта. Откройте его заново и повторите правку.",
+      scheduleLocked: "Заказ уже начался: дату первой доставки и график изменить нельзя.",
+      notEditable: "Заказ закрыт, изменить его нельзя.",
+    },
   },
   /** The Team screen (/team): access requests and the staff list. Owner only. */
   team: {

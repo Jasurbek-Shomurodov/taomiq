@@ -244,3 +244,56 @@ edits, payment method with audited changes, delete with a typed reason, actor tr
 
 **Not in this slice:** split payments, refunds, deleting orders (cancel with a reason is the only removal),
 customer notifications.
+
+### Slice 3 · Audit page
+
+zarkebab: `/admin/audit` (payment and order money changes), `accounting_record_audit`, `profile_role_audit`.
+
+**Migration (next number, additive).**
+
+- Table `audit_log`: `id bigint identity`, `at timestamptz default now()`, `actor uuid null`, `actor_name text`
+  (snapshot), `area` (`finance`, `payroll`, `team`, `settings`, `catalog`), `action` (`added`, `changed`,
+  `deleted`, `closed`, `reopened`, `approved`, `declined`, `role_changed`, `removed`), `subject text` (a short
+  machine key such as `finance_entries:<id>` or `settings:order_cutoff_hour`), `summary jsonb` (the fields a
+  person needs to recognise the row: amount, category, day, employee name, old → new value; never a secret).
+  RLS: owner select only; no write grants. Indexes `(at desc)`, `(area, at desc)`.
+- Security-definer triggers (after insert/update/delete) on `finance_entries`, `finance_salary_events`,
+  `finance_salary_rates`, `finance_employees` (ended / resumed / renamed), `staff` (role change, removal),
+  `staff_requests` (approved / declined), `settings` (value change; finance keys included because the reader is
+  owner only), `programs` and `program_variants` (price and visibility changes only). Month close and reopen
+  already live in `finance_close_log`; the page reads that table too instead of duplicating rows.
+- A deleted finance record keeps its full summary in the log, so a deletion is never silent.
+- Order history stays in `order_events` (slice 2). The audit page shows order events of kinds `status` to
+  cancelled, `edited` and `payment_method` in the same list through one owner-only function
+  `audit_feed(p_area, p_search, p_before, p_limit)` that unions the three sources and pages by time.
+
+**Code.** `/audit`, `requireOwner()`, sidebar row in Business. Toolbar: search (actor, subject, amount), area
+filter chips, 100 per page with "older" paging. Each row: time (Tashkent), who, a sentence built from `action` +
+`summary` in the reader's language, and a link to the subject when it still exists. Empty and failed states.
+`src/lib/admin/audit.ts` holds the sentence builder as a pure function.
+
+### Slice 4 · Customers
+
+zarkebab's closest screen is Loyalty (customer cards with history). taomiq has `profiles` and `orders` but no
+customer view.
+
+**Migration (next number, additive).**
+
+- Table `customer_notes`: `phone text primary key` (same format check as `orders.phone`), `note text`,
+  `updated_at`, `updated_by`. RLS: select and write for owner and manager.
+- Function `customers_list(p_filter, p_search, p_limit, p_offset)` (security definer, owner or manager): one row
+  per phone from `orders`, with the latest name, orders count, paid orders count, total paid (statuses paid,
+  active, completed), first and last order date, the end date of the current plan (the same day-index rule the
+  kitchen functions in 0009 use; reuse their helper), whether an account exists (`profiles.phone`), first
+  `source.utm_source`/`ref`. Filters: `all`, `active` (a plan running today), `ending` (ends within 3 days),
+  `lapsed` (last plan ended 14+ days ago, no open order), `new` (first order in the last 30 days).
+  Managers get the same list; totals in money are returned only to the owner (null for a manager).
+- Function `customer_orders(p_phone)`: that phone's orders, newest first.
+- Index on `orders (phone)` exists (0004).
+
+**Code.** `/customers` (owner, manager): toolbar with search (name, phone) and filter chips with counts, table
+with name, phone (tap to call), orders, total (owner), last order, plan ends, status chip; 50 per page.
+`/customers/[phone]`: header with the figures, the staff note (saves on its own), order history linking to each
+order, and "New order for this customer" which opens `/orders/new` pre-filled (name, phone, last address and
+window). Dashboard: the "ending within 3 days" tile links to `/customers?filter=ending`. Three locales.
+No export in this slice (slice 5).

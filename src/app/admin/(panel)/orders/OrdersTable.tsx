@@ -2,8 +2,19 @@ import Link from "next/link";
 import { getAdminDictionary } from "@/i18n/admin";
 import { formatSum, type Locale } from "@/i18n/config";
 import { formatDateTime, formatDay, formatPhone, type OrderRow } from "@/lib/admin/orders";
+import { Badge } from "../../kit/Badge";
 import { Panel } from "../../kit/Panel";
 import { StatusBadge } from "./StatusBadge";
+
+/** The small "by staff" mark of an order added in the back office. */
+function StaffMark({ locale }: { locale: Locale }) {
+  const t = getAdminDictionary(locale);
+  return (
+    <span title={t.orders.byStaffTitle} className="inline-flex align-middle">
+      <Badge>{t.orders.byStaff}</Badge>
+    </span>
+  );
+}
 
 /**
  * One page of orders: stacked blocks while the panel is narrow (phones, tablets; no sideways scroll), the table
@@ -20,8 +31,11 @@ export function OrdersTable({ orders, locale }: { orders: OrderRow[]; locale: Lo
           <li key={order.id} className="adm-row">
             <Link href={`/orders/${order.id}`} className="grid gap-1 px-4 py-3">
               <span className="flex items-center justify-between gap-3">
-                <span className="font-semibold tabular-nums text-adm-accent-ink">
-                  {t.orders.number} {order.number}
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="font-semibold tabular-nums text-adm-accent-ink">
+                    {t.orders.number} {order.number}
+                  </span>
+                  {order.created_by && <StaffMark locale={locale} />}
                 </span>
                 <StatusBadge status={order.status} locale={locale} />
               </span>
@@ -40,6 +54,11 @@ export function OrdersTable({ orders, locale }: { orders: OrderRow[]; locale: Lo
                 </span>
                 <span className="whitespace-nowrap text-sm font-semibold tabular-nums text-adm-text">
                   {formatSum(order.total)} {t.common.currency}
+                  {order.payment_method && (
+                    <span className="ml-2 text-[13px] font-normal text-adm-muted">
+                      {t.finance.methods[order.payment_method]}
+                    </span>
+                  )}
                 </span>
               </span>
             </Link>
@@ -72,6 +91,12 @@ export function OrdersTable({ orders, locale }: { orders: OrderRow[]; locale: Lo
                   >
                     {order.number}
                   </Link>
+                  {order.created_by && (
+                    <>
+                      {" "}
+                      <StaffMark locale={locale} />
+                    </>
+                  )}
                   <span className="block whitespace-nowrap text-[13px] tabular-nums text-adm-muted">
                     {formatDateTime(order.created_at, locale)}
                   </span>
@@ -92,7 +117,14 @@ export function OrdersTable({ orders, locale }: { orders: OrderRow[]; locale: Lo
                   </span>
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 tabular-nums">{formatDay(order.start_date, locale)}</td>
-                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">{formatSum(order.total)}</td>
+                <td className="whitespace-nowrap px-4 py-3 text-right tabular-nums">
+                  {formatSum(order.total)}
+                  {order.payment_method && (
+                    <span className="block text-[13px] text-adm-muted">
+                      {t.orders.paidBy(t.finance.methods[order.payment_method])}
+                    </span>
+                  )}
+                </td>
                 <td className="px-4 py-3">
                   <StatusBadge status={order.status} locale={locale} />
                 </td>

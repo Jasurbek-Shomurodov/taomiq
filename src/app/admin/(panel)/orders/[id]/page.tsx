@@ -1,15 +1,26 @@
-import { Phone } from "lucide-react";
+import { Pencil, Phone } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAdminDictionary } from "@/i18n/admin";
 import { formatSum, isLocale } from "@/i18n/config";
 import { requireOrdersAccess, requireStaff } from "@/lib/admin/auth";
-import { formatDateTime, formatDay, formatPhone, type Order } from "@/lib/admin/orders";
-import { getOrder } from "@/lib/admin/queries";
+import {
+  canChangePaymentMethod,
+  canEdit,
+  formatDateTime,
+  formatDay,
+  formatPhone,
+  type Order,
+  type OrderEvent,
+} from "@/lib/admin/orders";
+import { getOrder, listOrderEvents } from "@/lib/admin/queries";
+import { BeforeHydration } from "../../../kit/BeforeHydration";
 import { Notice } from "../../../kit/Notice";
 import { Panel } from "../../../kit/Panel";
-import { TopBarBack, TopBarTitle } from "../../../shell/TopBarSlot";
-import { NoteForm, StatusControls } from "../OrderControls";
+import { TopBarActions, TopBarBack, TopBarTitle } from "../../../shell/TopBarSlot";
+import { NoteForm, PaymentMethodControl, StatusControls } from "../OrderControls";
+import { OrderHistory } from "../OrderHistory";
 import { StatusBadge } from "../StatusBadge";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,12 +40,18 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
 
   let order: Order | null = null;
   let failed = false;
+  // The history is read beside the order; a failed history read leaves the order usable (its panel says so).
+  const eventsRead = listOrderEvents(supabase, id).catch((error: unknown) => {
+    console.error("order history read failed", error instanceof Error ? error.message : error);
+    return null;
+  });
   try {
     order = await getOrder(supabase, id);
   } catch (error) {
     failed = true;
     console.error("order read failed", error instanceof Error ? error.message : error);
   }
+  const events: OrderEvent[] | null = await eventsRead;
 
   if (failed) {
     return (
@@ -51,10 +68,33 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
   const sourceEntries = Object.entries(order.source ?? {}).filter(([, v]) => typeof v === "string" && v);
   const siteLanguage = isLocale(order.locale) ? t.order.siteLocales[order.locale] : order.locale;
   const sum = (amount: number) => `${formatSum(amount)} ${t.common.currency}`;
+  // Who added it by hand: the name kept on its "created" history row (it survives a removed team member).
+  const createdEvent = events?.find((event) => event.kind === "created");
+  const addedBy = order.created_by
+    ? createdEvent?.actor_name
+      ? t.order.addedBy(createdEvent.actor_name)
+      : t.order.addedByStaff
+    : null;
+
+  const edit = canEdit(order.status) ? (
+    <Link href={`/orders/${order.id}/edit`} className="adm-btn adm-btn-outline">
+      <Pencil aria-hidden="true" />
+      <span className="max-[400px]:sr-only">{t.order.edit}</span>
+    </Link>
+  ) : null;
 
   return (
     <div className="adm-page">
       <TopBarBack href="/orders" label={t.order.back} />
+      {edit && (
+        <>
+          <TopBarActions>{edit}</TopBarActions>
+          {/* The top bar fills only once the scripts run; until then the button sits on the page. */}
+          <BeforeHydration>
+            <div className="flex justify-end">{edit}</div>
+          </BeforeHydration>
+        </>
+      )}
       <TopBarTitle>
         <span className="adm-truncate">
           {t.order.heading} <span className="tabular-nums">{order.number}</span>
@@ -64,6 +104,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
       <p className="adm-muted tabular-nums">
         {t.order.createdAt(formatDateTime(order.created_at, locale))} · {t.order.siteLanguage(siteLanguage)}
         {order.updated_at !== order.created_at && <> · {t.order.updatedAt(formatDateTime(order.updated_at, locale))}</>}
+        {addedBy && <> · {addedBy}</>}
       </p>
 
       {/* Phones: the customer, then what to do (status, note), then the details. From xl: details on the left and
@@ -84,7 +125,7 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
           aria-label={t.order.status}
           className="grid min-w-0 content-start gap-5 xl:sticky xl:top-6 xl:col-start-2 xl:row-span-2 xl:row-start-1 xl:self-start"
         >
-          <StatusControls id={order.id} status={order.status} locale={locale} />
+          <StatusControls id={order.id} status={order.status} total={sum(order.total)} locale={locale} />
           <NoteForm id={order.id} note={order.staff_note} locale={locale} />
         </aside>
 
@@ -99,6 +140,26 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
                 [t.order.total, sum(order.total)],
               ]}
             />
+            {(canChangePaymentMethod(order.status) || order.payment_method) && (
+              <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-[11rem_1fr]">
+                <dt className="text-sm text-adm-muted sm:pt-1.5">{t.order.paymentMethod}</dt>
+                <dd>
+                  {canChangePaymentMethod(order.status) ? (
+                    <PaymentMethodControl id={order.id} method={order.payment_method} locale={locale} />
+                  ) : (
+                    <span className="text-adm-text">
+                      {order.payment_method ? t.finance.methods[order.payment_method] : t.order.noPaymentMethod}
+                    </span>
+                  )}
+                </dd>
+              </dl>
+            )}
+            {order.status === "cancelled" && order.cancel_reason && (
+              <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-[11rem_1fr]">
+                <dt className="text-sm text-adm-muted">{t.order.cancelReason}</dt>
+                <dd className="whitespace-pre-line break-words text-adm-text">{order.cancel_reason}</dd>
+              </dl>
+            )}
             <p className="adm-caption mt-3">{t.order.priceFixed}</p>
           </Card>
 
@@ -122,8 +183,13 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
             ) : (
               <Rows rows={sourceEntries.map(([k, v]) => [k, String(v)])} />
             )}
-            <p className="adm-caption mt-3">{t.order.consent(formatDateTime(order.consent_at, locale))}</p>
+            {/* An order added in the back office was taken by phone or Telegram: no consent was given on the site. */}
+            <p className="adm-caption mt-3">
+              {order.created_by ? t.order.takenByStaff : t.order.consent(formatDateTime(order.consent_at, locale))}
+            </p>
           </Card>
+
+          <OrderHistory events={events} locale={locale} retryHref={`/orders/${order.id}`} />
         </div>
       </div>
     </div>

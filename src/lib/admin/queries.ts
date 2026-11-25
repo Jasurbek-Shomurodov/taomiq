@@ -1,7 +1,14 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Dish, Duration, MenuItem, Program } from "@/lib/data/types";
-import { ORDER_STATUSES, type Order, type OrderRow, type OrderStatus } from "./orders";
+import {
+  ORDER_EVENT_KINDS,
+  ORDER_STATUSES,
+  type Order,
+  type OrderEvent,
+  type OrderRow,
+  type OrderStatus,
+} from "./orders";
 
 /** Programs with all calorie levels, including inactive ones. */
 export async function listPrograms(supabase: SupabaseClient): Promise<Program[]> {
@@ -51,7 +58,7 @@ export async function menuCounts(supabase: SupabaseClient): Promise<Map<string, 
 export const ORDERS_PAGE_SIZE = 50;
 
 const ORDER_LIST_COLUMNS =
-  "id, number, status, program_name, kcal, days, weekdays_only, start_date, total, customer_name, phone, created_at";
+  "id, number, status, program_name, kcal, days, weekdays_only, start_date, total, customer_name, phone, payment_method, created_by, created_at";
 
 /**
  * One page of orders, newest first, optionally of one status and matching a search.
@@ -116,7 +123,7 @@ export async function newOrderCount(supabase: SupabaseClient): Promise<number> {
 
 /** Everything except ip_hash, which is only for rate limiting. */
 const ORDER_DETAIL_COLUMNS =
-  "id, number, status, variant_id, program_name, kcal, days, weekdays_only, start_date, price_per_day, total, customer_name, phone, address, delivery_window, comment, exclusions, locale, source, staff_note, consent_at, created_at, updated_at";
+  "id, number, status, variant_id, program_name, kcal, days, weekdays_only, start_date, price_per_day, total, customer_name, phone, address, delivery_window, comment, exclusions, locale, source, staff_note, payment_method, cancel_reason, created_by, user_id, consent_at, created_at, updated_at";
 
 export async function getOrder(supabase: SupabaseClient, id: string): Promise<Order | null> {
   const { data, error } = await supabase
@@ -126,4 +133,25 @@ export async function getOrder(supabase: SupabaseClient, id: string): Promise<Or
     .maybeSingle();
   if (error) throw new Error(error.message);
   return data as unknown as Order | null;
+}
+
+/** How many history rows the order page shows (newest first); an order collects a handful, so this is a guard. */
+export const ORDER_EVENTS_LIMIT = 200;
+
+/**
+ * An order's history (public.order_events, migration 0018), newest first. Owners and managers only (RLS). Rows of an
+ * unknown kind (a later migration) are left out rather than shown wrong.
+ */
+export async function listOrderEvents(supabase: SupabaseClient, orderId: string): Promise<OrderEvent[]> {
+  const { data, error } = await supabase
+    .from("order_events")
+    .select("id, at, actor, actor_name, kind, from_status, to_status, detail")
+    .eq("order_id", orderId)
+    .order("at", { ascending: false })
+    .order("id", { ascending: false })
+    .limit(ORDER_EVENTS_LIMIT);
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as OrderEvent[]).filter((event) =>
+    (ORDER_EVENT_KINDS as readonly string[]).includes(event.kind),
+  );
 }
