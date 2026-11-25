@@ -30,3 +30,13 @@ export const ORDERS_ROLES = ["owner", "manager"] as const satisfies readonly Sta
 export function canHandleOrders(role: unknown): boolean {
   return typeof role === "string" && (ORDERS_ROLES as readonly string[]).includes(role);
 }
+
+/**
+ * Who works with ingredients and market purchases (the manager buys). Same list as private.can_handle_stock()
+ * (migration 0022). Admins (kitchen staff) do not: the screens show money.
+ */
+export const STOCK_ROLES = ["owner", "manager"] as const satisfies readonly StaffRole[];
+
+export function canHandleStock(role: unknown): boolean {
+  return typeof role === "string" && (STOCK_ROLES as readonly string[]).includes(role);
+}

@@ -5,7 +5,7 @@ import { isLocale, type Locale } from "@/i18n/config";
 import { defaultAdminLocale } from "@/i18n/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
-import { canHandleOrders, type StaffRole } from "./roles";
+import { canHandleOrders, canHandleStock, type StaffRole } from "./roles";
 
 export type StaffMember = { user_id: string; name: string; role: StaffRole; email: string; locale: Locale };
 
@@ -74,5 +74,16 @@ export async function ownerSessionOrNull() {
 export async function requireOrdersAccess() {
   const session = await requireStaff();
   if (!canHandleOrders(session.staff.role)) redirect("/");
+  return session;
+}
+
+/**
+ * Ingredients and purchases gate (docs/plans/zarkebab-feature-port.md, slice 6): owners and managers (canHandleStock,
+ * lib/admin/roles.ts). Admins are sent back to the overview. The database holds the same rule
+ * (private.can_handle_stock(), migration 0022: the stock tables' policies and the purchase functions).
+ */
+export async function requireStockAccess() {
+  const session = await requireStaff();
+  if (!canHandleStock(session.staff.role)) redirect("/");
   return session;
 }

@@ -127,6 +127,8 @@ export async function deleteFinanceEntry(_prev: FormState, form: FormData): Prom
   if (error) {
     console.error("finance: delete entry failed", error.code, error.message);
     if (isMonthClosed(error)) return { error: t.finance.monthClosedError };
+    // The ledger row of a purchase (migration 0022): it changes only with its receipt.
+    if (error.message.includes("purchase_entry")) return { error: e.purchase };
     return { error: e.deleteFailed };
   }
 

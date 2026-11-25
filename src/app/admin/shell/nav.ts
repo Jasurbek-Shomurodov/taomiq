@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  Carrot,
   ChartNoAxesCombined,
   ChefHat,
   Contact,
@@ -7,6 +8,7 @@ import {
   LayoutDashboard,
   Settings,
   ShoppingBag,
+  ShoppingBasket,
   Tags,
   Truck,
   Users,
@@ -14,7 +16,7 @@ import {
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { ORDERS_ROLES, STAFF_ROLES, type StaffRole } from "@/lib/admin/roles";
+import { ORDERS_ROLES, STAFF_ROLES, STOCK_ROLES, type StaffRole } from "@/lib/admin/roles";
 
 /** Sidebar groups, in display order. The overview group has no heading. */
 export const NAV_GROUPS = ["overview", "sales", "kitchen", "business"] as const;
@@ -34,6 +36,8 @@ export const NAV = [
   { key: "production", href: "/kitchen", icon: ChefHat, group: "kitchen", roles: STAFF_ROLES },
   { key: "menu", href: "/menu", icon: CalendarDays, group: "kitchen", roles: STAFF_ROLES },
   { key: "dishes", href: "/dishes", icon: UtensilsCrossed, group: "kitchen", roles: STAFF_ROLES },
+  { key: "ingredients", href: "/ingredients", icon: Carrot, group: "kitchen", roles: STOCK_ROLES },
+  { key: "purchases", href: "/purchases", icon: ShoppingBasket, group: "kitchen", roles: STOCK_ROLES },
   { key: "programs", href: "/programs", icon: Tags, group: "business", roles: OWNER },
   { key: "finance", href: "/finance", icon: Wallet, group: "business", roles: OWNER },
   { key: "reports", href: "/reports", icon: ChartNoAxesCombined, group: "business", roles: OWNER },

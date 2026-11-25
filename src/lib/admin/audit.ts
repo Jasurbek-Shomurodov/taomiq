@@ -13,8 +13,8 @@ import { isStaffRole } from "./roles";
  * be checked without a database. Not server-only: nothing here reads a secret or the clock.
  */
 
-/** The filter chips, in display order (the database's areas, plus the order changes). */
-export const AUDIT_AREAS = ["finance", "payroll", "orders", "team", "settings", "catalog"] as const;
+/** The filter chips, in display order (the database's areas, plus the order changes and the purchases, 0022). */
+export const AUDIT_AREAS = ["finance", "payroll", "purchases", "orders", "team", "settings", "catalog"] as const;
 export type AuditArea = (typeof AUDIT_AREAS)[number];
 
 export function isAuditArea(value: unknown): value is AuditArea {
@@ -29,7 +29,7 @@ export const AUDIT_SEARCH_MAX = 60;
 
 /** A row of the feed, as the page renders it. `summary` is the database's JSON: read it defensively. */
 export type AuditItem = {
-  /** The feed's tie-breaking key: a source letter (l, c, o) and the row id, 20 characters. */
+  /** The feed's tie-breaking key: a source letter (l, c, o, p) and the row id, 20 characters. */
   key: string;
   /** timestamptz exactly as the database returned it (microseconds kept: it is the paging cursor). */
   at: string;
@@ -47,7 +47,7 @@ export type AuditItem = {
 export type AuditCursor = { before: string; key: string };
 
 const AT_RE = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}(?::?\d{2})?)$/;
-const KEY_RE = /^[lco]\d{19}$/;
+const KEY_RE = /^[lcop]\d{19}$/;
 
 /** The cursor from the address, or null when either half is missing or malformed (the newest page then). */
 export function parseAuditCursor(before: string | undefined, key: string | undefined): AuditCursor | null {
@@ -140,6 +140,10 @@ export function auditHref(item: AuditItem): string | null {
     case "orders": {
       const id = subjectId(item.subject);
       return UUID_RE.test(id) ? `/orders/${id}` : null;
+    }
+    case "purchases": {
+      const id = subjectId(item.subject);
+      return UUID_RE.test(id) ? `/purchases/${id}` : null;
     }
     default:
       return null;
@@ -245,6 +249,8 @@ function fieldLabel(field: string, { t }: Ctx): string {
     name: d.name,
     job_title: d.jobTitle,
     days: d.daysLabel,
+    buyer_name: d.buyer,
+    lines: d.linesLabel,
   };
   return labels[field] ?? field;
 }
@@ -501,6 +507,32 @@ export function auditLine(item: AuditItem, t: AdminDictionary, locale: Locale): 
         title: l.orderEdited(n),
         facts: [],
         notes: compact([labels.length > 0 && d.fields(labels.join(", ")), s.account_unlinked === true && t.order.events.accountUnlinked]),
+      };
+    }
+
+    case "purchases": {
+      // One line per receipt: the ledger row it writes is not listed separately (audit_feed, 0022).
+      const title =
+        item.action === "added" ? l.purchaseAdded : item.action === "deleted" ? l.purchaseDeleted : l.purchaseChanged;
+      const lines = num(s.lines);
+      const buyer = str(s.buyer_name);
+      const items = Array.isArray(s.items) ? s.items.filter((x): x is string => typeof x === "string" && x !== "") : [];
+      const more = lines !== null && lines > items.length ? ` ${t.purchases.history.more(lines - items.length)}` : "";
+      return {
+        title,
+        facts: compact([
+          money(s.amount, ctx),
+          day(s.entry_date, ctx),
+          isPaymentMethod(s.payment_method) && method(s.payment_method, ctx),
+          lines !== null && d.lines(lines),
+          buyer && d.buyerName(buyer),
+        ]),
+        notes: compact([
+          item.action !== "changed" && items.length > 0 && d.items(`${items.join(", ")}${more}`),
+          ...changeNotes(s, ctx),
+          s.lines_changed === true && d.linesChanged,
+          s.note_changed === true && d.noteChanged,
+        ]),
       };
     }
 

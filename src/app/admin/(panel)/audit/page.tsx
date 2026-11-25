@@ -3,6 +3,7 @@ import {
   SearchX,
   Settings,
   ShoppingBag,
+  ShoppingBasket,
   Tags,
   UserRound,
   Users,
@@ -53,6 +54,7 @@ const CURSOR_PARAMS = ["before", "bk"] as const;
 const AREA_ICONS: Record<AuditArea, LucideIcon> = {
   finance: Wallet,
   payroll: UserRound,
+  purchases: ShoppingBasket,
   orders: ShoppingBag,
   team: Users,
   settings: Settings,

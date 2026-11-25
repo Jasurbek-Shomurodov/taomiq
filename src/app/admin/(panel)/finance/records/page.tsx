@@ -1,4 +1,4 @@
-import { NotebookPen, SearchX } from "lucide-react";
+import { Lock, NotebookPen, SearchX } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createElement } from "react";
@@ -9,6 +9,7 @@ import { categoryIcon, isEntryKind, isPaymentMethod, type EntryKind } from "@/li
 import { financeMonth, formatEntryDay, formatMonth } from "@/lib/admin/finance/month";
 import { ENTRIES_CAP, listMonthEntries, loadLockedThrough, type FinanceEntry } from "@/lib/admin/finance/queries";
 import { customPeriod } from "@/lib/admin/reports";
+import { purchaseEntryLinks } from "@/lib/admin/stock-queries";
 import { addDays, tashkentDay } from "@/lib/admin/stats";
 import { BeforeHydration } from "../../../kit/BeforeHydration";
 import type { Tone } from "../../../kit/Badge";
@@ -94,14 +95,29 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
   // The last locked day (migration 0015): a month up to it is closed, so its records show no delete. Unknown (a
   // failed read) keeps the buttons; the database refuses anyway and the action says why.
   let lockedThrough: string | null = null;
+  // Ledger rows written by a purchase (migration 0022): shown locked, with a link to the receipt. Unknown (a failed
+  // read) keeps the delete button; the database refuses it (purchase_entry) and the action says why.
+  let purchaseLinks = new Map<string, string>();
   const [entries, locked] = await Promise.allSettled([
     listMonthEntries(supabase, month, kind),
     loadLockedThrough(supabase),
   ]);
+  // Only the ingredients expenses on the page can come from a purchase.
+  const links =
+    entries.status === "fulfilled"
+      ? await Promise.allSettled([
+          purchaseEntryLinks(
+            supabase,
+            entries.value.entries.filter((e) => e.category === "ingredients").map((e) => e.id),
+          ),
+        ]).then(([result]) => result)
+      : ({ status: "fulfilled", value: new Map<string, string>() } as const);
   if (entries.status === "fulfilled") data = entries.value;
   else console.error("finance records failed", entries.reason instanceof Error ? entries.reason.message : entries.reason);
   if (locked.status === "fulfilled") lockedThrough = locked.value;
   else console.error("finance records: lock failed", locked.reason instanceof Error ? locked.reason.message : locked.reason);
+  if (links.status === "fulfilled") purchaseLinks = links.value;
+  else console.error("finance records: purchase links failed", links.reason instanceof Error ? links.reason.message : links.reason);
   const closed = lockedThrough !== null && month.to <= lockedThrough;
 
   const sum = (value: number) => `${formatSum(value)} ${t.common.currency}`;
@@ -198,7 +214,15 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
             >
               <ul>
                 {day.entries.map((entry) => (
-                  <EntryRow key={entry.id} entry={entry} locked={closed} locale={locale} t={t} sum={sum} />
+                  <EntryRow
+                    key={entry.id}
+                    entry={entry}
+                    locked={closed}
+                    purchaseId={purchaseLinks.get(entry.id) ?? null}
+                    locale={locale}
+                    t={t}
+                    sum={sum}
+                  />
                 ))}
               </ul>
             </Panel>
@@ -212,6 +236,7 @@ export default async function FinanceRecordsPage({ searchParams }: PageProps<"/a
 function EntryRow({
   entry,
   locked,
+  purchaseId,
   locale,
   t,
   sum,
@@ -219,6 +244,8 @@ function EntryRow({
   entry: FinanceEntry;
   /** In a closed month: no delete. */
   locked: boolean;
+  /** The purchase this row mirrors (migration 0022): no delete here, a link to the receipt instead. */
+  purchaseId: string | null;
   locale: Locale;
   t: AdminDictionary;
   sum: (value: number) => string;
@@ -246,7 +273,15 @@ function EntryRow({
         {createElement(categoryIcon(entry.category), { "aria-hidden": true, className: "size-4" })}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-adm-text">{name}</p>
+        <p className="flex flex-wrap items-center gap-x-2 font-semibold text-adm-text">
+          {name}
+          {purchaseId && (
+            <span className="adm-badge adm-tone-neutral" title={r.purchaseLocked}>
+              <Lock aria-hidden="true" />
+              {r.fromPurchase}
+            </span>
+          )}
+        </p>
         <p className="adm-caption" data-ph-mask>
           {[counterparty, method].filter(Boolean).join(" · ")}
         </p>
@@ -262,7 +297,17 @@ function EntryRow({
         >
           {amountText}
         </span>
-        {!locked && <DeleteEntry id={entry.id} summary={summary} locale={locale} />}
+        {purchaseId ? (
+          <Link
+            href={`/purchases/${purchaseId}`}
+            aria-label={r.openPurchaseAria(summary)}
+            className="adm-btn adm-btn-outline adm-btn-sm"
+          >
+            {r.openPurchase}
+          </Link>
+        ) : (
+          !locked && <DeleteEntry id={entry.id} summary={summary} locale={locale} />
+        )}
       </div>
     </li>
   );
