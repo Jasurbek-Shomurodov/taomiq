@@ -39,6 +39,8 @@ export type DishListItem = {
   carbs: number;
   active: boolean;
   verified: boolean;
+  /** Set for an archived dish: shown only under the "archived" filter. */
+  archived_at: string | null;
 };
 
 /** A year: the view is a convenience, nothing breaks when it expires. */
@@ -119,10 +121,12 @@ export function DishesBrowser({
   const words = foldSearchText(query).split(" ").filter(Boolean);
   const shown = dishes.filter(
     (dish) =>
-      (!status || matchesDishStatus(dish, status)) &&
+      matchesDishStatus(dish, status) &&
       words.every((word) => dish.search.includes(word)),
   );
   const filtering = status !== null || words.length > 0;
+  // "All" means the dishes in use: archived ones only show under their own filter.
+  const inUse = dishes.filter((dish) => !dish.archived_at).length;
 
   function changeView(next: DishView) {
     setView(next);
@@ -189,7 +193,7 @@ export function DishesBrowser({
       {dishes.length > 0 && (
         <div className="flex min-h-10 flex-wrap items-center gap-x-3 gap-y-2">
           <p className="adm-caption tabular-nums" aria-live="polite">
-            {filtering ? t.dishes.countOf(shown.length, dishes.length) : t.dishes.count(dishes.length)}
+            {filtering ? t.dishes.countOf(shown.length, inUse) : t.dishes.count(inUse)}
           </p>
           {filtering && shown.length > 0 && (
             // (With nothing shown, the empty state below carries this button.) A link before the scripts run (a load of the unfiltered list); after, it clears in place (Link skips
@@ -330,7 +334,11 @@ function DishBadges({ dish, locale, className = "" }: { dish: DishListItem; loca
   const t = getAdminDictionary(locale);
   return (
     <span className={`flex flex-wrap gap-1.5 ${className}`}>
-      {!dish.active && <Badge tone="neutral">{t.dishes.hidden}</Badge>}
+      {dish.archived_at ? (
+        <Badge tone="neutral">{t.dishes.archived}</Badge>
+      ) : (
+        !dish.active && <Badge tone="neutral">{t.dishes.hidden}</Badge>
+      )}
       {dish.verified ? (
         <Badge tone="positive">{t.dishes.verified}</Badge>
       ) : (

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { createElement } from "react";
+import { createElement, Suspense } from "react";
 import { getAdminDictionary, type AdminDictionary } from "@/i18n/admin";
 import { formatSum, htmlLang, type Locale } from "@/i18n/config";
 import { requireOwner } from "@/lib/admin/auth";
@@ -55,6 +55,7 @@ import { ProgressRow } from "../../kit/ProgressRow";
 import { StatTile } from "../../kit/StatTile";
 import { FinanceMonthSwitcher } from "./FinanceMonthSwitcher";
 import { FinanceTabs } from "./FinanceTabs";
+import { RationCostPanel, RationCostSkeleton } from "./RationCostPanel";
 import { DASH, Indicator, Labeled, Money, pct, resultClass, resultTone, sumText } from "./figures";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -177,6 +178,11 @@ export default async function FinanceMonthPage({ searchParams }: PageProps<"/adm
           />
         </>
       )}
+
+      {/* Slice 7: ration cost against price, at today's menu and usual prices (not a figure of the chosen month). */}
+      <Suspense fallback={<RationCostSkeleton />}>
+        <RationCostPanel locale={locale} />
+      </Suspense>
     </div>
   );
 }

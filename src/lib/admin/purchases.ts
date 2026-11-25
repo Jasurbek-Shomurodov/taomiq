@@ -14,7 +14,8 @@ import { isIngredientUnit, type IngredientUnit } from "./ingredients";
 
 export { PAYMENT_METHODS, isPaymentMethod, type PaymentMethod };
 
-export const PURCHASE_TABS = ["new", "history", "analytics", "sheet"] as const;
+/** "usage" (slice 7): purchases against the tech cards' theoretical use. */
+export const PURCHASE_TABS = ["new", "history", "analytics", "sheet", "usage"] as const;
 export type PurchaseTab = (typeof PURCHASE_TABS)[number];
 
 export function isPurchaseTab(value: unknown): value is PurchaseTab {

@@ -56,6 +56,8 @@ export type Dish = {
   allergens: string[];
   verified: boolean;
   active: boolean;
+  /** Set when the dish is archived (migration 0023): never active, never on the menu. Absent in the demo data. */
+  archived_at?: string | null;
 };
 
 export type MenuItem = {

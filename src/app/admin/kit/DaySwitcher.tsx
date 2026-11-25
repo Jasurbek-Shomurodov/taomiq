@@ -20,8 +20,11 @@ export function DaySwitcher({
   prev,
   next,
   labels,
+  extraQuery = "",
 }: {
   basePath: string;
+  /** More of the address kept on every move, e.g. "&days=3". */
+  extraQuery?: string;
   day: string;
   min: string;
   max: string;
@@ -31,7 +34,7 @@ export function DaySwitcher({
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
-  const href = (value: string) => `${basePath}?date=${value}`;
+  const href = (value: string) => `${basePath}?date=${value}${extraQuery}`;
 
   // A desktop date field reports a complete date after every typed segment ("3" of "30" is already the 3rd), so the
   // sheet moves only once typing has paused, or at once on Enter or when the field is left. A phone's picker reports

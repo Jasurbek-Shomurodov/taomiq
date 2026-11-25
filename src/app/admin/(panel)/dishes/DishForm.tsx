@@ -1,9 +1,11 @@
 "use client";
 
+import { ClipboardList } from "lucide-react";
+import Link from "next/link";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { getAdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
-import { deleteDish, saveDish, type FormState } from "@/lib/admin/actions";
+import { saveDish, setDishArchived, type FormState } from "@/lib/admin/actions";
 import { ALLERGENS } from "@/lib/data/allergens";
 import { localized } from "@/lib/data/localized";
 import type { Dish } from "@/lib/data/types";
@@ -33,7 +35,8 @@ async function resizeImage(file: File, maxSide = 1600): Promise<Blob> {
 
 export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveDish, {});
-  const [deleteState, deleteAction, deleting] = useActionState<FormState, FormData>(deleteDish, {});
+  const [archiveState, archiveAction, archiving] = useActionState<FormState, FormData>(setDishArchived, {});
+  const archived = Boolean(dish?.archived_at);
   const t = getAdminDictionary(locale);
   const lang = t.common.fieldLang;
 
@@ -104,6 +107,7 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
 
         <div ref={errorRef} className="empty:hidden xl:col-span-2">
           {state.error && <Notice tone="negative">{state.error}</Notice>}
+          {archived && !state.error && <Notice tone="caution">{t.dishArchive.archivedNotice}</Notice>}
         </div>
 
         <div className="grid min-w-0 content-start gap-5">
@@ -218,13 +222,26 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
           <Panel title={t.dish.visibilityTitle}>
             <div className="grid gap-3 text-sm">
               <label className="flex items-start gap-2">
-                <input type="checkbox" name="active" defaultChecked={dish?.active ?? true} className="mt-0.5" />
-                {t.dish.active}
+                {/* An archived dish is never shown on the site (dishes_archived_not_active, 0023): restore it first. */}
+                <input
+                  type="checkbox" name="active" defaultChecked={archived ? false : (dish?.active ?? true)}
+                  disabled={archived} className="mt-0.5"
+                />
+                <span>
+                  {t.dish.active}
+                  {archived && <span className="adm-caption block">{t.dishArchive.activeHint}</span>}
+                </span>
               </label>
               <label className="flex items-start gap-2">
                 <input type="checkbox" name="verified" defaultChecked={dish?.verified ?? false} className="mt-0.5" />
                 {t.dish.verified}
               </label>
+              {dish && (
+                <Link href={`/tech-cards/${dish.id}`} className="adm-btn adm-btn-ghost adm-btn-sm -ml-3 w-fit">
+                  <ClipboardList aria-hidden="true" />
+                  {t.techCards.openCard}
+                </Link>
+              )}
             </div>
           </Panel>
         </div>
@@ -236,22 +253,36 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
       </form>
 
       {dish && (
-        <form action={deleteAction}>
-          <input type="hidden" name="id" value={dish.id} />
-          <ConfirmDialog
-            trigger={t.dish.delete}
-            triggerClassName="adm-btn adm-btn-ghost adm-btn-danger adm-btn-sm -ml-3"
-            disabled={deleting}
-            title={t.dish.deleteTitle(localized(dish, "name", locale))}
-            description={t.dish.deleteText}
-            confirmLabel={t.dish.deleteButton}
-            pendingLabel={t.common.deleting}
-            cancelLabel={t.common.cancel}
-            destructive
-            pending={deleting}
-          />
-          {deleteState.error && <p role="alert" className="mt-2 text-sm text-adm-negative">{deleteState.error}</p>}
-        </form>
+        <Panel title={t.dishArchive.title} description={archived ? t.dishArchive.archivedLead : t.dishArchive.lead}>
+          <form action={archiveAction} className="grid gap-2">
+            <input type="hidden" name="id" value={dish.id} />
+            <input type="hidden" name="archive" value={archived ? "0" : "1"} />
+            {archived ? (
+              <button
+                type="submit"
+                disabled={archiving}
+                aria-busy={archiving || undefined}
+                className="adm-btn adm-btn-outline adm-btn-sm w-fit"
+              >
+                {archiving ? t.dishArchive.restoring : t.dishArchive.restore}
+              </button>
+            ) : (
+              <ConfirmDialog
+                trigger={t.dishArchive.archive}
+                triggerClassName="adm-btn adm-btn-outline adm-btn-sm w-fit"
+                disabled={archiving}
+                title={t.dishArchive.confirmTitle(localized(dish, "name", locale))}
+                description={t.dishArchive.confirmText}
+                confirmLabel={t.dishArchive.archive}
+                pendingLabel={t.dishArchive.archiving}
+                cancelLabel={t.common.cancel}
+                pending={archiving}
+              />
+            )}
+            {archiveState.error && <p role="alert" className="text-sm text-adm-negative">{archiveState.error}</p>}
+            {archiveState.ok && !archiving && <p role="status" className="text-sm text-adm-positive">{archiveState.ok}</p>}
+          </form>
+        </Panel>
       )}
     </>
   );

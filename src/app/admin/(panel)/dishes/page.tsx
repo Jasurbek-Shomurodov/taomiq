@@ -72,6 +72,7 @@ export default async function DishesPage() {
       carbs: Number(dish.carbs_100),
       active: dish.active,
       verified: dish.verified,
+      archived_at: dish.archived_at ?? null,
     }))
     .sort((a, b) => collator.compare(a.title, b.title));
 

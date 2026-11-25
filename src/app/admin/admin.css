@@ -986,6 +986,16 @@ body.admin {
     padding: 3pt 0;
     border-bottom: 0.75pt solid #000;
   }
+
+  /* Tech cards (docs/plans/zarkebab-feature-port.md, slice 7): one card never split across pages, a gap between. */
+  .adm-sheet .adm-techcard {
+    break-inside: avoid;
+    padding-bottom: 8pt;
+  }
+  .adm-sheet .adm-techcard + .adm-techcard {
+    padding-top: 6pt;
+    border-top: 1.5pt solid #000;
+  }
 }
 
 /* ---------- Print: delivery sheet (docs/plans/kitchen-day-sheet.md, slice 2) ----------

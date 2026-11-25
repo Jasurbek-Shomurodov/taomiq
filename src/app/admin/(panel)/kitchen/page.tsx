@@ -1,7 +1,8 @@
-import { CalendarX, ChefHat, Hourglass, ListX } from "lucide-react";
+import { CalendarX, ChefHat, ClipboardList, Hourglass, ListX, Printer } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { getAdminDictionary } from "@/i18n/admin";
-import { htmlLang } from "@/i18n/config";
+import { htmlLang, type Locale } from "@/i18n/config";
 import { requireStaff } from "@/lib/admin/auth";
 import {
   buildProductionSheet,
@@ -11,6 +12,8 @@ import {
   type SheetProblem,
 } from "@/lib/admin/kitchen";
 import { formatDateTime, formatDay } from "@/lib/admin/orders";
+import { loadShoppingList } from "@/lib/admin/tech-card-queries";
+import type { ShoppingList } from "@/lib/admin/tech-cards";
 import { DaySwitcher } from "../../kit/DaySwitcher";
 import { EmptyState } from "../../kit/EmptyState";
 import { Notice } from "../../kit/Notice";
@@ -18,6 +21,7 @@ import { Panel } from "../../kit/Panel";
 import { PrintButton, PrintTime } from "../../kit/PrintButton";
 import { StatTile } from "../../kit/StatTile";
 import { TopBarActions, TopBarTabs, TopBarTitle } from "../../shell/TopBarSlot";
+import { ShoppingTable, ShoppingWarnings } from "./ShoppingTable";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { staff } = await requireStaff();
@@ -45,7 +49,14 @@ export default async function KitchenPage({ searchParams }: PageProps<"/admin/ki
   // Read the clock only after the session and the address (request-time reads), so it is the request's time.
   const now = new Date();
   const date = sheetDate(one(params.date), now);
-  const data = await loadProductionDay(supabase, date.day);
+  // The shopping list (slice 7) is read beside the sheet: quantities only (public.shopping_list), never money here.
+  const [data, shopping] = await Promise.all([
+    loadProductionDay(supabase, date.day),
+    loadShoppingList(supabase, date.day, 1, false).catch((error: unknown) => {
+      console.error("kitchen: shopping list failed", error instanceof Error ? error.message : error);
+      return null;
+    }),
+  ]);
 
   const sheet = buildProductionSheet(
     data.orders ?? [],
@@ -263,7 +274,68 @@ export default async function KitchenPage({ searchParams }: PageProps<"/admin/ki
           )}
         </Panel>
       )}
+
+      <ShoppingBlock list={shopping} day={date.day} selfHref={selfHref} locale={locale} />
     </div>
+  );
+}
+
+/**
+ * The day's shopping list under the sheet (not printed with it: its own print view is /kitchen/shopping, with a
+ * three-day total). Quantities only.
+ */
+function ShoppingBlock({
+  list,
+  day,
+  selfHref,
+  locale,
+}: {
+  list: ShoppingList | null;
+  day: string;
+  selfHref: string;
+  locale: Locale;
+}) {
+  const t = getAdminDictionary(locale);
+  const ts = t.shopping;
+  const actions = (
+    <>
+      <Link href={`/kitchen/shopping?date=${day}&days=3`} className="adm-btn adm-btn-outline adm-btn-sm">
+        {ts.threeDays}
+      </Link>
+      <Link href={`/kitchen/shopping?date=${day}`} className="adm-btn adm-btn-outline adm-btn-sm">
+        <Printer aria-hidden="true" />
+        {ts.openPrint}
+      </Link>
+    </>
+  );
+  return (
+    <section className="adm-no-print grid gap-3" aria-label={ts.title}>
+      {list && <ShoppingWarnings list={list} locale={locale} />}
+      <Panel flush title={ts.title} description={ts.blockLead} actions={actions}>
+        {!list ? (
+          <div className="p-4">
+            <Notice tone="negative" retry={{ href: selfHref, label: t.common.retry }}>
+              {ts.loadFailed}
+            </Notice>
+          </div>
+        ) : list.rations === 0 ? (
+          <p className="adm-muted px-5 py-4">{ts.blockEmpty}</p>
+        ) : list.lines.length === 0 ? (
+          <EmptyState
+            icon={ClipboardList}
+            action={
+              <Link href="/tech-cards" className="adm-btn adm-btn-outline">
+                {ts.toTechCards}
+              </Link>
+            }
+          >
+            {ts.noCards}
+          </EmptyState>
+        ) : (
+          <ShoppingTable list={list} costed={false} locale={locale} />
+        )}
+      </Panel>
+    </section>
   );
 }
 

@@ -179,23 +179,49 @@ export async function saveDish(_prev: FormState, form: FormData): Promise<FormSt
   const { error } = id
     ? await supabase.from("dishes").update(row).eq("id", id)
     : await supabase.from("dishes").insert(row);
-  if (error) return { error: t.common.saveFailed(error.message) };
+  if (error) {
+    // dishes_archived_not_active (0023): an archived dish cannot be switched on.
+    if (error.code === "23514" && error.message.includes("dishes_archived_not_active")) {
+      return { error: t.dishArchive.restoreFirst };
+    }
+    return { error: t.common.saveFailed(error.message) };
+  }
 
   updateTag(CATALOG_TAG);
   redirect("/dishes");
 }
 
-export async function deleteDish(_prev: FormState, form: FormData): Promise<FormState> {
+/**
+ * Archives (archive=1) or restores a dish (docs/plans/zarkebab-feature-port.md, slice 7): dishes are archived, not
+ * deleted, so old menus, orders and tech cards keep them. The database refuses to archive a dish that is on the 30-day
+ * menu (dish_on_menu, detail: how many places) and switches an archived dish off for the site (migration 0023); a
+ * restored dish stays switched off until someone turns it on again.
+ */
+export async function setDishArchived(_prev: FormState, form: FormData): Promise<FormState> {
   const { supabase, staff } = await requireStaff();
   const t = getAdminDictionary(staff.locale);
-  const { error } = await supabase.from("dishes").delete().eq("id", text(form, "id"));
+  const id = text(form, "id");
+  const archive = text(form, "archive") === "1";
+  if (!UUID_RE.test(id)) return { error: t.dishArchive.notFound };
+
+  const { data, error } = await supabase
+    .from("dishes")
+    .update({ archived_at: archive ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
+    .eq("id", id)
+    .select("id");
   if (error) {
-    return {
-      error: error.code === "23503" ? t.dish.inMenu : t.dish.deleteFailed(error.message),
-    };
+    if (error.message.includes("dish_on_menu")) {
+      const places = Number(error.details);
+      return { error: t.dishArchive.onMenu(Number.isSafeInteger(places) ? places : 0) };
+    }
+    console.error("dishes: archive failed", error.code);
+    return { error: t.dishArchive.failed };
   }
+  if (!data?.length) return { error: t.dishArchive.notFound };
+
   updateTag(CATALOG_TAG);
-  redirect("/dishes");
+  refresh();
+  return { ok: archive ? t.dishArchive.archived : t.dishArchive.restored };
 }
 
 // ---------- menu ----------
@@ -222,7 +248,11 @@ export async function saveMenuDay(variantId: string, cycleDay: number, rows: Men
       })),
       { onConflict: "variant_id,cycle_day,slot" },
     );
-    if (error) return { error: t.common.saveFailed(error.message) };
+    if (error) {
+      // menu_items_check_dish (0023): an archived dish is never put on the menu.
+      if (error.message.includes("dish_archived")) return { error: t.dishArchive.menuArchived };
+      return { error: t.common.saveFailed(error.message) };
+    }
   }
   if (emptySlots.length > 0) {
     const { error } = await supabase
@@ -276,7 +306,10 @@ export async function copyMenuFromVariant(
     })),
     { onConflict: "variant_id,cycle_day,slot" },
   );
-  if (writeError) return { error: t.common.saveFailed(writeError.message) };
+  if (writeError) {
+    if (writeError.message.includes("dish_archived")) return { error: t.dishArchive.menuArchived };
+    return { error: t.common.saveFailed(writeError.message) };
+  }
 
   updateTag(CATALOG_TAG);
   return { ok: t.menu.copied(items.length) };

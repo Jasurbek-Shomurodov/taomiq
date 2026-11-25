@@ -42,6 +42,8 @@ export async function CatalogueOverview({ locale }: { locale: Locale }) {
   const hidden = count("hidden");
   const noCard = count("no-card");
   const noPhoto = count("no-photo");
+  // Archived dishes are not in the catalogue the tiles count (the dishes list leaves them out of "all" too).
+  const all = count(null);
   const retry = { href: "/", label: t.common.retry };
   const variants = programs?.flatMap((program) => program.variants.map((variant) => ({ program, variant }))) ?? [];
 
@@ -53,7 +55,7 @@ export async function CatalogueOverview({ locale }: { locale: Locale }) {
         </Notice>
       )}
       <div className="grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))]">
-        <StatTile label={t.home.dishes} value={dishes?.length ?? DASH} icon={UtensilsCrossed} href={dishesHref()} />
+        <StatTile label={t.home.dishes} value={all ?? DASH} icon={UtensilsCrossed} href={dishesHref()} />
         <StatTile
           label={t.home.visible}
           value={visible ?? DASH}

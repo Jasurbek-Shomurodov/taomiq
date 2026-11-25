@@ -32,6 +32,7 @@ import { loadPurchaseFormData } from "./form-data";
 import { HistoryTab } from "./HistoryTab";
 import { PurchaseForm } from "./PurchaseForm";
 import { SheetTab } from "./SheetTab";
+import { UsageTab } from "./UsageTab";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { staff } = await requireStaff();
@@ -46,7 +47,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 /**
  * Purchases (owners and managers; docs/plans/zarkebab-feature-port.md, slice 6). `?tab=` picks New (the receipt form,
- * the default), History, Analytics or Sheet; the last three read a period (`?period=` or `?from=&to=`, as on Reports,
+ * the default), History, Analytics, Sheet or Usage (slice 7: bought against the tech cards' use); all but New read a period (`?period=` or `?from=&to=`, as on Reports,
  * the last 30 days by default). Every read goes through the purchase functions of migration 0022, which refuse anyone
  * but owners and managers. A receipt saved here is also one ingredients expense in Finance, written by the database.
  */
@@ -105,6 +106,8 @@ export default async function PurchasesPage({ searchParams }: PageProps<"/admin/
               />
             ) : tab === "analytics" ? (
               <AnalyticsTab period={period} locale={locale} />
+            ) : tab === "usage" ? (
+              <UsageTab period={period} locale={locale} />
             ) : (
               <SheetTab period={period} today={today} locale={locale} />
             )}

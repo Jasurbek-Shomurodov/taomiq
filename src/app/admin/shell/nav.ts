@@ -3,6 +3,7 @@ import {
   Carrot,
   ChartNoAxesCombined,
   ChefHat,
+  ClipboardList,
   Contact,
   History,
   LayoutDashboard,
@@ -36,6 +37,8 @@ export const NAV = [
   { key: "production", href: "/kitchen", icon: ChefHat, group: "kitchen", roles: STAFF_ROLES },
   { key: "menu", href: "/menu", icon: CalendarDays, group: "kitchen", roles: STAFF_ROLES },
   { key: "dishes", href: "/dishes", icon: UtensilsCrossed, group: "kitchen", roles: STAFF_ROLES },
+  // Cooks read the recipes (no money); owners and managers edit them and see the cost.
+  { key: "techCards", href: "/tech-cards", icon: ClipboardList, group: "kitchen", roles: STAFF_ROLES },
   { key: "ingredients", href: "/ingredients", icon: Carrot, group: "kitchen", roles: STOCK_ROLES },
   { key: "purchases", href: "/purchases", icon: ShoppingBasket, group: "kitchen", roles: STOCK_ROLES },
   { key: "programs", href: "/programs", icon: Tags, group: "business", roles: OWNER },
