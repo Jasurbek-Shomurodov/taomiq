@@ -1559,7 +1559,7 @@ const uz: AdminDictionary = {
       connectionHint: "Oʻzgaruvchilar Vercelda beriladi; qiymatlari bu yerda koʻrsatilmaydi.",
       vars: {
         TELEGRAM_BOT_TOKEN: "bot (buyurtma xabarlari bilan bir xil)",
-        TELEGRAM_OWNER_CHAT_ID: "egasi guruhi; bot unda boʻlishi kerak",
+        TELEGRAM_OWNER_CHAT_ID: "egasining alohida guruhi; berilmaguncha xabarlar buyurtma bildirishnomalari guruhiga boradi",
         CRON_SECRET: "har kuni soat 8:00 da ishga tushirish",
       },
       set: "Berilgan",

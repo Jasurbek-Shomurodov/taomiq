@@ -16,7 +16,7 @@ import {
   cronSecret,
   isOwnerTelegramConfigured,
   telegramBotToken,
-  telegramOwnerChatId,
+  hasOwnOwnerChat,
 } from "@/lib/telegram/config";
 import { loadTelegramSettings, loadTelegramStatus, type TelegramStatus } from "@/lib/telegram/queries";
 import { formatMessageDay, renderTelegramMessage } from "@/lib/telegram/render";
@@ -247,7 +247,7 @@ function TelegramConnection({ t }: { t: AdminDictionary }) {
   const tg = t.settings.tg;
   const vars = [
     { name: "TELEGRAM_BOT_TOKEN", on: Boolean(telegramBotToken) },
-    { name: "TELEGRAM_OWNER_CHAT_ID", on: Boolean(telegramOwnerChatId) },
+    { name: "TELEGRAM_OWNER_CHAT_ID", on: hasOwnOwnerChat },
     { name: "CRON_SECRET", on: Boolean(cronSecret) },
   ] as const;
   return (
