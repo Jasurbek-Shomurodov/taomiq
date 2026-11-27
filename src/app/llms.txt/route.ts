@@ -72,6 +72,7 @@ export async function GET() {
     `- All prices (every program, calorie level and order length): ${everyLocale("/prices")}`,
     `- Program finder (three questions: goal, activity, sex, age, height and weight; recommends a program, calorie level and price per day): ${everyLocale("/quiz")}`,
     `- Calorie and macro calculator (daily calories, TDEE): ${everyLocale("/calculator")}`,
+    `- Body goal calculator (figures that change with height, weight and muscularity; calories, macros, fibre, water, a steady pace and adult vitamin and mineral reference intakes): ${everyLocale("/calculator/body")}`,
     `- Protein calculator (grams per day by weight, activity and goal): ${everyLocale("/calculator/protein")}`,
     `- BMI calculator (WHO categories): ${everyLocale("/calculator/bmi")}`,
     `- Daily water calculator: ${everyLocale("/calculator/water")}`,

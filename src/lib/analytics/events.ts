@@ -17,6 +17,8 @@ export type ClientEvents = {
   quiz_completed: { goal: string; program: string };
   /** Calculator: a result was shown (once per visit). */
   calculator_used: { kcal: number };
+  /** Body goal calculator (/calculator/body): a settled result was shown (once per visit). */
+  body_calculator_used: { kcal: number; direction: "lose" | "tone" | "keep" | "gain" };
   /** Account page: first render after signing in. */
   signed_in: { method: string };
 };

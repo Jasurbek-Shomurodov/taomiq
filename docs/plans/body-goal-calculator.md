@@ -3,6 +3,26 @@
 Status: **research done, plan drafted 27 Nov 2026.** Waiting for the owner on one design decision
 (§7, Q1: the look of the body type pictures). Slice 1 does not depend on it.
 
+## 0. Owner decision, 27 Nov 2026 (replaces the fixed pictures below)
+
+No grid of pictures. **One animated body** per side ("now" and "goal"), drawn by us in brand style,
+following the shapes of the common body-type charts (slim / fit / muscular / overweight) as a visual
+reference only; nothing is copied from search results (copyright). The figure **morphs live** as the
+height, weight and muscularity sliders move.
+
+- Inputs become: sex, age, height, weight, **muscularity** (4 steps: low, average, athletic,
+  muscular), activity; goal weight and goal muscularity.
+- Body fat = Deurenberg estimate from BMI/age/sex, lowered by muscularity (because extra muscle raises
+  BMI without fat): low +2, average 0, athletic −4, muscular −7 points, held within 5–60%. This
+  replaces the picture midpoint and the ±8 cross-check in §3.1–3.2. `BODY_FAT_BANDS` stay only to
+  name the shape (lean … heavy) for the figure and the copy.
+- Goal body fat = from goal weight, the same height and age and goal muscularity, the same way.
+- The figure is a parametric SVG (`src/components/BodyFigure.tsx`): shoulder, chest, waist, hip,
+  thigh, arm and neck widths are functions of body fat and muscularity, overall scale from height;
+  separate female and male bases; clothed in a sports top and shorts; forest/ivory/gold. Shape
+  parameters tween with `requestAnimationFrame` (~250 ms, eased), not CSS `d` transitions (Safari);
+  `prefers-reduced-motion` jumps straight to the new shape.
+
 ## 1. Goal and user flow
 
 A new tool in the calculator suite, `/[locale]/calculator/body`, tab name "Body goal" (uz: "Tana

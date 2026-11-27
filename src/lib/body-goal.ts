@@ -1,11 +1,12 @@
 /**
- * Body goal calculator (/calculator/body): the visitor picks the body closest to theirs now and the one
- * they want, and gets calories, macros, fibre, water, a calm pace and the adult reference intakes of key
- * vitamins and minerals. Pure functions, no UI; plan in docs/plans/body-goal-calculator.md §3.
+ * Body goal calculator (/calculator/body): the visitor sets sex, age, height, weight and how muscular they
+ * are now, and the weight and muscularity they want, and gets calories, macros, fibre, water, a calm pace
+ * and the adult reference intakes of key vitamins and minerals. Pure functions, no UI; plan in
+ * docs/plans/body-goal-calculator.md (§0 replaces the body-type pictures with one figure per side that
+ * morphs with the sliders, src/components/BodyFigure.tsx).
  *
  * Every number here is an estimate for healthy adults (18–80) choosing a ration, not a medical or
- * diet prescription. A picture is only a rough body-fat band, so it is cross-checked against a
- * height/weight/age formula before it is used.
+ * diet prescription.
  */
 
 import {
@@ -17,67 +18,61 @@ import {
   type Goal,
   type Sex,
   type WaterResult,
-} from "@/lib/calculator";
+} from "./calculator";
 
 /* ---------------------------------------------------------------------------------------
-   §3.1 Body type pictures → body-fat band
+   Body composition: Deurenberg estimate, corrected for muscularity (§0)
    --------------------------------------------------------------------------------------- */
 
-/** The five "closest to your body now" pictures per sex, ordered lean → heavy. */
-export type BodyType = "lean" | "fit" | "average" | "soft" | "heavy";
-/** The goal row: the same five plus "muscular" (a higher lean-mass target). */
-export type GoalBodyType = BodyType | "muscular";
+/** How muscular the visitor is (now, or wants to be), in four steps. */
+export type Muscularity = "low" | "average" | "athletic" | "muscular";
+export const MUSCULARITY_LEVELS: readonly Muscularity[] = ["low", "average", "athletic", "muscular"];
 
-export const BODY_TYPES: readonly BodyType[] = ["lean", "fit", "average", "soft", "heavy"];
-export const GOAL_BODY_TYPES: readonly GoalBodyType[] = [...BODY_TYPES, "muscular"];
+/**
+ * Points of body fat added to the Deurenberg estimate per muscularity step. BMI cannot tell muscle from fat,
+ * so a muscular body of the same BMI carries less fat than the formula says, a body with little muscle more.
+ */
+export const MUSCULARITY_BODY_FAT_OFFSET: Record<Muscularity, number> = {
+  low: 2,
+  average: 0,
+  athletic: -4,
+  muscular: -7,
+};
 
-/** Body fat in % of body weight: the band a picture stands for, and the midpoint used in the maths. */
+/** Absolute guard on the body fat used (%), so the lean-mass maths never breaks at the extremes. */
+export const BODY_FAT_LIMITS = { min: 5, max: 60 } as const;
+
+/** The name of a body's shape, lean → heavy, from its body fat (for the figure's caption and the copy). */
+export type BodyShape = "lean" | "fit" | "average" | "soft" | "heavy";
+export const BODY_SHAPES: readonly BodyShape[] = ["lean", "fit", "average", "soft", "heavy"];
+
+/** Body fat in % of body weight that a shape name stands for. */
 export type BodyFatBand = {
   min: number;
   /** null for the open-ended top band ("32 % and more"). */
   max: number | null;
-  mid: number;
 };
 
 /**
- * Body-fat bands per picture. A picture is a rough band, not a measurement (even photo algorithms need
- * DXA calibration: Majmudar et al. 2022, npj Digit Med; Shape Up! Adults, 2021), hence the cross-check
- * in `bodyFatUsed()`.
+ * Body-fat bands per shape name, as on the common body-type charts. Only names the shape: the maths uses
+ * the estimate itself. Anything under a band's min belongs to the band below; under the lowest, "lean".
  */
-export const BODY_FAT_BANDS: Record<Sex, Record<GoalBodyType, BodyFatBand>> = {
+export const BODY_FAT_BANDS: Record<Sex, Record<BodyShape, BodyFatBand>> = {
   male: {
-    lean: { min: 8, max: 12, mid: 10 },
-    fit: { min: 13, max: 17, mid: 15 },
-    average: { min: 18, max: 24, mid: 21 },
-    soft: { min: 25, max: 31, mid: 28 },
-    heavy: { min: 32, max: null, mid: 35 },
-    muscular: { min: 10, max: 14, mid: 12 },
+    lean: { min: 8, max: 12 },
+    fit: { min: 13, max: 17 },
+    average: { min: 18, max: 24 },
+    soft: { min: 25, max: 31 },
+    heavy: { min: 32, max: null },
   },
   female: {
-    lean: { min: 15, max: 19, mid: 17 },
-    fit: { min: 20, max: 24, mid: 22 },
-    average: { min: 25, max: 31, mid: 28 },
-    soft: { min: 32, max: 38, mid: 35 },
-    heavy: { min: 39, max: null, mid: 42 },
-    muscular: { min: 18, max: 22, mid: 20 },
+    lean: { min: 15, max: 19 },
+    fit: { min: 20, max: 24 },
+    average: { min: 25, max: 31 },
+    soft: { min: 32, max: 38 },
+    heavy: { min: 39, max: null },
   },
 };
-
-/**
- * Lean mass (kg) the "muscular" goal adds on top of today's lean mass when suggesting a goal weight:
- * roughly what a beginner who trains regularly can build in the first several months. An assumption
- * for the slider's starting point only; the visitor moves the slider.
- */
-export const MUSCULAR_LEAN_GAIN_KG: Record<Sex, number> = { male: 3, female: 1.5 };
-
-/* ---------------------------------------------------------------------------------------
-   §3.2 Cross-check
-   --------------------------------------------------------------------------------------- */
-
-/** The picture midpoint may differ from the formula estimate by at most this many points. */
-export const BODY_FAT_CROSSCHECK_POINTS = 8;
-/** Absolute guard on the body fat used (%), so the lean-mass maths never breaks at the extremes. */
-const BODY_FAT_LIMITS = { min: 5, max: 60 } as const;
 
 const round1 = (value: number) => Math.round(value * 10) / 10;
 const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
@@ -97,29 +92,49 @@ export function deurenbergBodyFat(input: { sex: Sex; age: number; height: number
 }
 
 /**
- * The body fat (%) the calculator works with: the picture's midpoint, clamped to the Deurenberg estimate
- * ± 8 points. A 120 kg visitor who taps "lean" still gets sane numbers, and a muscular 95 kg visitor who
- * taps "fit" is not treated as obese.
+ * The body fat (%) the calculator works with: the Deurenberg estimate plus the muscularity offset, held
+ * within BODY_FAT_LIMITS. Unrounded. A muscular 95 kg visitor is not treated as obese, and the same
+ * function gives the goal's body fat from the goal weight and goal muscularity.
  */
-export function bodyFatUsed(input: {
+export function bodyFatFor(input: {
   sex: Sex;
   age: number;
   height: number;
   weight: number;
-  bodyType: BodyType;
+  muscularity: Muscularity;
 }): number {
-  const estimate = deurenbergBodyFat(input);
-  const picture = BODY_FAT_BANDS[input.sex][input.bodyType].mid;
-  const crossChecked = clamp(
-    picture,
-    estimate - BODY_FAT_CROSSCHECK_POINTS,
-    estimate + BODY_FAT_CROSSCHECK_POINTS,
-  );
-  return clamp(crossChecked, BODY_FAT_LIMITS.min, BODY_FAT_LIMITS.max);
+  const estimate = deurenbergBodyFat(input) + MUSCULARITY_BODY_FAT_OFFSET[input.muscularity];
+  return clamp(estimate, BODY_FAT_LIMITS.min, BODY_FAT_LIMITS.max);
+}
+
+/** The shape name for a body fat (%). */
+export function bodyShape(sex: Sex, bodyFat: number): BodyShape {
+  const bands = BODY_FAT_BANDS[sex];
+  for (let i = BODY_SHAPES.length - 1; i > 0; i--) {
+    const shape = BODY_SHAPES[i];
+    if (bodyFat >= bands[shape].min) return shape;
+  }
+  return "lean";
+}
+
+/** How a body looks, for the figure's caption: the shape name, or athletic / muscular when the muscle shows. */
+export type BodyLook = BodyShape | "athletic" | "muscular";
+
+/**
+ * The caption for a body: a muscular body reads as "muscular" up to average body fat, an athletic one as
+ * "athletic" while lean or fit, and a low-muscle one in the fit band as "lean" (slim, not toned); otherwise
+ * (and for any body in the soft or heavy band) the shape name.
+ */
+export function bodyLook(sex: Sex, bodyFat: number, muscularity: Muscularity): BodyLook {
+  const shape = bodyShape(sex, bodyFat);
+  if (muscularity === "muscular" && (shape === "lean" || shape === "fit" || shape === "average")) return "muscular";
+  if (muscularity === "athletic" && (shape === "lean" || shape === "fit")) return "athletic";
+  if (muscularity === "low" && shape === "fit") return "lean";
+  return shape;
 }
 
 /* ---------------------------------------------------------------------------------------
-   Goal weight: the slider's lower stop and its suggested starting point
+   Goal weight: the slider's lower stop and its starting point
    --------------------------------------------------------------------------------------- */
 
 /** The lowest goal weight (whole kg) offered: BMI 18.5 at this height (WHO), never under the input range. */
@@ -127,32 +142,40 @@ export function minGoalWeight(height: number): number {
   return Math.max(RANGES.weight.min, Math.ceil(BMI_NORMAL.min * (height / 100) ** 2));
 }
 
-/** A goal weight kept inside [minGoalWeight, RANGES.weight.max]. */
-export function clampGoalWeight(goalWeight: number, height: number): number {
-  return clamp(goalWeight, minGoalWeight(height), RANGES.weight.max);
+/** BMI whose weight is the goal slider's upper stop (unless today's weight is higher). */
+export const GOAL_MAX_BMI = 30;
+
+/**
+ * The highest goal weight (whole kg) offered: the BMI 30 weight at this height, or today's weight if that is
+ * higher (a goal to keep or lose from there), never over the input range.
+ */
+export function maxGoalWeight(height: number, weight: number): number {
+  const bmiTop = Math.floor(GOAL_MAX_BMI * (height / 100) ** 2);
+  return Math.min(RANGES.weight.max, Math.max(Math.round(weight), bmiTop, minGoalWeight(height)));
+}
+
+/** A goal weight kept inside [minGoalWeight, maxGoalWeight]. */
+export function clampGoalWeight(goalWeight: number, height: number, weight: number): number {
+  return clamp(goalWeight, minGoalWeight(height), maxGoalWeight(height, weight));
 }
 
 /**
- * Suggested goal weight (whole kg) for a goal picture: keep today's lean mass (plus
- * MUSCULAR_LEAN_GAIN_KG for "muscular") and solve for the goal picture's body-fat midpoint,
- * `goal = LBM / (1 − goal BF)`. The same picture as today keeps today's weight. Clamped to
- * `clampGoalWeight()`.
+ * A first loss step for the goal slider's starting point: 10 % of today's weight, the initial goal in the
+ * NIH obesity guidelines (1998), never past the top of the normal BMI range.
  */
-export function suggestGoalWeight(input: {
-  sex: Sex;
-  age: number;
-  height: number;
-  weight: number;
-  currentType: BodyType;
-  goalType: GoalBodyType;
-}): number {
-  if (input.goalType === input.currentType) {
-    return clampGoalWeight(Math.round(input.weight), input.height);
-  }
-  const leanMass = input.weight * (1 - bodyFatUsed({ ...input, bodyType: input.currentType }) / 100);
-  const targetLean = leanMass + (input.goalType === "muscular" ? MUSCULAR_LEAN_GAIN_KG[input.sex] : 0);
-  const goalFat = BODY_FAT_BANDS[input.sex][input.goalType].mid / 100;
-  return clampGoalWeight(Math.round(targetLean / (1 - goalFat)), input.height);
+export const FIRST_STEP_LOSS_SHARE = 0.1;
+
+/**
+ * Where the goal-weight slider starts, before the visitor moves it (whole kg): above a normal BMI, 10 %
+ * less but not under the BMI 24.9 weight; under BMI 18.5, the BMI 18.5 weight; otherwise today's weight.
+ * Always inside `clampGoalWeight()`.
+ */
+export function suggestGoalWeight(input: { height: number; weight: number }): number {
+  const { height, weight } = input;
+  const normalTop = Math.floor(BMI_NORMAL.max * (height / 100) ** 2);
+  let goal = Math.round(weight);
+  if (weight > normalTop) goal = Math.max(Math.round(weight * (1 - FIRST_STEP_LOSS_SHARE)), normalTop);
+  return clampGoalWeight(goal, height, weight);
 }
 
 /* ---------------------------------------------------------------------------------------
@@ -161,7 +184,7 @@ export function suggestGoalWeight(input: {
 
 /**
  * lose: goal weight more than 1 kg under today's · gain: more than 1 kg over · tone: about the same
- * weight but a leaner or muscular goal picture · keep: about the same weight and picture.
+ * weight but more muscular · keep: about the same weight and muscularity (or less).
  */
 export type Direction = "lose" | "tone" | "keep" | "gain";
 export const DIRECTIONS: readonly Direction[] = ["lose", "tone", "keep", "gain"];
@@ -174,7 +197,7 @@ export const KCAL_PER_KG = 7700;
 export const LOSS_RATE_PER_WEEK = 0.005;
 /** …but never a deficit above 25 % of daily energy. */
 export const MAX_DEFICIT_SHARE = 0.25;
-/** Toning (same weight, leaner): a small 10 % deficit. */
+/** Toning (same weight, more muscular): a small 10 % deficit. */
 export const TONE_DEFICIT_SHARE = 0.1;
 /** Gaining: +10 %, or +15 % for a "muscular" goal from a lean or fit body (≈ 0.25–0.5 % a week). */
 export const GAIN_SURPLUS_SHARE = 0.1;
@@ -187,6 +210,12 @@ export const MIN_TIMELINE_KG = 2;
 export const MIN_TIMELINE_PACE_KG = 0.1;
 /** …as a range of ± 20 %. */
 export const TIMELINE_SPREAD = 0.2;
+/**
+ * A loss always gets the timeline line; a gain only up to a goal BMI of 25, or 27 for an athletic or muscular
+ * goal (muscle raises BMI), so the page never puts a date on gaining towards overweight.
+ */
+export const TIMELINE_GAIN_MAX_BMI = 25;
+export const TIMELINE_GAIN_MAX_BMI_TRAINED = 27;
 const WEEKS_PER_MONTH = 52 / 12;
 
 /** Resting energy, Mifflin-St Jeor 1990: `10 × kg + 6.25 × cm − 5 × age + (male ? 5 : −161)`. */
@@ -199,20 +228,19 @@ export function katchMcArdle(leanMass: number): number {
   return 370 + 21.6 * leanMass;
 }
 
-/** Direction from goal weight vs today's and the two pictures. */
+const muscularityRank = (level: Muscularity) => MUSCULARITY_LEVELS.indexOf(level);
+
+/** Direction from goal weight vs today's and the two muscularity levels. */
 export function goalDirection(input: {
   weight: number;
   goalWeight: number;
-  currentType: BodyType;
-  goalType: GoalBodyType;
+  muscularity: Muscularity;
+  goalMuscularity: Muscularity;
 }): Direction {
   const delta = input.goalWeight - input.weight;
   if (delta < -SAME_WEIGHT_KG) return "lose";
   if (delta > SAME_WEIGHT_KG) return "gain";
-  const leaner =
-    input.goalType === "muscular" ||
-    BODY_TYPES.indexOf(input.goalType) < BODY_TYPES.indexOf(input.currentType);
-  return leaner ? "tone" : "keep";
+  return muscularityRank(input.goalMuscularity) > muscularityRank(input.muscularity) ? "tone" : "keep";
 }
 
 /**
@@ -231,7 +259,7 @@ export const DIRECTION_GOAL: Record<Direction, Goal> = {
    --------------------------------------------------------------------------------------- */
 
 /**
- * Protein, g per kg of **goal** weight (avoids absurd numbers for heavier people): 1.6 g/kg is where
+ * Protein (and fat) per kg of the **reference weight** (`referenceWeight()`): 1.6 g/kg is where
  * muscle gains plateau (Morton et al., Br J Sports Med 2018); 2.0 in a deficit keeps muscle
  * (Helms et al., JISSN 2014, 1.8–2.2). A "muscular" goal adds 0.2; never above 2.2 (Morton's upper range).
  */
@@ -241,7 +269,7 @@ export const PROTEIN_CAP_G_PER_KG = 2.2;
 /** If carbs would fall under the RDA (130 g, below), protein may drop to this, never lower. */
 export const PROTEIN_MIN_G_PER_KG = 1.6;
 /**
- * Fat: 0.8 g per kg of goal weight, kept within 25–35 % of calories (35 % is the top of the adult
+ * Fat: 0.8 g per kg of the reference weight, kept within 25–35 % of calories (35 % is the top of the adult
  * Acceptable Macronutrient Distribution Range, National Academies 2002/2005).
  */
 export const FAT_G_PER_KG = 0.8;
@@ -249,6 +277,18 @@ export const FAT_MIN_SHARE = 0.25;
 export const FAT_MAX_SHARE = 0.35;
 /** Carbohydrate RDA for adults (National Academies DRI, 2002/2005): the brain's minimum glucose. */
 export const CARBS_MIN_G = 130;
+/** The reference weight is never above the weight at this BMI (an adjusted body weight). */
+export const REFERENCE_MAX_BMI = 25;
+
+/**
+ * The weight the grams per kg apply to: the lower of today's and the goal weight, capped at the BMI 25 weight
+ * for the height (an adjusted body weight). A heavier body or a far-off goal does not inflate protein and fat.
+ */
+export function referenceWeight(input: { height: number; weight: number; goalWeight: number }): number {
+  const cap = REFERENCE_MAX_BMI * (input.height / 100) ** 2;
+  return Math.min(input.weight, input.goalWeight, cap);
+}
+
 /** Fibre Adequate Intake: 14 g per 1,000 kcal (National Academies DRI, 2002/2005). */
 export const FIBRE_G_PER_1000_KCAL = 14;
 
@@ -384,13 +424,13 @@ export type BodyGoalInput = {
   height: number;
   weight: number;
   activity: Activity;
-  /** The picture closest to the visitor's body now. */
-  currentType: BodyType;
-  /** The picture they want; before it is picked, the same as today. */
-  goalType?: GoalBodyType;
+  /** How muscular the visitor is now. */
+  muscularity: Muscularity;
+  /** How muscular they want to be; until it is set, the same as now. */
+  goalMuscularity?: Muscularity;
   /**
-   * Goal weight (kg). Given or suggested weights are clamped to `clampGoalWeight()`. Before any goal
-   * is picked (no goalType, no goalWeight) it is today's weight, unclamped, so the result reads "keep".
+   * Goal weight (kg), clamped to `clampGoalWeight()`. Until it is set it is today's weight, unclamped, so
+   * the result reads "keep" (the page starts its slider at `suggestGoalWeight()`).
    */
   goalWeight?: number;
 };
@@ -405,10 +445,15 @@ export type Timeline = {
 };
 
 export type BodyGoalResult = {
-  /** Body fat used (%), one decimal: picture midpoint after the cross-check. */
+  /** Body fat now (%), one decimal: the Deurenberg estimate plus the muscularity offset. */
   bodyFat: number;
-  /** The Deurenberg estimate (%), one decimal, for the "how we calculate" text. */
+  /** The plain Deurenberg estimate (%), one decimal, for the "how we calculate" text. */
   bodyFatEstimate: number;
+  /** Body fat at the goal weight and goal muscularity (%), one decimal. */
+  goalBodyFat: number;
+  /** Shape names now and at the goal, from the body fat. */
+  shape: BodyShape;
+  goalShape: BodyShape;
   /** Lean body mass (kg), one decimal. */
   leanMass: number;
   /** Resting energy (kcal), whole: average of Mifflin-St Jeor and Katch-McArdle. */
@@ -426,38 +471,39 @@ export type BodyGoalResult = {
   kcalFloor: number;
   /** Expected change in kg a week (two decimals, always positive); null for keep and tone. */
   weeklyKg: number | null;
-  /** null unless lose/gain, |Δ| ≥ MIN_TIMELINE_KG and a pace above zero. */
+  /**
+   * null unless lose/gain, |Δ| ≥ MIN_TIMELINE_KG and a pace above zero; for a gain, also null above
+   * TIMELINE_GAIN_MAX_BMI (TIMELINE_GAIN_MAX_BMI_TRAINED for an athletic or muscular goal).
+   */
   timeline: Timeline | null;
   /** Grams a day. */
   protein: number;
   fat: number;
   carbs: number;
   fibre: number;
-  /** Protein actually used, g per kg of goal weight, one decimal. */
+  /** The weight protein and fat are counted on (kg), one decimal: see `referenceWeight()`. */
+  referenceWeight: number;
+  /** Protein actually used, g per kg of the reference weight, one decimal. */
   proteinPerKg: number;
   water: WaterResult;
   micronutrients: MicronutrientValue[];
 };
 
 export function calculateBodyGoal(input: BodyGoalInput): BodyGoalResult {
-  const { sex, age, height, weight, activity, currentType } = input;
-  const goalType = input.goalType ?? currentType;
+  const { sex, age, height, weight, activity, muscularity } = input;
+  const goalMuscularity = input.goalMuscularity ?? muscularity;
+  const goalWeight = input.goalWeight === undefined ? weight : clampGoalWeight(input.goalWeight, height, weight);
 
-  // Body composition (§3.1–3.2).
-  const bodyFat = bodyFatUsed({ sex, age, height, weight, bodyType: currentType });
+  // Body composition, now and at the goal (§0).
+  const bodyFat = bodyFatFor({ sex, age, height, weight, muscularity });
+  const goalBodyFat = bodyFatFor({ sex, age, height, weight: goalWeight, muscularity: goalMuscularity });
   const leanMass = weight * (1 - bodyFat / 100);
-
-  // Goal weight.
-  let goalWeight: number;
-  if (input.goalWeight !== undefined) goalWeight = clampGoalWeight(input.goalWeight, height);
-  else if (input.goalType !== undefined)
-    goalWeight = suggestGoalWeight({ sex, age, height, weight, currentType, goalType });
-  else goalWeight = weight;
+  const shape = bodyShape(sex, bodyFat);
 
   // Energy (§3.3).
   const bmr = (mifflinStJeor({ sex, age, height, weight }) + katchMcArdle(leanMass)) / 2;
   const tdee = bmr * ACTIVITY_FACTOR[activity];
-  const direction = goalDirection({ weight, goalWeight, currentType, goalType });
+  const direction = goalDirection({ weight, goalWeight, muscularity, goalMuscularity });
 
   let target: number;
   switch (direction) {
@@ -473,7 +519,7 @@ export function calculateBodyGoal(input: BodyGoalInput): BodyGoalResult {
       target = tdee;
       break;
     case "gain": {
-      const bigSurplus = goalType === "muscular" && (currentType === "lean" || currentType === "fit");
+      const bigSurplus = goalMuscularity === "muscular" && (shape === "lean" || shape === "fit");
       target = tdee * (1 + (bigSurplus ? MUSCULAR_GAIN_SURPLUS_SHARE : GAIN_SURPLUS_SHARE));
       break;
     }
@@ -489,7 +535,10 @@ export function calculateBodyGoal(input: BodyGoalInput): BodyGoalResult {
   else if (direction === "gain") pace = Math.max(0, ((daily - tdee) * 7) / KCAL_PER_KG);
   const change = Math.abs(goalWeight - weight);
   let timeline: Timeline | null = null;
-  if (pace !== null && pace >= MIN_TIMELINE_PACE_KG && change >= MIN_TIMELINE_KG) {
+  const trainedGoal = goalMuscularity === "athletic" || goalMuscularity === "muscular";
+  const gainBmiLimit = trainedGoal ? TIMELINE_GAIN_MAX_BMI_TRAINED : TIMELINE_GAIN_MAX_BMI;
+  const timelineAllowed = direction === "lose" || (direction === "gain" && bmiOf(height, goalWeight) <= gainBmiLimit);
+  if (timelineAllowed && pace !== null && pace >= MIN_TIMELINE_PACE_KG && change >= MIN_TIMELINE_KG) {
     const weeks = change / pace;
     const low = weeks * (1 - TIMELINE_SPREAD);
     const high = weeks * (1 + TIMELINE_SPREAD);
@@ -502,20 +551,25 @@ export function calculateBodyGoal(input: BodyGoalInput): BodyGoalResult {
     };
   }
 
-  // Macros (§3.4): protein on goal weight, fat 0.8 g/kg within 25–35 % of calories, carbs the rest.
-  // If carbs would fall under their RDA, fat gives way first (down to 25 %), then protein (down to
-  // PROTEIN_MIN_G_PER_KG); a very low calorie level can still leave carbs under 130 g.
+  // Macros (§3.4): protein and fat per kg of the reference weight, fat within 25–35 % of calories, carbs
+  // the rest. If carbs would fall under their RDA, fat gives way first (down to 25 %), then protein (down to
+  // PROTEIN_MIN_G_PER_KG); a very low calorie level can still leave carbs under 130 g. Whatever happens,
+  // protein and fat never add up to more than the calories: fat drops to its 25 % floor, then protein, so
+  // carbs are never negative and the three add up to the calories.
+  const refWeight = referenceWeight({ height, weight, goalWeight });
   const proteinPerKgTarget = Math.min(
-    PROTEIN_G_PER_KG[direction] + (goalType === "muscular" ? MUSCULAR_PROTEIN_EXTRA : 0),
+    PROTEIN_G_PER_KG[direction] + (goalMuscularity === "muscular" ? MUSCULAR_PROTEIN_EXTRA : 0),
     PROTEIN_CAP_G_PER_KG,
   );
   const fatMin = (FAT_MIN_SHARE * kcal) / 9;
   const fatMax = (FAT_MAX_SHARE * kcal) / 9;
-  let fatGrams = clamp(FAT_G_PER_KG * goalWeight, fatMin, fatMax);
-  let proteinGrams = proteinPerKgTarget * goalWeight;
+  let fatGrams = clamp(FAT_G_PER_KG * refWeight, fatMin, fatMax);
+  let proteinGrams = proteinPerKgTarget * refWeight;
   const carbGap = () => CARBS_MIN_G - (kcal - 4 * proteinGrams - 9 * fatGrams) / 4;
   if (carbGap() > 0) fatGrams = Math.max(fatMin, fatGrams - (carbGap() * 4) / 9);
-  if (carbGap() > 0) proteinGrams = Math.max(PROTEIN_MIN_G_PER_KG * goalWeight, proteinGrams - carbGap());
+  if (carbGap() > 0) proteinGrams = Math.max(PROTEIN_MIN_G_PER_KG * refWeight, proteinGrams - carbGap());
+  if (4 * proteinGrams + 9 * fatGrams > kcal) fatGrams = Math.min(fatGrams, fatMin);
+  if (4 * proteinGrams + 9 * fatGrams > kcal) proteinGrams = Math.max(0, (kcal - 9 * fatGrams) / 4);
   const protein = Math.round(proteinGrams);
   const fat = Math.round(fatGrams);
   const carbs = Math.max(0, Math.round((kcal - 4 * protein - 9 * fat) / 4));
@@ -523,6 +577,9 @@ export function calculateBodyGoal(input: BodyGoalInput): BodyGoalResult {
   return {
     bodyFat: round1(bodyFat),
     bodyFatEstimate: round1(deurenbergBodyFat({ sex, age, height, weight })),
+    goalBodyFat: round1(goalBodyFat),
+    shape,
+    goalShape: bodyShape(sex, goalBodyFat),
     leanMass: round1(leanMass),
     bmr: Math.round(bmr),
     tdee: Math.round(tdee / 10) * 10,
@@ -537,7 +594,8 @@ export function calculateBodyGoal(input: BodyGoalInput): BodyGoalResult {
     fat,
     carbs,
     fibre: Math.round((kcal / 1000) * FIBRE_G_PER_1000_KCAL),
-    proteinPerKg: round1(proteinGrams / goalWeight),
+    referenceWeight: round1(refWeight),
+    proteinPerKg: round1(proteinGrams / refWeight),
     water: waterNeed({ weight, activity }),
     micronutrients: micronutrients(sex, age),
   };

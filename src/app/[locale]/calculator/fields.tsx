@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { Dictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
 import { RANGES, parseField, type NumericField } from "@/lib/calculator";
@@ -169,6 +169,137 @@ export function NextSteps({ locale, tools }: { locale: Locale; tools: Dictionary
       <Link href={`/${locale}#programs`} className="btn btn-outline mt-3 w-full text-ivory">
         {tools.programsLink}
       </Link>
+    </div>
+  );
+}
+
+/** Pressing and holding − / + repeats the step after this delay, then every REPEAT_MS. */
+const HOLD_DELAY_MS = 400;
+const REPEAT_MS = 70;
+
+/**
+ * A slider with its value shown (serif) and − / + buttons beside the track, each a 44 px target. A native
+ * range input (globals.css, .range), so the keyboard, screen readers (aria-valuetext with the unit) and
+ * touch all work as usual. Holding − or + keeps stepping.
+ */
+export function SliderField({
+  id,
+  label,
+  unit,
+  value,
+  min,
+  max,
+  step = 1,
+  decreaseLabel,
+  increaseLabel,
+  hint,
+  onChange,
+}: {
+  id: string;
+  label: string;
+  unit: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  /** Accessible names of the − and + buttons ("Less: weight"). */
+  decreaseLabel: string;
+  increaseLabel: string;
+  /** A line under the slider, linked to it with aria-describedby (the goal weight's lower stop). */
+  hint?: ReactNode;
+  onChange: (value: number) => void;
+}) {
+  const clampValue = (next: number) => Math.min(Math.max(next, min), max);
+  // The latest value and handler, for the hold-to-repeat timer.
+  const latest = useRef({ value, onChange, clampValue });
+  useEffect(() => {
+    latest.current = { value, onChange, clampValue };
+  });
+  const timer = useRef<number | null>(null);
+  const stop = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+  };
+  useEffect(() => stop, []);
+
+  const nudge = (delta: number) => {
+    const { value: current, onChange: change, clampValue: limit } = latest.current;
+    const next = limit(current + delta);
+    if (next !== current) change(next);
+    return next !== current;
+  };
+  const startHold = (delta: number) => {
+    stop();
+    if (!nudge(delta)) return;
+    const repeat = () => {
+      if (nudge(delta)) timer.current = window.setTimeout(repeat, REPEAT_MS);
+      else timer.current = null;
+    };
+    timer.current = window.setTimeout(repeat, HOLD_DELAY_MS);
+  };
+
+  const fill = max > min ? ((value - min) / (max - min)) * 100 : 0;
+  const hintId = hint ? `${id}-hint` : undefined;
+
+  const stepButton = (delta: number, name: string, sign: string) => {
+    const disabled = delta < 0 ? value <= min : value >= max;
+    return (
+      <button
+        type="button"
+        aria-label={name}
+        disabled={disabled}
+        // Pointer: step on press and repeat while held. Keyboard (Enter / Space): one step per click.
+        onPointerDown={(e) => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          startHold(delta);
+        }}
+        onPointerUp={stop}
+        onPointerLeave={stop}
+        onPointerCancel={stop}
+        onContextMenu={(e) => e.preventDefault()}
+        onClick={(e) => {
+          if (e.detail === 0) nudge(delta);
+        }}
+        className="press flex size-11 shrink-0 select-none items-center justify-center rounded-full border border-line bg-white text-xl leading-none text-forest hover:border-forest disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-line"
+      >
+        <span aria-hidden>{sign}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="min-w-0">
+      <div className="flex items-baseline justify-between gap-3">
+        <label htmlFor={id} className="label text-muted">
+          {label}
+        </label>
+        <p className="font-serif text-2xl leading-none text-forest tabular-nums" aria-hidden>
+          {value} <span className="font-sans text-sm text-muted">{unit}</span>
+        </p>
+      </div>
+      <div className="mt-1 flex items-center gap-2">
+        {stepButton(-step, decreaseLabel, "−")}
+        <input
+          id={id}
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          onChange={(e) => onChange(clampValue(Number(e.target.value)))}
+          aria-valuetext={`${value} ${unit}`}
+          aria-describedby={hintId}
+          className="range min-w-0 flex-1"
+          style={{ "--fill": `${fill.toFixed(2)}%` } as CSSProperties}
+        />
+        {stepButton(step, increaseLabel, "+")}
+      </div>
+      {hint && (
+        <p id={hintId} className="mt-1 text-sm leading-relaxed text-muted">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

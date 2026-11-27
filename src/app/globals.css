@@ -855,3 +855,84 @@ body {
     scroll-padding-bottom: calc(5rem + env(safe-area-inset-bottom));
   }
 }
+
+/* Calculator sliders (calculator/fields.tsx, SliderField): a native range input, 44 px tall for touch, with a
+   forest track filled up to the value (--fill, 0–100 %) and a gold thumb ringed in forest. */
+.range {
+  appearance: none;
+  -webkit-appearance: none;
+  display: block;
+  width: 100%;
+  height: 2.75rem;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+  -webkit-tap-highlight-color: transparent;
+}
+.range:focus {
+  outline: none;
+}
+.range::-webkit-slider-runnable-track {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: linear-gradient(
+    to right,
+    var(--color-forest) 0 var(--fill, 50%),
+    var(--color-line) var(--fill, 50%) 100%
+  );
+}
+.range::-moz-range-track {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--color-line);
+}
+.range::-moz-range-progress {
+  height: 0.375rem;
+  border-radius: 999px;
+  background: var(--color-forest);
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-top: -0.6875rem;
+  border-radius: 999px;
+  background: var(--color-gold);
+  border: 3px solid var(--color-forest);
+  box-shadow: 0 1px 3px rgb(24 60 52 / 25%);
+  transition: scale var(--duration-fast) var(--ease-out-calm);
+}
+.range::-moz-range-thumb {
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 999px;
+  background: var(--color-gold);
+  border: 3px solid var(--color-forest);
+  box-shadow: 0 1px 3px rgb(24 60 52 / 25%);
+}
+.range:active::-webkit-slider-thumb {
+  scale: 1.12;
+}
+.range:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+}
+.range:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 3px;
+}
+
+/* Body goal calculator: below lg, on screens at least 40rem tall, the figure panel stays pinned under the header;
+   focus and scrolled-to controls land below it, not under it (header 4.5rem + the panel). Shorter screens (a
+   landscape phone) scroll the panel away, so no padding. */
+@media (max-width: 63.999rem) and (min-height: 40rem) {
+  html:has(.body-figures[data-pinned]) {
+    scroll-padding-top: 19rem;
+  }
+}
+@media (min-width: 40rem) and (max-width: 63.999rem) and (min-height: 40rem) {
+  html:has(.body-figures[data-pinned]) {
+    scroll-padding-top: 25rem;
+  }
+}

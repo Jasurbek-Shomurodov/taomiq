@@ -101,12 +101,12 @@ export function calculate(input: CalculatorInput): CalculatorResult {
 }
 
 /* ---------------------------------------------------------------------------------------
-   The small tools (/calculator/protein, /bmi, /water). Standard, conservative estimates for
+   The small tools (/calculator/protein, /bmi, /water; /calculator/body lives in src/lib/body-goal.ts). Standard, conservative estimates for
    adults, stated as such on each page; none of them is a medical prescription.
    --------------------------------------------------------------------------------------- */
 
 /** The tools' URL segments under /calculator, in tab order after the calorie calculator itself. */
-export const CALCULATOR_TOOLS = ["protein", "bmi", "water"] as const;
+export const CALCULATOR_TOOLS = ["body", "protein", "bmi", "water"] as const;
 export type CalculatorTool = (typeof CALCULATOR_TOOLS)[number];
 
 /** Rounds to `step` (5 g, 0.1 l …). */
