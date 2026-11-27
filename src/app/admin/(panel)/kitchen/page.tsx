@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getAdminDictionary } from "@/i18n/admin";
 import { htmlLang, type Locale } from "@/i18n/config";
 import { requireStaff } from "@/lib/admin/auth";
+import { allergenName, allergenWords } from "@/lib/allergens";
 import {
   buildProductionSheet,
   loadProductionDay,
@@ -185,7 +186,15 @@ export default async function KitchenPage({ searchParams }: PageProps<"/admin/ki
             <tbody>
               {sheet.levels.map((level) => (
                 <tr key={level.variantId} className="adm-row">
-                  <td className="px-3 py-3 font-semibold text-adm-text sm:px-4">{levelName(level.label)}</td>
+                  <td className="px-3 py-3 font-semibold text-adm-text sm:px-4">
+                    {levelName(level.label)}
+                    {/* "BALANCE 1800 · 4, of them 1 without milk": the allergens ticked at order, grouped. */}
+                    {level.tagGroups.map((group) => (
+                      <span key={group.tags.join(",")} className="adm-caption mt-0.5 block font-normal tabular-nums">
+                        {t.kitchen.ofThem(group.count, allergenWords(group.tags, locale))}
+                      </span>
+                    ))}
+                  </td>
                   <td className="px-3 py-3 text-right text-lg font-semibold tabular-nums text-adm-text sm:px-4">
                     {level.firm}
                   </td>
@@ -267,7 +276,15 @@ export default async function KitchenPage({ searchParams }: PageProps<"/admin/ki
                 <li key={row.number} className="adm-row adm-sheet-line px-4 py-3 sm:px-5">
                   <span className="font-semibold tabular-nums text-adm-text">#{row.number}</span>
                   <span className="text-adm-muted"> · {levelName(row.label)} · </span>
-                  <span className="whitespace-pre-line break-words text-adm-text">{row.text}</span>
+                  {row.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="mr-1 inline-block rounded-full border border-adm-border px-2 py-0.5 text-xs font-semibold text-adm-text"
+                    >
+                      {allergenName(tag, locale)}
+                    </span>
+                  ))}
+                  {row.text && <span className="whitespace-pre-line break-words text-adm-text">{row.text}</span>}
                 </li>
               ))}
             </ul>

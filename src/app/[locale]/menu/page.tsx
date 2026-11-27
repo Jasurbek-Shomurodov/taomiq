@@ -10,7 +10,8 @@ import { PageTransition } from "@/components/PageTransition";
 import { ProgramLinks } from "@/components/ProgramLinks";
 import { CHIP } from "@/components/menu-styles";
 import { getDictionary, type Dictionary } from "@/i18n";
-import { isLocale, type Locale } from "@/i18n/config";
+import { isLocale, plural, type Locale } from "@/i18n/config";
+import { ALLERGEN_KEYS, allergenName, allergenWords, allergensIn, normalizeTags, parseAllergenParam, type AllergenKey } from "@/lib/allergens";
 import { currentCycleDay, getMenuDay, getPrograms, hasAnyMenu, hasMenu, isDemoCatalog } from "@/lib/data/catalog";
 import { CYCLE_DAYS, type MenuEntry, type Program } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
@@ -95,6 +96,10 @@ async function MenuBrowser({
   if (!program) return <p className="text-muted">{t.menu.empty}</p>;
 
   const variant = program.variants.find((v) => String(v.kcal) === pick("kcal")) ?? program.variants[0];
+  // ?allergens=milk,nuts: the dishes holding any of them are outlined (docs/plans/allergen-exclusions.md). Rendered here,
+  // on the server, so the outlined menu is in the HTML; unknown keys are dropped.
+  const flagged = parseAllergenParam(query.allergens);
+  const allergensParam: Record<string, string> = flagged.length > 0 ? { allergens: flagged.join(",") } : {};
   // The day is the menu's cycle day (1–30), never the calendar date. Without ?day= it is the day the kitchen cooks
   // today, and the caption says so.
   const requestedDay = Number(pick("day"));
@@ -107,13 +112,21 @@ async function MenuBrowser({
     ? await Promise.all([getMenuDay(variant.id, day), hasMenu(variant.id)])
     : [[] as MenuEntry[], false];
 
-  const href = (next: { program?: string; kcal?: number; day?: number }) => {
+  /** A query string with the allergen list's commas kept readable (?allergens=milk,nuts). */
+  const searchOf = (params: Record<string, string>) => new URLSearchParams(params).toString().replace(/%2C/g, ",");
+
+  const href = (next: { program?: string; kcal?: number; day?: number; allergens?: readonly AllergenKey[] }) => {
     const p = next.program ?? program.slug;
     // Switching program resets the calorie level to that program's first one.
     const k = next.program ? undefined : (next.kcal ?? variant?.kcal);
     const d = next.day ?? day;
-    const qs = new URLSearchParams({ program: p, ...(k ? { kcal: String(k) } : {}), day: String(d) });
-    return `/${locale}/menu?${qs}`;
+    const a = next.allergens ?? flagged;
+    return `/${locale}/menu?${searchOf({
+      program: p,
+      ...(k ? { kcal: String(k) } : {}),
+      ...(a.length > 0 ? { allergens: a.join(",") } : {}),
+      day: String(d),
+    })}`;
   };
 
   const chip = (active: boolean) =>
@@ -122,10 +135,25 @@ async function MenuBrowser({
   // The cycle repeats, so the day before day 1 is day 30.
   const prevDay = day === 1 ? CYCLE_DAYS : day - 1;
   const nextDay = day === CYCLE_DAYS ? 1 : day + 1;
-  const dayHref = `/${locale}/menu?${new URLSearchParams({
+  const dayHref = `/${locale}/menu?${searchOf({
     program: program.slug,
     ...(variant ? { kcal: String(variant.kcal) } : {}),
+    ...allergensParam,
   })}&day=`;
+
+  // The line under the day: how many of its dishes hold the picked allergens, and the swap rule.
+  const capitalized = (text: string) => text.charAt(0).toLocaleUpperCase(locale === "uz" ? "uz" : "ru") + text.slice(1);
+  const flaggedCount = entries.filter((entry) => allergensIn(entry.dish.allergens, flagged).length > 0).length;
+  const flaggedWords = allergenWords(flagged, locale);
+  const flaggedLine =
+    flaggedCount > 0
+      ? `${capitalized(
+          t.allergens.dayCount
+            .replace("{names}", flaggedWords)
+            .replace("{n}", String(flaggedCount))
+            .replace("{dishes}", plural(flaggedCount, t.allergens.dishForms)),
+        )} ${t.allergens.swapNote}`
+      : t.allergens.dayNone.replace("{names}", flaggedWords);
 
   return (
     <div>
@@ -154,6 +182,47 @@ async function MenuBrowser({
 
       {levelHasMenu ? (
         <>
+          <div className="mt-6">
+            <p id="menu-allergens-label" className="label text-muted">
+              {t.allergens.filter}
+            </p>
+            <div
+              role="group"
+              aria-labelledby="menu-allergens-label"
+              aria-describedby="menu-allergens-hint"
+              className="mt-2 flex flex-wrap gap-2"
+            >
+              {ALLERGEN_KEYS.map((key) => {
+                const on = flagged.includes(key);
+                const next = on ? flagged.filter((k) => k !== key) : normalizeTags([...flagged, key]);
+                return (
+                  <Link
+                    key={key}
+                    href={href({ allergens: next })}
+                    scroll={false}
+                    aria-current={on || undefined}
+                    className={chip(on)}
+                  >
+                    {on && <span aria-hidden>✓ </span>}
+                    {allergenName(key, locale)}
+                  </Link>
+                );
+              })}
+              {flagged.length > 0 && (
+                <Link
+                  href={href({ allergens: [] })}
+                  scroll={false}
+                  className="press inline-flex min-h-[2.375rem] items-center px-2 text-sm font-semibold text-forest underline decoration-gold underline-offset-4"
+                >
+                  {t.allergens.clear}
+                </Link>
+              )}
+            </div>
+            <p id="menu-allergens-hint" className="mt-2 text-sm text-muted">
+              {t.allergens.filterHint}
+            </p>
+          </div>
+
           {/* Anchor for the previous / next buttons: they bring the reader back to the top of the day. */}
           <div id="menu-day" className="scroll-mt-20 lg:scroll-mt-24">
             <p id="menu-day-label" className="label mt-8 text-muted">
@@ -182,7 +251,19 @@ async function MenuBrowser({
                     TAOMIQ {program.name} / {variant.kcal} · {dayOf(day)}
                     {day === todayDay && ` · ${t.menu.todayMark}`}
                   </p>
-                  <MenuDay entries={entries} targetKcal={variant.kcal} locale={locale} t={t} eagerFirstImage />
+                  {flagged.length > 0 && entries.length > 0 && (
+                    <p className="mb-4 rounded-2xl bg-ivory-deep px-4 py-3 text-sm text-forest" data-allergen-summary>
+                      {flaggedLine}
+                    </p>
+                  )}
+                  <MenuDay
+                    entries={entries}
+                    targetKcal={variant.kcal}
+                    locale={locale}
+                    t={t}
+                    eagerFirstImage
+                    flagged={flagged}
+                  />
                 </div>
               </ViewTransition>
 

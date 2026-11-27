@@ -2,7 +2,7 @@ import Image from "next/image";
 import type { CSSProperties } from "react";
 import type { Locale } from "@/i18n/config";
 import type { Dictionary } from "@/i18n";
-import { ALLERGENS } from "@/lib/data/allergens";
+import { allergenName, allergenWords, allergensIn, type AllergenKey } from "@/lib/allergens";
 import { LIGHT_MAX_KCAL, dishBadges } from "@/lib/data/badges";
 import { localized } from "@/lib/data/localized";
 import { portionNutrition, sumNutrition, type MenuEntry } from "@/lib/data/types";
@@ -15,9 +15,13 @@ import { DISH_BODY, DISH_CARD, DISH_CARD_BARE, DISH_IMAGE, DISH_LIST } from "./m
 const DISH_CARD_ACTION =
   "press lift relative cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold";
 
+/** A dish holding a chosen allergen (the menu's ?allergens= filter): a red outline instead of the hairline border. */
+const DISH_CARD_FLAGGED = "!border-danger ring-1 ring-danger";
+
 /**
  * One day's meals as cards (the kcal · Б · Ж · У · weight data line, data badges), plus the day total. All dish text is in
- * the server-rendered card; a tap on a card opens its detail sheet (DishSheet).
+ * the server-rendered card; a tap on a card opens its detail sheet (DishSheet). With `flagged` allergens (the menu's
+ * filter), a dish that holds any of them is outlined and says which.
  */
 export function MenuDay({
   entries,
@@ -25,6 +29,7 @@ export function MenuDay({
   locale,
   t,
   eagerFirstImage = false,
+  flagged = [],
 }: {
   entries: MenuEntry[];
   targetKcal: number;
@@ -32,6 +37,8 @@ export function MenuDay({
   t: Dictionary;
   /** The first photo may be the largest thing on screen (menu page): load it at once. */
   eagerFirstImage?: boolean;
+  /** Allergens the visitor picked on the menu page; the dishes holding them are outlined. */
+  flagged?: readonly AllergenKey[];
 }) {
   if (entries.length === 0) {
     return (
@@ -53,7 +60,7 @@ export function MenuDay({
       photoUrl: entry.dish.photo_url,
       ingredients: localized(entry.dish, "ingredients", locale),
       // An unknown code is shown as stored rather than hidden: an allergen must never disappear.
-      allergens: entry.dish.allergens.map((code) => ALLERGENS.find((a) => a.code === code)?.[locale] ?? code),
+      allergens: entry.dish.allergens.map((code) => allergenName(code, locale)),
       badges: dishBadges(n).map((badge) => badgeText[badge]),
       weight: entry.weight_g,
       ...n,
@@ -114,6 +121,13 @@ export function MenuDay({
           {entries.map((entry, index) => {
             const dish = details[index];
             const eager = eagerFirstImage && index === 0;
+            const holds = allergensIn(entry.dish.allergens, flagged);
+            const flag = holds.length > 0 ? DISH_CARD_FLAGGED : "";
+            const contains = holds.length > 0 && (
+              <p className="mt-1.5 text-sm font-semibold text-danger" data-allergen-match={holds.join(",")}>
+                {t.allergens.contains.replace("{names}", allergenWords(holds, locale))}
+              </p>
+            );
             const slot = <p className="label text-muted">{dish.slot}</p>;
             const name = (
               <h3 className="mt-1 font-serif text-lg leading-snug text-forest sm:mt-0 sm:text-xl">
@@ -138,10 +152,11 @@ export function MenuDay({
             // No photo yet: no frame at all. The slot leads the body, then the badges, the name and the data line.
             if (!dish.photoUrl) {
               return (
-                <li key={entry.id} className={`${DISH_CARD_BARE} ${DISH_CARD_ACTION}`}>
+                <li key={entry.id} className={`${DISH_CARD_BARE} ${DISH_CARD_ACTION} ${flag}`}>
                   {slot}
                   <DishBadges badges={dish.badges} className="mt-2" />
                   <div className="mt-2">{name}</div>
+                  {contains}
                   {ingredients}
                   {dataLine}
                 </li>
@@ -149,7 +164,7 @@ export function MenuDay({
             }
 
             return (
-              <li key={entry.id} className={`${DISH_CARD} ${DISH_CARD_ACTION}`}>
+              <li key={entry.id} className={`${DISH_CARD} ${DISH_CARD_ACTION} ${flag}`}>
                 <div className={`zoom ${DISH_IMAGE}`}>
                   <Image
                     src={dish.photoUrl}
@@ -173,6 +188,7 @@ export function MenuDay({
                     <DishBadges badges={dish.badges} />
                   </div>
                   {name}
+                  {contains}
                   {ingredients}
                   {dataLine}
                 </div>

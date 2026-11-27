@@ -23,12 +23,12 @@ export const ORDER_FIELDS = [
   "plan",
   "duration",
   "start",
+  "exclusions",
   "address",
   "window",
   "comment",
   "name",
   "phone",
-  "exclusions",
   "consent",
 ] as const;
 export type OrderField = (typeof ORDER_FIELDS)[number];
@@ -42,12 +42,13 @@ export const FIELD_STEP: Record<OrderField, OrderStep> = {
   plan: 0,
   duration: 0,
   start: 0,
+  // With the allergen chips, on the ration step (docs/plans/allergen-exclusions.md).
+  exclusions: 0,
   address: 1,
   window: 1,
   comment: 1,
   name: 2,
   phone: 2,
-  exclusions: 2,
   consent: 2,
 };
 export type FieldErrorCode = "invalid" | "too_long";
@@ -63,6 +64,7 @@ export type OrderInput = {
   comment: string;
   name: string;
   phone: string; // +998XXXXXXXXX
+  /** The text saved on the order: the chosen allergens in words, then the free text (composeExclusions). */
   exclusions: string;
   consent: boolean;
 };

@@ -7,6 +7,7 @@ import { after } from "next/server";
 import { isLocale } from "@/i18n/config";
 import { getCustomerId } from "@/lib/account/auth";
 import { saveDelivery } from "@/lib/account/delivery";
+import { composeExclusions, normalizeTags, type AllergenKey } from "@/lib/allergens";
 import { captureServerEvent } from "@/lib/analytics/server";
 import type { ServerEventProperties } from "@/lib/analytics/events";
 import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog";
@@ -115,6 +116,29 @@ function savedOrder(data: unknown): { number: number; created: boolean } | null 
 }
 
 /**
+ * The allergens ticked on the order form, as keys on the order (migration 0031, public.set_order_exclusion_tags,
+ * service_role only), for the kitchen sheet's grouping. Sent after the response (after()), so it never delays or fails
+ * the order: after a new order, and again on a retry that found the order saved (the first round may have lost its
+ * answer before the tags were set; setting the same tags twice is harmless). The same allergens are already in the
+ * order's exclusions text in words, so a failure (also: the migration not applied yet) is only logged, with its code.
+ */
+function scheduleExclusionTags(number: number, tags: readonly AllergenKey[]): void {
+  if (tags.length === 0) return;
+  try {
+    after(async () => {
+      try {
+        const { error } = await createSecretClient().rpc("set_order_exclusion_tags", { p_number: number, p_tags: tags });
+        if (error) console.error("submitOrder: exclusion tags not saved", error.code);
+      } catch (error) {
+        console.error("submitOrder: exclusion tags not saved", error instanceof Error ? error.name : "unknown");
+      }
+    });
+  } catch (error) {
+    console.error("submitOrder: exclusion tags not scheduled", error instanceof Error ? error.message : error);
+  }
+}
+
+/**
  * "Save for next time" (migration 0030): when the customer is signed in and ticked the box, the order's address, time and
  * courier note go onto their own profile, in their own session (public.save_my_delivery checks them again). Runs only
  * after the order is saved. A failure is logged (the code only, never the address) and never fails the order.
@@ -148,6 +172,9 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
     // again: a retry a second after the cutoff must find its order, not "pick another date", and its bot-check token is
     // already spent. submit_order() makes the same check under a lock, so two concurrent calls with one id still make
     // one order. Not a valid uuid: no id (the old behaviour).
+    // The allergen chips: known keys only, each once (also for a retry below, which sets them again).
+    const exclusionTags = normalizeTags(form.getAll("allergens"));
+
     const rawRequestId = text(form, "request_id");
     const requestId = UUID_RE.test(rawRequestId) ? rawRequestId.toLowerCase() : null;
     if (requestId && isOrderingConfigured) {
@@ -155,10 +182,14 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
       if (saved) {
         // The first answer may have been lost before the details were saved: save them now, as the first round would.
         if (form.get("save_delivery") === "on") await saveDeliveryIfAsked(form, await getCustomerId());
+        scheduleExclusionTags(saved, exclusionTags);
         return saved;
       }
     }
 
+    // The allergen chips go at the front of the exclusions text, in words and in the order's language
+    // ("Без: молоко, орехи. лук"), so staff and the kitchen read them wherever the text is shown; the 500-character
+    // limit applies to the whole text.
     const input: OrderInput = {
       variantId: text(form, "variant_id"),
       days: Number(text(form, "days")),
@@ -169,7 +200,7 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
       comment: text(form, "comment"),
       name: text(form, "name"),
       phone: fullPhone(phoneDigits(text(form, "phone"))),
-      exclusions: text(form, "exclusions"),
+      exclusions: composeExclusions(exclusionTags, text(form, "exclusions"), locale),
       consent: form.get("consent") === "on",
     };
 
@@ -240,6 +271,9 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
     // "Save for next time": also when submit_order found this request's order already saved (created = false), and in
     // the early return above for a retry the order number was read for. Saving the same details twice is harmless.
     await saveDeliveryIfAsked(form, customerId);
+
+    // The tags on the order: also on a retry (created = false), whose first round may have stopped before setting them.
+    scheduleExclusionTags(number, exclusionTags);
 
     // A retry that found the order saved earlier: the alert and the analytics event went out the first time.
     if (!saved.created) return number;

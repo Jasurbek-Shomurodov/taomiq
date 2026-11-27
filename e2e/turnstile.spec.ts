@@ -23,7 +23,7 @@ test("bot check off: the order form has no widget and still answers a valid orde
   await page.getByLabel(t.address, { exact: true }).fill("Toshkent, Amir Temur koʻchasi 1, 5-xonadon");
   await page.getByLabel(t.name, { exact: true }).fill("Test");
   await page.getByLabel(t.phone, { exact: true }).fill("901234567");
-  await page.getByRole("checkbox").check();
+  await page.locator("#order-consent").check();
   await page.getByRole("button", { name: t.submit }).filter({ visible: true }).click();
 
   await expect(page.getByRole("alert").filter({ hasText: t.general.demo })).toBeVisible();

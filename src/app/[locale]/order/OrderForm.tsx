@@ -18,6 +18,14 @@ import {
 import { Turnstile } from "@/components/Turnstile";
 import type { Dictionary } from "@/i18n";
 import { formatSum, plural, type Locale } from "@/i18n/config";
+import {
+  ALLERGEN_KEYS,
+  allergenName,
+  composeExclusions,
+  exclusionPrefix,
+  normalizeTags,
+  type AllergenKey,
+} from "@/lib/allergens";
 import { track } from "@/lib/analytics/client";
 import { pricePerDay, type Duration } from "@/lib/data/types";
 import { submitOrder, type OrderState } from "@/lib/order/actions";
@@ -58,12 +66,16 @@ export type OrderPrefill = {
   address?: string;
   window?: string;
   comment?: string;
+  /** The free text only; the allergens are in exclusionTags (taken apart from a repeated order with parseExclusions). */
   exclusions?: string;
+  exclusionTags?: readonly string[];
 };
 
 type Props = {
   locale: Locale;
   t: Dictionary["order"];
+  /** The allergen chips' words (title, swap rule, traces line). */
+  ta: Dictionary["allergens"];
   programs: OrderProgram[];
   durations: Duration[];
   windows: string[];
@@ -188,6 +200,7 @@ export function OrderForm(props: Props) {
 function OrderFormBody({
   locale,
   t,
+  ta,
   programs,
   durations,
   windows,
@@ -238,7 +251,11 @@ function OrderFormBody({
   const [comment, setComment] = useState(prefill?.comment ?? "");
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
+  // "Anything to leave out?": the allergen chips, and the free text for anything else. The order's exclusions text is
+  // both together (composeExclusions); the server builds it again from the same fields.
+  const [allergens, setAllergens] = useState<AllergenKey[]>(() => normalizeTags(prefill?.exclusionTags ?? []));
   const [exclusions, setExclusions] = useState(prefill?.exclusions ?? "");
+  const exclusionsText = composeExclusions(allergens, exclusions, locale);
   const [consent, setConsent] = useState(false);
   // "Save for next time" (signed in only): off until the customer ticks it (consent to keep the address).
   const [saveDelivery, setSaveDelivery] = useState(false);
@@ -425,7 +442,7 @@ function OrderFormBody({
         comment,
         name,
         phone: fullPhone(phone),
-        exclusions,
+        exclusions: exclusionsText,
         consent,
       },
       {
@@ -733,6 +750,63 @@ function OrderFormBody({
                 </p>
                 <FieldError id={fieldId("start")} text={errorText("start")} />
               </fieldset>
+
+              {/* Anything to leave out: the allergen chips (any number), then anything else in words. */}
+              <div className="grid gap-5">
+                <fieldset aria-describedby="order-exclusions-hint">
+                  <legend className="label text-muted">
+                    {ta.title} <span className="normal-case tracking-normal">· {t.optional}</span>
+                  </legend>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {ALLERGEN_KEYS.map((key) => {
+                      const on = allergens.includes(key);
+                      return (
+                        <Choice
+                          key={key}
+                          type="checkbox"
+                          name="allergens"
+                          value={key}
+                          checked={on}
+                          onChange={() => {
+                            setAllergens((current) =>
+                              on ? current.filter((k) => k !== key) : normalizeTags([...current, key]),
+                            );
+                            touch("exclusions");
+                          }}
+                          compact
+                        >
+                          <span className="block text-sm font-semibold">{allergenName(key, locale)}</span>
+                        </Choice>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <div>
+                  <label htmlFor={fieldId("exclusions")} className="label text-muted">
+                    {t.exclusions} <span className="normal-case tracking-normal">· {t.optional}</span>
+                  </label>
+                  <input
+                    id={fieldId("exclusions")}
+                    name="exclusions"
+                    // The chosen allergens' words count toward the order's 500 characters too.
+                    maxLength={Math.max(0, LIMITS.exclusions - exclusionPrefix(allergens, locale).length)}
+                    value={exclusions}
+                    onChange={(e) => {
+                      setExclusions(e.target.value);
+                      touch("exclusions");
+                    }}
+                    placeholder={t.exclusionsPlaceholder}
+                    aria-invalid={invalid("exclusions") || undefined}
+                    aria-describedby={describedBy("exclusions", "order-exclusions-hint")}
+                    className="field mt-2"
+                  />
+                  <p id="order-exclusions-hint" className="mt-1.5 text-sm text-muted">
+                    {ta.swapNote} {ta.traces}
+                  </p>
+                  <FieldError id={fieldId("exclusions")} text={errorText("exclusions")} />
+                </div>
+              </div>
             </Section>
 
             {/* 02 · Delivery */}
@@ -912,30 +986,6 @@ function OrderFormBody({
               </div>
 
               <div>
-                <label htmlFor={fieldId("exclusions")} className="label text-muted">
-                  {t.exclusions} <span className="normal-case tracking-normal">· {t.optional}</span>
-                </label>
-                <input
-                  id={fieldId("exclusions")}
-                  name="exclusions"
-                  maxLength={LIMITS.exclusions}
-                  value={exclusions}
-                  onChange={(e) => {
-                    setExclusions(e.target.value);
-                    touch("exclusions");
-                  }}
-                  placeholder={t.exclusionsPlaceholder}
-                  aria-invalid={invalid("exclusions") || undefined}
-                  aria-describedby={describedBy("exclusions", "order-exclusions-hint")}
-                  className="field mt-2"
-                />
-                <p id="order-exclusions-hint" className="mt-1.5 text-sm text-muted">
-                  {t.exclusionsHint}
-                </p>
-                <FieldError id={fieldId("exclusions")} text={errorText("exclusions")} />
-              </div>
-
-              <div>
                 <div className="flex items-start gap-3">
                   <input
                     id={fieldId("consent")}
@@ -999,6 +1049,12 @@ function OrderFormBody({
               <SummaryRow term={t.window} value={deliveryWindow} />
               <SummaryRow term={t.perDay} value={money(perDay)} />
             </dl>
+            {/* What the kitchen will read: the chosen allergens in words, then the free text. */}
+            {exclusionsText && (
+              <p className="mt-3 break-words text-sm text-ivory/80" data-order-exclusions-summary>
+                {exclusionsText}
+              </p>
+            )}
             <div className="mt-5 flex items-baseline justify-between gap-3 border-t border-ivory/15 pt-4">
               <span className="text-sm text-ivory/70">{t.total}</span>
               <span className="font-serif text-3xl tabular-nums">{money(total)}</span>
@@ -1131,8 +1187,9 @@ function ButtonLabel({ label, pending, pendingLabel }: { label: string; pending:
   );
 }
 
-/** A radio styled as a tappable card or chip. */
+/** A radio (or, for a choice of several, a checkbox) styled as a tappable card or chip. */
 function Choice({
+  type = "radio",
   name,
   value,
   checked,
@@ -1142,6 +1199,7 @@ function Choice({
   className = "",
   children,
 }: {
+  type?: "radio" | "checkbox";
   name: string;
   value: string;
   checked: boolean;
@@ -1154,7 +1212,7 @@ function Choice({
   return (
     <label className={`relative block ${disabled ? "cursor-not-allowed" : "cursor-pointer"} ${className}`}>
       <input
-        type="radio"
+        type={type}
         name={name}
         value={value}
         checked={checked}

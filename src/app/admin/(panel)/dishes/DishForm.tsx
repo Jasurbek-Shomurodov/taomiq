@@ -6,7 +6,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { getAdminDictionary } from "@/i18n/admin";
 import type { Locale } from "@/i18n/config";
 import { saveDish, setDishArchived, type FormState } from "@/lib/admin/actions";
-import { ALLERGENS } from "@/lib/data/allergens";
+import { ALLERGEN_KEYS, allergenName, isAllergenKey } from "@/lib/allergens";
 import { localized } from "@/lib/data/localized";
 import type { Dish } from "@/lib/data/types";
 import { createBrowserSupabase } from "@/lib/supabase/browser";
@@ -180,19 +180,22 @@ export function DishForm({ dish, locale }: { dish: Dish | null; locale: Locale }
                 · {t.common.p} {portion(per100.protein_100)} · {t.common.f} {portion(per100.fat_100)} · {t.common.c}{" "}
                 {portion(per100.carbs_100)}
               </p>
-              <fieldset>
+              {/* The fixed list the order form and the menu filter use (src/lib/allergens.ts). A code an older dish carries
+                  that is no longer on the list (honey) stays ticked below it, so a save never drops it silently. */}
+              <fieldset aria-describedby="dish-allergens-hint">
                 <legend className="text-sm font-semibold text-adm-text">{t.dish.allergens}</legend>
                 <div className="mt-2 flex flex-wrap gap-x-5 gap-y-2 text-sm">
-                  {ALLERGENS.map((allergen) => (
-                    <label key={allergen.code} className="flex min-h-8 items-center gap-2">
-                      <input
-                        type="checkbox" name="allergens" value={allergen.code}
-                        defaultChecked={dish?.allergens.includes(allergen.code)}
-                      />
-                      {allergen[locale]}
+                  {[...ALLERGEN_KEYS, ...(dish?.allergens ?? []).filter((code) => !isAllergenKey(code))].map((code) => (
+                    <label key={code} className="flex min-h-8 items-center gap-2">
+                      <input type="checkbox" name="allergens" value={code} defaultChecked={dish?.allergens.includes(code)} />
+                      {allergenName(code, locale)}
+                      {!isAllergenKey(code) && <span className="text-adm-muted">({t.dish.allergensOld})</span>}
                     </label>
                   ))}
                 </div>
+                <p id="dish-allergens-hint" className="mt-2 text-xs text-adm-muted">
+                  {t.dish.allergensHint}
+                </p>
               </fieldset>
             </div>
           </Panel>

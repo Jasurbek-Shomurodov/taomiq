@@ -238,6 +238,10 @@ const ru = {
     inPortion: (grams: string) => `В порции ${grams} г:`,
     ingredients: "Состав",
     allergens: "Аллергены",
+    /** Under the dish checkboxes: the same list the customer ticks at order (src/lib/allergens.ts). */
+    allergensHint: "Тот же список, что клиент отмечает при заказе. По нему меню выделяет блюда.",
+    /** A code on the dish that is not on the list any more: kept unless unticked. */
+    allergensOld: "не из списка",
     verified: "Техкарта проверена — цифры можно показывать клиентам",
     active: "Активно — блюдо видно на сайте",
     // Server action messages
@@ -725,7 +729,9 @@ const ru = {
     total: "Итого",
     dishTotal: (portions: string, kg: string) => `всего ${portions} · ${kg}`,
     exclusions: "Исключения",
-    exclusionsLead: "Что убрать из рационов этих заказов. Текст — как написал клиент.",
+    exclusionsLead: "Что убрать из рационов этих заказов. Отмеченные при заказе аллергены — метками, остальное — как написал клиент.",
+    /** Under a level on the sheet: rations of that level grouped by the allergens ticked at order. */
+    ofThem: (count: number, names: string) => `из них ${count} без: ${names}`,
     noExclusions: "Исключений на этот день нет.",
     empty: (day: string) => `На ${day} рационов нет.`,
     emptyAwaiting: (count: number) => `Ждут оплаты: ${count}. Они попадут в расчёт после оплаты.`,

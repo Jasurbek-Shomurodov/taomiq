@@ -129,6 +129,20 @@ const uz: Dictionary = {
     unpublishedText: "Ratsionni hoziroq tanlash mumkin. Taomlar va tarkibi haqida Telegramda aytib beramiz.",
     badges: { highProtein: "Oqsilga boy", light: "{kcal} kkal gacha" },
   },
+  /** Allergen chips at order and the menu's allergen filter (docs/plans/allergen-exclusions.md). Names: src/lib/allergens.ts. */
+  allergens: {
+    title: "Ratsiondan nimani chiqarish kerak?",
+    /** The swap rule (the plan's Decision): under the order chips and under a filtered menu day. */
+    swapNote: "Chiqarilgan mahsulot bor taomni usiz boshqa taomga almashtiramiz.",
+    traces: "Oshxonamizda bu mahsulotlarning barchasi ishlatiladi, shuning uchun ularning izi umuman yoʻqligiga kafolat bera olmaymiz.",
+    filter: "Allergenlar",
+    filterHint: "Sizga mumkin boʻlmaganini belgilang: shu mahsulotlar bor taomlarni ajratib koʻrsatamiz.",
+    clear: "Tozalash",
+    dayCount: "{names} bu kundagi {n} ta {dishes}da bor.",
+    dishForms: ["taom", "taom", "taom"],
+    dayNone: "Bu kundagi taomlarda yoʻq: {names}.",
+    contains: "Tarkibida: {names}",
+  },
   slots: {
     breakfast: "Nonushta",
     snack1: "Yengil tamaddi",
@@ -236,9 +250,8 @@ const uz: Dictionary = {
     name: "Ism",
     phone: "Telefon",
     phoneHint: "Buyurtmani tasdiqlash uchun qoʻngʻiroq qilamiz yoki Telegramda yozamiz.",
-    exclusions: "Ratsiondan nimani chiqarish kerak",
-    exclusionsPlaceholder: "Masalan: qoʻziqorin, baliq, yongʻoq",
-    exclusionsHint: "Uchtagacha masalliq. Ular bor taomni boshqasiga almashtiramiz.",
+    exclusions: "Yana nimadir (uchtagacha mahsulot)",
+    exclusionsPlaceholder: "Masalan: piyoz, bulgʻor qalampiri",
     consentBefore: "Maʼlumotlarimni ",
     consentLink: "maxfiylik siyosatiga",
     consentAfter: " muvofiq qayta ishlashga roziman.",

@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { htmlLang, type Locale } from "@/i18n/config";
+import { exclusionTagsOf, normalizeTags, type AllergenKey } from "@/lib/allergens";
 import { DEMO_ANCHOR } from "@/lib/data/demo";
 import { localized } from "@/lib/data/localized";
 import { SLOTS, cycleDayFor, type Dish, type MenuItem, type Program, type Slot } from "@/lib/data/types";
@@ -13,7 +14,8 @@ import { addDays, tashkentDay } from "./stats";
  * SQL (public.kitchen_orders, migration 0009); this file reads it and aggregates. buildProductionSheet() is a pure
  * function of its arguments, so it can be checked without a database.
  *
- * Orders reach the kitchen without any personal data: number, calorie level, status, day index, length, exclusions.
+ * Orders reach the kitchen without any personal data: number, calorie level, status, day index, length, exclusions and
+ * the allergens ticked at order (exclusion_tags, migration 0031, read through public.kitchen_orders_v2).
  */
 
 // ---------- dates ----------
@@ -71,7 +73,7 @@ export function cycleDayOn(day: string, anchorIso: string): number {
 /** Firm orders are cooked for; confirmed ones are awaiting payment and only counted. */
 export type KitchenStatus = "confirmed" | "paid" | "active";
 
-/** One row of public.kitchen_orders(date). No name, phone, address, comment or note. */
+/** One row of public.kitchen_orders_v2(date). No name, phone, address, comment or note. */
 export type KitchenOrder = {
   number: number;
   variant_id: string;
@@ -79,6 +81,8 @@ export type KitchenOrder = {
   day_index: number;
   days: number;
   exclusions: string;
+  /** The allergens ticked on the order form, in the list's order; [] for none (and before migration 0031). */
+  exclusion_tags: AllergenKey[];
 };
 
 export function isFirm(status: string): boolean {
@@ -118,19 +122,44 @@ export type SheetDishRow = {
 
 export type SheetSlot = { slot: Slot; dishes: SheetDishRow[]; portions: number; grams: number };
 
+/** Rations of one level that leave out the same allergens: "of them 1 without milk". */
+export type SheetTagGroup = { tags: AllergenKey[]; count: number };
+
 export type SheetLevel = {
   variantId: string;
   /** "BALANCE 1800"; null when the level is not in the catalogue read. */
   label: string | null;
   /** Rations to cook (paid or active). */
   firm: number;
+  /** The firm rations with allergens ticked at order, one group per set of allergens: largest first. */
+  tagGroups: SheetTagGroup[];
   /** Confirmed, awaiting payment: not cooked. */
   awaiting: number;
   /** Whether the menu has any line for this level on the day. */
   hasMenu: boolean;
 };
 
-export type SheetExclusion = { number: number; label: string | null; text: string };
+/**
+ * One firm order with something to leave out: its allergens and the text, by exclusionTagsOf (src/lib/allergens.ts):
+ * the text is the source of truth, so an edit by staff after the order wins over the tags stored at order. When the
+ * text starts with the allergens in words ("Без: молоко. …", as the order form writes it), `text` is only what follows,
+ * so the sheet does not say it twice; otherwise the whole text, as the customer or staff wrote it.
+ */
+export type SheetExclusion = { number: number; label: string | null; tags: AllergenKey[]; text: string };
+
+/** The groups of a level's tagged rations: one per distinct set, the largest first, then in the list's order. */
+function tagGroupsOf(sets: readonly AllergenKey[][]): SheetTagGroup[] {
+  const byKey = new Map<string, SheetTagGroup>();
+  for (const tags of sets) {
+    if (tags.length === 0) continue;
+    const key = tags.join(",");
+    const group = byKey.get(key) ?? { tags, count: 0 };
+    group.count += 1;
+    byKey.set(key, group);
+  }
+  return [...byKey.values()].sort((a, b) => b.count - a.count || a.tags.join(",").localeCompare(b.tags.join(",")));
+}
+
 
 /**
  * Something the cook must know before trusting the sheet. Shown, never hidden:
@@ -174,6 +203,7 @@ export function buildProductionSheet(
   const collator = new Intl.Collator(htmlLang[locale]);
 
   const firmBy = new Map<string, number>();
+  const tagsBy = new Map<string, AllergenKey[][]>();
   const awaitingBy = new Map<string, number>();
   let firm = 0;
   let awaiting = 0;
@@ -182,8 +212,11 @@ export function buildProductionSheet(
     if (isFirm(order.status)) {
       firm += 1;
       firmBy.set(order.variant_id, (firmBy.get(order.variant_id) ?? 0) + 1);
-      const text = (order.exclusions ?? "").trim();
-      if (text) exclusions.push({ number: order.number, label: levelLabel(variantById.get(order.variant_id)), text });
+      const { tags, text } = exclusionTagsOf(order.exclusions ?? "", order.exclusion_tags ?? []);
+      tagsBy.set(order.variant_id, [...(tagsBy.get(order.variant_id) ?? []), tags]);
+      if (text || tags.length > 0) {
+        exclusions.push({ number: order.number, label: levelLabel(variantById.get(order.variant_id)), tags, text });
+      }
     } else if (order.status === "confirmed") {
       awaiting += 1;
       awaitingBy.set(order.variant_id, (awaitingBy.get(order.variant_id) ?? 0) + 1);
@@ -198,6 +231,7 @@ export function buildProductionSheet(
       variantId,
       label: levelLabel(variantById.get(variantId)),
       firm: firmBy.get(variantId) ?? 0,
+      tagGroups: tagGroupsOf(tagsBy.get(variantId) ?? []),
       awaiting: awaitingBy.get(variantId) ?? 0,
       hasMenu: menuVariants.has(variantId),
     }))
@@ -288,12 +322,16 @@ function logFailure(what: string, error: unknown) {
 
 async function readOrders(supabase: SupabaseClient, day: string): Promise<KitchenOrder[] | null> {
   try {
-    const { data, error } = await supabase.rpc("kitchen_orders", { p_date: day });
+    let { data, error } = await supabase.rpc("kitchen_orders_v2", { p_date: day });
+    // Before migration 0031 is applied there is only kitchen_orders (PostgREST: no such function): the same rows
+    // without the tags. Remove once 0031 is in production.
+    if (error?.code === "PGRST202") ({ data, error } = await supabase.rpc("kitchen_orders", { p_date: day }));
     if (error) throw new Error(error.message);
-    return ((data ?? []) as KitchenOrder[]).map((row) => ({
+    return ((data ?? []) as (Omit<KitchenOrder, "exclusion_tags"> & { exclusion_tags?: unknown })[]).map((row) => ({
       ...row,
       number: Number(row.number),
       exclusions: row.exclusions ?? "",
+      exclusion_tags: normalizeTags(Array.isArray(row.exclusion_tags) ? row.exclusion_tags : []),
     }));
   } catch (error) {
     logFailure("orders read", error);

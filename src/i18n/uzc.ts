@@ -130,6 +130,20 @@ const uzc: Dictionary = {
     unpublishedText: "Рационни ҳозироқ танлаш мумкин. Таомлар ва таркиби ҳақида Telegram орқали айтиб берамиз.",
     badges: { highProtein: "Оқсилга бой", light: "{kcal} ккал гача" },
   },
+  /** Allergen chips at order and the menu's allergen filter (docs/plans/allergen-exclusions.md). Names: src/lib/allergens.ts. */
+  allergens: {
+    title: "Рациондан нимани чиқариш керак?",
+    /** The swap rule (the plan's Decision): under the order chips and under a filtered menu day. */
+    swapNote: "Чиқарилган маҳсулот бор таомни усиз бошқа таомга алмаштирамиз.",
+    traces: "Ошхонамизда бу маҳсулотларнинг барчаси ишлатилади, шунинг учун уларнинг изи умуман йўқлигига кафолат бера олмаймиз.",
+    filter: "Аллергенлар",
+    filterHint: "Сизга мумкин бўлмаганини белгиланг: шу маҳсулотлар бор таомларни ажратиб кўрсатамиз.",
+    clear: "Тозалаш",
+    dayCount: "{names} бу кундаги {n} та {dishes}да бор.",
+    dishForms: ["таом", "таом", "таом"],
+    dayNone: "Бу кундаги таомларда йўқ: {names}.",
+    contains: "Таркибида: {names}",
+  },
   slots: {
     breakfast: "Нонушта",
     snack1: "Енгил тамадди",
@@ -237,9 +251,8 @@ const uzc: Dictionary = {
     name: "Исм",
     phone: "Телефон",
     phoneHint: "Буюртмани тасдиқлаш учун қўнғироқ қиламиз ёки Telegram орқали ёзамиз.",
-    exclusions: "Рациондан нимани чиқариш керак",
-    exclusionsPlaceholder: "Масалан: қўзиқорин, балиқ, ёнғоқ",
-    exclusionsHint: "Учтагача масаллиқ. Улар бор таомни бошқасига алмаштирамиз.",
+    exclusions: "Яна нимадир (учтагача маҳсулот)",
+    exclusionsPlaceholder: "Масалан: пиёз, булғор қалампири",
     consentBefore: "Маълумотларимни ",
     consentLink: "махфийлик сиёсатига",
     consentAfter: " мувофиқ қайта ишлашга розиман.",

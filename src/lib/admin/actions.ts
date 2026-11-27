@@ -140,7 +140,8 @@ export async function saveDish(_prev: FormState, form: FormData): Promise<FormSt
     ingredients_ru: text(form, "ingredients_ru"),
     ingredients_uz: text(form, "ingredients_uz"),
     ingredients_uzc: text(form, "ingredients_uzc"),
-    allergens: form.getAll("allergens").map(String),
+    // Each code once. The checkboxes offer the fixed list (src/lib/allergens.ts) and keep any older code the dish had.
+    allergens: [...new Set(form.getAll("allergens").map(String))].filter((code) => /^[a-z_]{1,32}$/.test(code)),
     verified: form.get("verified") === "on",
     active: form.get("active") === "on",
     updated_at: new Date().toISOString(),

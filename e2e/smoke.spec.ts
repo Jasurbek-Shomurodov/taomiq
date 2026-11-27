@@ -481,7 +481,7 @@ test("order form: errors keep typed values, a valid order gets the demo notice",
   await expect(page.getByLabel(t.name, { exact: true })).toHaveValue("Test");
 
   await page.getByLabel(t.phone, { exact: true }).fill("901234567");
-  await page.getByRole("checkbox").check();
+  await page.locator("#order-consent").check();
   await submit.click();
   await expect(page.getByRole("alert").filter({ hasText: t.general.demo })).toBeVisible();
   await expect(page).toHaveURL(/\/uz\/order$/);
@@ -503,7 +503,7 @@ test("order form: every retry of one form round sends the same request id; a new
     await page.getByLabel(t.address, { exact: true }).fill("Toshkent, Amir Temur koʻchasi 1, 5-xonadon");
     await page.getByLabel(t.name, { exact: true }).fill("Test");
     await page.getByLabel(t.phone, { exact: true }).fill("901234567");
-    await page.getByRole("checkbox").check();
+    await page.locator("#order-consent").check();
   };
   const submit = page.getByRole("button", { name: t.submit }).filter({ visible: true });
   const demoNotice = page.getByRole("alert").filter({ hasText: t.general.demo });
@@ -574,7 +574,7 @@ test("the trial says it costs the same per day as a week, and 'included' promise
 
   await page.goto("/uz/order");
   await expect(page.locator("#order-days-note")).toContainText(note);
-  await expect(page.locator("#order-exclusions-hint")).toHaveText(uz.order.exclusionsHint);
+  await expect(page.locator("#order-exclusions-hint")).toHaveText(`${uz.allergens.swapNote} ${uz.allergens.traces}`);
 });
 
 /** A field of a server action's multipart body (React prefixes the form's keys, as in "_1_address"). */
@@ -640,7 +640,7 @@ test("order form on a phone: one step at a time, Next checks only that step, Bac
   await expect(next).toHaveCount(0);
   await page.getByLabel(t.name, { exact: true }).fill("Тест");
   await page.getByLabel(t.phone, { exact: true }).fill("901234567");
-  await page.getByRole("checkbox").check();
+  await page.locator("#order-consent").check();
 
   // The page's Back keeps every answer. The step is not in the URL.
   await back.click();

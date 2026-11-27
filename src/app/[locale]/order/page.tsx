@@ -9,6 +9,7 @@ import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog"
 import { localized } from "@/lib/data/localized";
 import { trialAtWeekPrice } from "@/lib/data/types";
 import { getCustomer } from "@/lib/account/auth";
+import { parseExclusions } from "@/lib/allergens";
 import { readRepeatOrder, readSavedDelivery, type RepeatOrder } from "@/lib/account/delivery";
 import { isAccountEnabled } from "@/lib/account/methods";
 import { pickRepeatVariant, repeatNumberOf } from "@/lib/order/repeat";
@@ -137,13 +138,16 @@ async function OrderLoader({
       // plan, days, time and exclusions still come from the order.
       const own = delivery?.address ? delivery : null;
       if (own && own.address !== repeat.address) notice = `${notice} ${o.repeatSavedAddress}`;
+      // "Без: молоко, орехи. лук" back into the chips and the free text (an older order is all free text).
+      const exclusions = parseExclusions(repeat.exclusions);
       prefill = {
         days: durations.some((d) => d.days === repeat.days) ? repeat.days : undefined,
         weekdaysOnly: repeat.weekdaysOnly,
         address: own ? own.address : repeat.address,
         window: validWindow(repeat.window) ?? prefill?.window,
         comment: own ? own.note : repeat.comment,
-        exclusions: repeat.exclusions,
+        exclusions: exclusions.other,
+        exclusionTags: exclusions.tags,
       };
     } else {
       notice = o.repeatFailed.replace("{n}", String(repeatNumber));
@@ -154,6 +158,7 @@ async function OrderLoader({
     <OrderForm
       locale={locale}
       t={t.order}
+      ta={t.allergens}
       programs={programs}
       durations={durations}
       windows={settings.deliveryWindows}

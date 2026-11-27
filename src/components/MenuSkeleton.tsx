@@ -35,6 +35,13 @@ export function MenuSkeleton({ t }: { t: Dictionary }) {
         </div>
       </div>
 
+      {/* The allergen filter row (one chip per allergen of src/lib/allergens.ts). */}
+      <p className="label mt-6 text-muted">{t.allergens.filter}</p>
+      <div className="mt-2 flex flex-wrap gap-2">
+        {["w-20", "w-20", "w-16", "w-20", "w-20", "w-16", "w-32", "w-20", "w-16", "w-24"].map(chip)}
+      </div>
+      <p className="mt-2 text-sm text-muted">{t.allergens.filterHint}</p>
+
       <p className="label mt-8 text-muted">{t.menu.cycleDay}</p>
       <div className="mt-2">
         <div className={`${DAY_ROW} overflow-hidden`}>

@@ -13,8 +13,9 @@ export const supabaseSecretKey = process.env.SUPABASE_SECRET_KEY ?? "";
 export const isOrderingConfigured = Boolean(supabaseUrl && supabaseSecretKey);
 
 /**
- * Bypasses Row Level Security. Use only for submit_order() and its request-id lookup (src/lib/order/actions.ts), the
- * order alert's amount read, customer profile sync (src/lib/account/profile.ts), recording back-office access requests (src/lib/admin/access.ts) and the owner group's
+ * Bypasses Row Level Security. Use only for submit_order(), its request-id lookup and set_order_exclusion_tags()
+ * (src/lib/order/actions.ts), the order alert's amount read, customer profile sync (src/lib/account/profile.ts),
+ * recording back-office access requests (src/lib/admin/access.ts) and the owner group's
  * Telegram outbox: its drain (src/lib/telegram/drain.ts) and the daily endpoint (src/app/api/telegram/daily), which call
  * the service_role-only functions of migration 0026.
  */

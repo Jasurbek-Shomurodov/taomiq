@@ -139,6 +139,27 @@ const ru = {
     /** Dish badges, from the portion's own numbers (src/lib/data/badges.ts). {kcal}: the threshold. */
     badges: { highProtein: "Много белка", light: "До {kcal} ккал" },
   },
+  /** Allergen chips at order and the menu's allergen filter (docs/plans/allergen-exclusions.md). Names: src/lib/allergens.ts. */
+  allergens: {
+    /** Order form, above the chips. */
+    title: "Что исключить из рациона?",
+    /**
+     * The swap rule (the plan's Decision, 27 Nov 2026): under the order chips and under a filtered menu day. One sentence,
+     * so it is easy to change if the kitchen works differently.
+     */
+    swapNote: "Блюдо с исключённым продуктом мы заменим другим, без него.",
+    traces: "На кухне мы работаем со всеми этими продуктами, поэтому не можем гарантировать, что их следов нет совсем.",
+    /** The menu's chip row. */
+    filter: "Аллергены",
+    filterHint: "Отметьте, что вам нельзя: блюда с этими продуктами выделим.",
+    clear: "Сбросить",
+    /** Under a filtered day. {names}: "молоко, орехи"; {n} {dishes}: "2 блюдах". */
+    dayCount: "{names} — в {n} {dishes} этого дня.",
+    dishForms: ["блюде", "блюдах", "блюдах"],
+    dayNone: "В блюдах этого дня нет: {names}.",
+    /** On an outlined dish card. */
+    contains: "Содержит: {names}",
+  },
   slots: {
     breakfast: "Завтрак",
     snack1: "Перекус",
@@ -254,9 +275,8 @@ const ru = {
     name: "Имя",
     phone: "Телефон",
     phoneHint: "Позвоним или напишем в Telegram, чтобы подтвердить заказ.",
-    exclusions: "Что исключить из рациона",
-    exclusionsPlaceholder: "Например: грибы, рыба, орехи",
-    exclusionsHint: "До трёх ингредиентов. Блюдо, в котором они есть, заменим другим.",
+    exclusions: "Что-то ещё (до трёх продуктов)",
+    exclusionsPlaceholder: "Например: лук, болгарский перец",
     consentBefore: "Я согласен(на) на обработку моих данных в соответствии с ",
     consentLink: "политикой конфиденциальности",
     consentAfter: ".",

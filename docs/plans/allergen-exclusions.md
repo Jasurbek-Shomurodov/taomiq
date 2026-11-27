@@ -1,5 +1,7 @@
 # Plan · Allergen chips at order and an allergen filter on the menu
 
+Status: all three slices shipped (0031); keys egg/peanut match dishes
+
 Approved for planning by Jasurbek on 27 Nov 2026 (round-two research, item 6). Today exclusions are one free-text
 field (`orders.exclusions`), and the kitchen has to read it. Dishes already carry `allergens text[]`, but
 nothing uses it publicly.
