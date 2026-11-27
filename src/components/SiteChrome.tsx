@@ -13,12 +13,21 @@ import { DesktopNavLinks, type NavLink } from "./NavLinks";
 
 export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   // section: the path each link owns, for the current-page marker (a program page counts as Programs).
+  const link = (path: string, label: string): NavLink => ({ href: `/${locale}${path}`, label, section: `/${locale}${path}` });
+  // The desktop row: five links, so it fits at lg in every language. Questions live in the sheet and the footer.
   const links: NavLink[] = [
-    { href: `/${locale}#programs`, label: t.nav.programs, section: `/${locale}/programs` },
-    { href: `/${locale}/menu`, label: t.nav.menu, section: `/${locale}/menu` },
-    { href: `/${locale}/calculator`, label: t.nav.calculator, section: `/${locale}/calculator` },
-    { href: `/${locale}/delivery`, label: t.nav.delivery, section: `/${locale}/delivery` },
-    { href: `/${locale}/faq`, label: t.nav.faq, section: `/${locale}/faq` },
+    link("/programs", t.nav.programs),
+    link("/menu", t.nav.menu),
+    link("/prices", t.nav.prices),
+    link("/calculator", t.nav.calculator),
+    link("/delivery", t.nav.delivery),
+  ];
+  // The phone and tablet sheet: the same sections, plus the program finder after the calculator, and Questions.
+  const sheetLinks: NavLink[] = [
+    ...links.slice(0, 4),
+    link("/quiz", t.quiz.short),
+    ...links.slice(4),
+    link("/faq", t.nav.faq),
   ];
 
   const accountLabels = { login: t.account.login, account: t.account.account };
@@ -49,10 +58,9 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
           <Link href={`/${locale}/order`} className="btn btn-gold hidden !px-5 !py-2.5 !text-sm sm:inline-flex">
             {t.nav.cta}
           </Link>
-          {/* The sheet adds the program finder after the calculator; the desktop row stays at five links. */}
           <MobileNav
             locale={locale}
-            links={[...links.slice(0, 3), { href: `/${locale}/quiz`, label: t.quiz.short, section: `/${locale}/quiz` }, ...links.slice(3)]}
+            links={sheetLinks}
             telegramUrl={site.telegram}
             labels={{ sections: t.nav.sections, close: t.nav.close }}
             account={
@@ -78,7 +86,7 @@ export function Footer({
 }: {
   locale: Locale;
   t: Dictionary;
-  /** Program pages to link (from the catalogue); the column falls back to the home section without them. */
+  /** Program pages to link (from the catalogue); without them the column is only its link to /programs. */
   programs: Pick<Program, "slug" | "name">[];
 }) {
   return (
@@ -93,7 +101,7 @@ export function Footer({
         {/* Programs, then the goal pages under them: one column, so the footer stays two columns on phones. */}
         <div className="flex flex-col gap-6 text-sm">
           <nav aria-label={t.nav.programs} className="flex flex-col gap-2">
-            <Link href={`/${locale}#programs`} className="label link self-start text-ivory/50 hover:text-ivory">{t.nav.programs}</Link>
+            <Link href={`/${locale}/programs`} className="label link self-start text-ivory/50 hover:text-ivory">{t.nav.programs}</Link>
             {programs.map((program) => (
               <Link key={program.slug} href={`/${locale}/programs/${program.slug}`} className="link self-start hover:text-ivory">
                 {program.name}

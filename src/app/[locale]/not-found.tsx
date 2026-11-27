@@ -35,7 +35,7 @@ export default async function NotFound() {
           <Link href={`/${locale}`} className="btn btn-forest">
             {t.notFound.home}
           </Link>
-          <Link href={`/${locale}#programs`} className="btn btn-outline text-forest">
+          <Link href={`/${locale}/programs`} className="btn btn-outline text-forest">
             {t.nav.programs}
           </Link>
           <Link href={`/${locale}/menu`} className="btn btn-outline text-forest">

@@ -654,7 +654,7 @@ test("robots.txt and sitemap.xml are served on the public host", async ({ reques
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
   const urls = await sitemap.text();
-  for (const path of ["/uz/menu", "/uz/faq", "/uz/prices", "/uz/goals/weight-loss", "/uz/calculator/body", "/uz/calculator/protein", "/uz/quiz"]) {
+  for (const path of ["/uz/menu", "/uz/programs", "/uz/faq", "/uz/prices", "/uz/goals/weight-loss", "/uz/calculator/body", "/uz/calculator/protein", "/uz/quiz"]) {
     expect(urls).toContain(path);
   }
 });

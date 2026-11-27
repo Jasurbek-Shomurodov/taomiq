@@ -69,6 +69,33 @@ export async function getMenuDay(variantId: string, cycleDay: number): Promise<M
   return entries.sort((a, b) => order.indexOf(a.slot) - order.indexOf(b.slot));
 }
 
+/**
+ * Whether a calorie level has at least one dish on any day of the cycle. The menu page shows its 30-day picker
+ * only then; before the cook publishes the menu it shows one calm "published before launch" block instead.
+ * Rows whose dish the public cannot read (inactive, archived) do not count, as getMenuDay leaves them out too.
+ */
+export async function hasMenu(variantId: string): Promise<boolean> {
+  "use cache";
+  cacheTag(CATALOG_TAG);
+  cacheLife("hours");
+
+  if (!isSupabaseConfigured) return demoMenu.some((m) => m.variant_id === variantId);
+
+  const { data, error } = await createPublicClient()
+    .from("menu_items")
+    .select("id, dish:dishes!inner(id)")
+    .eq("variant_id", variantId)
+    .limit(1);
+  if (error) throw new Error(`menu check: ${error.message}`);
+  return (data ?? []).length > 0;
+}
+
+/** Whether any calorie level of these programs has a dish on the menu (the menu is published at all). */
+export async function hasAnyMenu(programs: Pick<Program, "variants">[]): Promise<boolean> {
+  const checks = await Promise.all(programs.flatMap((p) => p.variants.map((v) => hasMenu(v.id))));
+  return checks.some(Boolean);
+}
+
 export type OrderSettings = {
   /** Two-hour delivery windows offered on the order form, e.g. "07:00–09:00". */
   deliveryWindows: string[];

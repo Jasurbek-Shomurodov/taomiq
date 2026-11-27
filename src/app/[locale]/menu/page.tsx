@@ -11,9 +11,10 @@ import { ProgramLinks } from "@/components/ProgramLinks";
 import { CHIP } from "@/components/menu-styles";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, type Locale } from "@/i18n/config";
-import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
-import { CYCLE_DAYS, type Program } from "@/lib/data/types";
+import { getMenuDay, getPrograms, getTodayCycleDay, hasAnyMenu, hasMenu, isDemoCatalog } from "@/lib/data/catalog";
+import { CYCLE_DAYS, type MenuEntry, type Program } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
+import { site } from "@/lib/site";
 import { breadcrumbList } from "@/lib/structured-data";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/menu">): Promise<Metadata> {
@@ -29,9 +30,12 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/[lo
   const t = getDictionary(locale);
 
   // Links to the program pages under the menu. The menu itself still renders without them.
+  // The lead promises a menu seen before paying; until any level has dishes it says the menu comes before launch.
   let programs: Program[] = [];
+  let published = true;
   try {
     programs = await getPrograms();
+    published = await hasAnyMenu(programs);
   } catch (error) {
     console.error("menu page: catalogue unavailable", error);
   }
@@ -43,7 +47,7 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/[lo
         <div className="container-page py-12 md:py-16">
           <p className="label text-gold">TAOMIQ</p>
           <h1 className="mt-3 font-serif text-5xl md:text-6xl">{t.menu.title}</h1>
-          <p className="mt-3 max-w-xl text-ivory/80">{t.menu.lead}</p>
+          <p className="mt-3 max-w-xl text-ivory/80">{published ? t.menu.lead : t.menu.leadSoon}</p>
         </div>
       </section>
 
@@ -97,7 +101,9 @@ async function MenuBrowser({
       ? requestedDay
       : await getTodayCycleDay();
 
-  const entries = variant ? await getMenuDay(variant.id, day) : [];
+  const [entries, levelHasMenu] = variant
+    ? await Promise.all([getMenuDay(variant.id, day), hasMenu(variant.id)])
+    : [[] as MenuEntry[], false];
 
   const href = (next: { program?: string; kcal?: number; day?: number }) => {
     const p = next.program ?? program.slug;
@@ -144,43 +150,67 @@ async function MenuBrowser({
         </div>
       </div>
 
-      {/* Anchor for the previous / next buttons: they bring the reader back to the top of the day. */}
-      <div id="menu-day" className="scroll-mt-20 lg:scroll-mt-24">
-        <p id="menu-day-label" className="label mt-8 text-muted">
-          {t.menu.day}
-        </p>
-        <div className="mt-2">
-          <DayPicker days={CYCLE_DAYS} active={day} hrefPrefix={dayHref} labelledBy="menu-day-label" />
-        </div>
-      </div>
-
-      {variant && (
-        <div className="mt-8">
-          {/* Same place, different content: the old day fades out and the new one in. */}
-          <ViewTransition key={`${variant.id}-${day}`} name="menu-day-content" share="day-fade" default="none">
-            <div>
-              <p className="label mb-4 text-muted">
-                TAOMIQ {program.name} / {variant.kcal} · {t.menu.day} {day}
-              </p>
-              <MenuDay entries={entries} targetKcal={variant.kcal} locale={locale} t={t} eagerFirstImage />
+      {levelHasMenu ? (
+        <>
+          {/* Anchor for the previous / next buttons: they bring the reader back to the top of the day. */}
+          <div id="menu-day" className="scroll-mt-20 lg:scroll-mt-24">
+            <p id="menu-day-label" className="label mt-8 text-muted">
+              {t.menu.day}
+            </p>
+            <div className="mt-2">
+              <DayPicker days={CYCLE_DAYS} active={day} hrefPrefix={dayHref} labelledBy="menu-day-label" />
             </div>
-          </ViewTransition>
+          </div>
 
-          <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:justify-between">
+          {variant && (
+            <div className="mt-8">
+              {/* Same place, different content: the old day fades out and the new one in. */}
+              <ViewTransition key={`${variant.id}-${day}`} name="menu-day-content" share="day-fade" default="none">
+                <div>
+                  <p className="label mb-4 text-muted">
+                    TAOMIQ {program.name} / {variant.kcal} · {t.menu.day} {day}
+                  </p>
+                  <MenuDay entries={entries} targetKcal={variant.kcal} locale={locale} t={t} eagerFirstImage />
+                </div>
+              </ViewTransition>
+
+              <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:justify-between">
+                <Link
+                  href={`${dayHref}${prevDay}#menu-day`}
+                  aria-label={`${t.menu.prevDay}: ${t.menu.day} ${prevDay}`}
+                  className="btn btn-outline min-h-12 text-forest"
+                >
+                  <span aria-hidden>←</span> {t.menu.day} {prevDay}
+                </Link>
+                <Link
+                  href={`${dayHref}${nextDay}#menu-day`}
+                  aria-label={`${t.menu.nextDay}: ${t.menu.day} ${nextDay}`}
+                  className="btn btn-outline min-h-12 text-forest"
+                >
+                  {t.menu.day} {nextDay} <span aria-hidden>→</span>
+                </Link>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        // Nothing on any day of this level yet: one calm block instead of 30 empty days.
+        <div className="mt-8 rounded-3xl border border-line bg-white p-6 md:p-8">
+          <h2 className="font-serif text-3xl text-forest">{t.menu.unpublished}</h2>
+          <p className="mt-3 max-w-xl text-muted">{t.menu.unpublishedText}</p>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <Link
-              href={`${dayHref}${prevDay}#menu-day`}
-              aria-label={`${t.menu.prevDay}: ${t.menu.day} ${prevDay}`}
-              className="btn btn-outline min-h-12 text-forest"
+              href={`/${locale}/order?${new URLSearchParams({
+                program: program.slug,
+                ...(variant ? { kcal: String(variant.kcal) } : {}),
+              })}`}
+              className="btn btn-gold"
             >
-              <span aria-hidden>←</span> {t.menu.day} {prevDay}
+              {t.nav.cta}
             </Link>
-            <Link
-              href={`${dayHref}${nextDay}#menu-day`}
-              aria-label={`${t.menu.nextDay}: ${t.menu.day} ${nextDay}`}
-              className="btn btn-outline min-h-12 text-forest"
-            >
-              {t.menu.day} {nextDay} <span aria-hidden>→</span>
-            </Link>
+            <a href={site.telegram} className="btn btn-outline text-forest" rel="noopener">
+              {t.cta.telegram}
+            </a>
           </div>
         </div>
       )}

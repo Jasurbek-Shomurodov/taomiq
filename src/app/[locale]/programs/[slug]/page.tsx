@@ -3,9 +3,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ViewTransition } from "react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { JsonLd } from "@/components/JsonLd";
 import { MenuDay } from "@/components/MenuDay";
 import { PageTransition } from "@/components/PageTransition";
+import { ProgramLinks } from "@/components/ProgramLinks";
 import { ProgramPrices } from "@/components/ProgramPrices";
 import { RationLabel } from "@/components/RationLabel";
 import { getDictionary } from "@/i18n";
@@ -15,7 +17,7 @@ import { localized } from "@/lib/data/localized";
 import { sumNutrition } from "@/lib/data/types";
 import { goalsForProgram } from "@/lib/goal-pages";
 import { pageMetadata } from "@/lib/seo";
-import { breadcrumbList, programProduct } from "@/lib/structured-data";
+import { programProduct } from "@/lib/structured-data";
 
 /**
  * The whole page must come out of a static render, also for a slug the build did not list. Next then
@@ -86,10 +88,19 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
   return (
     <PageTransition>
       <JsonLd data={programProduct(program, durations, locale, t.programs.kcal)} />
-      <JsonLd data={breadcrumbList(locale, [{ name: program.name, path: `/programs/${program.slug}` }])} />
       <section className="bg-forest text-ivory">
+        {/* Above the photo on phones too: the hero grid below orders the photo first. */}
+        <Breadcrumbs
+          locale={locale}
+          t={t}
+          trail={[
+            { name: t.nav.programs, path: "/programs" },
+            { name: program.name, path: `/programs/${program.slug}` },
+          ]}
+          className="container-page pt-6 md:pt-8"
+        />
         <div
-          className={`container-page grid gap-8 py-14 md:gap-12 md:py-20 ${
+          className={`container-page grid gap-8 pb-14 pt-6 md:gap-12 md:pb-20 md:pt-10 ${
             program.photo_url || firstVariant ? "md:grid-cols-[1.3fr_1fr] md:items-center" : ""
           }`}
         >
@@ -164,8 +175,9 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
         </div>
       </section>
 
-      {/* Sample day */}
-      {firstVariant && (
+      {/* Sample day: left out while day 1 has no dishes (no empty box where the proof should be); the link to the
+          full menu stays, and the menu page explains itself. */}
+      {firstVariant && sample.length > 0 ? (
         <section className="container-page pb-16">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -183,7 +195,45 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
           </div>
           {isDemoCatalog && <p className="mt-4 text-sm text-muted">{t.menu.demoNote}</p>}
         </section>
+      ) : (
+        <div className="container-page pb-16">
+          <Link href={`/${locale}/menu?program=${program.slug}`} className="btn btn-outline text-forest">
+            {t.menu.full}
+          </Link>
+        </div>
       )}
+
+      {/* Wayfinding: the sibling programs, then the next steps for a visitor still choosing */}
+      <div className="bg-ivory-deep">
+        <ProgramLinks
+          programs={programs.filter((p) => p.id !== program.id)}
+          locale={locale}
+          t={t}
+          title={t.programs.others}
+        />
+        <nav aria-labelledby="program-more" className="container-page pb-14 md:pb-16">
+          <h2 id="program-more" className="label text-muted">
+            {t.goals.moreTitle}
+          </h2>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {[
+              { href: `/${locale}/programs`, label: t.goals.allPrograms },
+              { href: `/${locale}/menu?program=${program.slug}`, label: t.nav.menu },
+              { href: `/${locale}/calculator`, label: t.nav.calculator },
+              { href: `/${locale}/quiz`, label: t.quiz.short },
+            ].map((link) => (
+              <li key={link.href}>
+                <Link
+                  href={link.href}
+                  className="press inline-flex min-h-11 items-center rounded-full border border-line bg-white px-4 text-sm font-semibold text-forest hover:border-forest"
+                >
+                  {link.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      </div>
     </PageTransition>
   );
 }

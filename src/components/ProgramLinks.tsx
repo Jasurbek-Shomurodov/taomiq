@@ -5,15 +5,27 @@ import type { Program } from "@/lib/data/types";
 
 /**
  * Compact links to every program page (name, calorie levels, "from … per day"), for pages that talk about
- * the service without selling a program themselves: menu and delivery. Renders nothing without programs.
+ * the service without selling a program themselves (menu, delivery), and for a program page's siblings. Renders
+ * nothing without programs.
  */
-export function ProgramLinks({ programs, locale, t }: { programs: Program[]; locale: Locale; t: Dictionary }) {
+export function ProgramLinks({
+  programs,
+  locale,
+  t,
+  title = t.programs.title,
+}: {
+  programs: Program[];
+  locale: Locale;
+  t: Dictionary;
+  /** The heading; the program page uses "Other programs" for its siblings. */
+  title?: string;
+}) {
   const listed = programs.filter((p) => p.variants.length > 0);
   if (listed.length === 0) return null;
 
   return (
     <section className="container-page py-14 md:py-16">
-      <h2 className="font-serif text-3xl text-forest md:text-4xl">{t.programs.title}</h2>
+      <h2 className="font-serif text-3xl text-forest md:text-4xl">{title}</h2>
       <ul className="mt-6 grid gap-3 sm:grid-cols-3">
         {listed.map((program) => (
           <li key={program.id}>

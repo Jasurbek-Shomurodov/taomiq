@@ -433,6 +433,8 @@ function OrderFormBody({
 
   const summaryLine = `${program.name} · ${variant.kcal} ${t.kcal} · ${duration.days} ${daysWord(duration.days)}`;
   const stepLabel = (s: OrderStep) => t.step.replace("{n}", String(s + 1)).replace("{total}", String(ORDER_STEPS));
+  // "Talk to a person" on every step (spec §4): under each step heading on phones, once under the summary from md.
+  const help = <HelpLink text={t.help} link={t.helpLink} href={telegramUrl} />;
 
   return (
     // method="post": a tap before the script has loaded must never send the fields as a GET query string (name and
@@ -480,7 +482,7 @@ function OrderFormBody({
         <ViewTransition name="order-steps" update={{ "order-step": "order-step", default: "none" }} default="none">
           <div className="grid min-w-0 gap-12">
             {/* 01 · Plan */}
-            <Section step={0} current={step} number="01" title={t.sections.plan} stepLabel={stepLabel(0)}>
+            <Section step={0} current={step} number="01" title={t.sections.plan} stepLabel={stepLabel(0)} help={help}>
               <fieldset
                 id={fieldId("plan")}
                 tabIndex={-1}
@@ -643,7 +645,7 @@ function OrderFormBody({
             </Section>
 
             {/* 02 · Delivery */}
-            <Section step={1} current={step} number="02" title={t.sections.delivery} stepLabel={stepLabel(1)}>
+            <Section step={1} current={step} number="02" title={t.sections.delivery} stepLabel={stepLabel(1)} help={help}>
               <div>
                 <label htmlFor={fieldId("address")} className="label text-muted">
                   {t.address}
@@ -721,7 +723,7 @@ function OrderFormBody({
             </Section>
 
             {/* 03 · Contact */}
-            <Section step={2} current={step} number="03" title={t.sections.contact} stepLabel={stepLabel(2)}>
+            <Section step={2} current={step} number="03" title={t.sections.contact} stepLabel={stepLabel(2)} help={help}>
               <div className="grid gap-6 sm:grid-cols-2">
                 <div>
                   <label htmlFor={fieldId("name")} className="label text-muted">
@@ -853,31 +855,34 @@ function OrderFormBody({
 
       {/* Summary: side card from md, sticky bottom bar on phones */}
       <aside className="hidden md:block">
-        <div className="sticky top-24 rounded-3xl bg-forest p-6 text-ivory">
-          <p className="label text-gold">{t.summary}</p>
-          <p className="mt-3 font-serif text-3xl">{program.name}</p>
-          <dl className="mt-4 grid gap-2 text-sm">
-            <SummaryRow term={t.level} value={`${variant.kcal} ${t.kcal}`} />
-            <SummaryRow
-              term={t.duration}
-              value={`${duration.days} ${daysWord(duration.days)}${weekdaysOnly ? ` · ${t.weekdaysShort}` : ""}`}
-            />
-            <SummaryRow term={t.start} value={`${start.day}, ${start.date}`} />
-            <SummaryRow term={t.window} value={deliveryWindow} />
-            <SummaryRow term={t.perDay} value={money(perDay)} />
-          </dl>
-          <div className="mt-5 flex items-baseline justify-between gap-3 border-t border-ivory/15 pt-4">
-            <span className="text-sm text-ivory/70">{t.total}</span>
-            <span className="font-serif text-3xl tabular-nums">{money(total)}</span>
+        <div className="sticky top-24">
+          <div className="rounded-3xl bg-forest p-6 text-ivory">
+            <p className="label text-gold">{t.summary}</p>
+            <p className="mt-3 font-serif text-3xl">{program.name}</p>
+            <dl className="mt-4 grid gap-2 text-sm">
+              <SummaryRow term={t.level} value={`${variant.kcal} ${t.kcal}`} />
+              <SummaryRow
+                term={t.duration}
+                value={`${duration.days} ${daysWord(duration.days)}${weekdaysOnly ? ` · ${t.weekdaysShort}` : ""}`}
+              />
+              <SummaryRow term={t.start} value={`${start.day}, ${start.date}`} />
+              <SummaryRow term={t.window} value={deliveryWindow} />
+              <SummaryRow term={t.perDay} value={money(perDay)} />
+            </dl>
+            <div className="mt-5 flex items-baseline justify-between gap-3 border-t border-ivory/15 pt-4">
+              <span className="text-sm text-ivory/70">{t.total}</span>
+              <span className="font-serif text-3xl tabular-nums">{money(total)}</span>
+            </div>
+            <button
+              type="submit"
+              disabled={pending}
+              className={`btn btn-gold relative mt-5 w-full ${pending ? "opacity-60" : ""}`}
+            >
+              <ButtonLabel label={t.submit} pending={pending} pendingLabel={t.pending} />
+            </button>
+            <p className="mt-4 text-xs leading-relaxed text-ivory/60">{t.payNote}</p>
           </div>
-          <button
-            type="submit"
-            disabled={pending}
-            className={`btn btn-gold relative mt-5 w-full ${pending ? "opacity-60" : ""}`}
-          >
-            <ButtonLabel label={t.submit} pending={pending} pendingLabel={t.pending} />
-          </button>
-          <p className="mt-4 text-xs leading-relaxed text-ivory/60">{t.payNote}</p>
+          <div className="mt-3 px-2">{help}</div>
         </div>
       </aside>
 
@@ -929,6 +934,7 @@ function Section({
   number,
   title,
   stepLabel,
+  help,
   children,
 }: {
   step: OrderStep;
@@ -936,23 +942,44 @@ function Section({
   number: string;
   title: string;
   stepLabel: string;
+  /** The Telegram line under the heading; phones only (from md it sits once under the summary). */
+  help: ReactNode;
   children: ReactNode;
 }) {
   return (
     <section className={`grid gap-8 border-t border-gold pt-5 ${step === current ? "" : "max-md:hidden"}`}>
-      <h2
-        id={stepHeadingId(step)}
-        tabIndex={-1}
-        className="flex items-baseline gap-3 font-serif text-3xl text-forest focus:outline-none"
-      >
-        <span className="sr-only md:hidden">{stepLabel}: </span>
-        <span className="text-gold" aria-hidden>
-          {number}
-        </span>
-        {title}
-      </h2>
+      <div>
+        <h2
+          id={stepHeadingId(step)}
+          tabIndex={-1}
+          className="flex items-baseline gap-3 font-serif text-3xl text-forest focus:outline-none"
+        >
+          <span className="sr-only md:hidden">{stepLabel}: </span>
+          <span className="text-gold" aria-hidden>
+            {number}
+          </span>
+          {title}
+        </h2>
+        <div className="mt-1 md:hidden">{help}</div>
+      </div>
       {children}
     </section>
+  );
+}
+
+/** A quiet "Questions? Ask in Telegram" line; the link is a 44 px tap target. */
+function HelpLink({ text, link, href }: { text: string; link: string; href: string }) {
+  return (
+    <p className="text-sm text-muted">
+      {text}{" "}
+      <a
+        href={href}
+        rel="noopener"
+        className="inline-flex min-h-11 items-center font-semibold text-forest underline decoration-gold underline-offset-4"
+      >
+        {link}
+      </a>
+    </p>
   );
 }
 

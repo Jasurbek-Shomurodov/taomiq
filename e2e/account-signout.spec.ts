@@ -83,6 +83,8 @@ for (const entry of ["direct load", "link from the menu page"] as const) {
 
     // 1. Signed in: the page shows the customer.
     await expect(page.locator("#account-name")).toHaveValue(fixture.profile.name);
+    // Nothing takes focus on load: the name field waits for the customer.
+    await expect(page.locator("#account-name")).not.toBeFocused();
     await expect(page.getByText(fixture.profile.phone, { exact: true })).toBeVisible();
     await expect(page.getByText(fixture.user.email, { exact: true })).toBeVisible();
     await expect(

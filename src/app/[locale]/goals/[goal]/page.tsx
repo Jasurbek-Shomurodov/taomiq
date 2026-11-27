@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import { FaqList } from "@/components/FaqList";
-import { JsonLd } from "@/components/JsonLd";
 import { MenuDay } from "@/components/MenuDay";
 import { PageTransition } from "@/components/PageTransition";
 import { HowItWorks, Included } from "@/components/ServiceSections";
@@ -13,7 +13,6 @@ import { localized } from "@/lib/data/localized";
 import { lowestPricePerDay, type MenuEntry, type Program } from "@/lib/data/types";
 import { GOAL_PAGES, GOAL_SHARED_FAQ, goalPrograms, isGoalPage } from "@/lib/goal-pages";
 import { pageMetadata } from "@/lib/seo";
-import { breadcrumbList } from "@/lib/structured-data";
 
 /**
  * As on the program pages: the whole page comes out of a static render, so an unknown goal reaches
@@ -80,7 +79,7 @@ export default async function GoalPage({ params }: PageProps<"/[locale]/goals/[g
       href: `/${locale}/goals/${other}`,
       label: t.goals.pages[other].short,
     })),
-    { href: `/${locale}#programs`, label: t.goals.allPrograms },
+    { href: `/${locale}/programs`, label: t.goals.allPrograms },
     { href: `/${locale}/menu`, label: t.nav.menu },
     { href: `/${locale}/quiz`, label: t.quiz.short },
     { href: `/${locale}/calculator`, label: t.nav.calculator },
@@ -90,11 +89,15 @@ export default async function GoalPage({ params }: PageProps<"/[locale]/goals/[g
 
   return (
     <PageTransition>
-      <JsonLd data={breadcrumbList(locale, [{ name: page.title, path: `/goals/${goal}` }])} />
       <section className="bg-forest text-ivory">
-        <div className="hero-enter container-page py-12 md:py-20">
-          <p className="label text-gold">TAOMIQ</p>
-          <h1 className="mt-4 max-w-4xl font-serif text-4xl leading-[1.1] sm:text-5xl md:text-6xl">{page.title}</h1>
+        <div className="hero-enter container-page py-10 md:py-16">
+          {/* "Питание по цели" has no page of its own: a plain crumb, left out of the BreadcrumbList data. */}
+          <Breadcrumbs
+            locale={locale}
+            t={t}
+            trail={[{ name: t.goals.label }, { name: page.short, path: `/goals/${goal}` }]}
+          />
+          <h1 className="mt-5 max-w-4xl font-serif text-4xl leading-[1.1] sm:text-5xl md:text-6xl">{page.title}</h1>
           <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ivory/80">{page.intro}</p>
           {/* .hero-cta: the phone call-to-action bar waits until these buttons scroll away. */}
           <div className="hero-cta mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">

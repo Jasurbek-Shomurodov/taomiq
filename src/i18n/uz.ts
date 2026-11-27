@@ -18,6 +18,8 @@ const uz: Dictionary = {
     cta: "Ratsion tanlash",
     sections: "Boʻlimlar",
     close: "Yopish",
+    home: "Bosh sahifa",
+    breadcrumbs: "Sahifa yoʻli",
   },
   hero: {
     eyebrow: "Premium daily nutrition · Toshkent",
@@ -54,6 +56,23 @@ const uz: Dictionary = {
     priceNote: "30 kunlik buyurtmada bir kunlik narx",
     kcal: "kkal",
     rationLabel: "Ratsion yorligʻi",
+    metaTitle: "Toshkentda yetkazib beriladigan ovqatlanish dasturlari: LIGHT, BALANCE, PROTEIN",
+    metaDescription:
+      "TAOMIQ ovqatlanish dasturlarini solishtiring: kaloriya, kunlik mahallar, oqsil va kunlik narx. Ozish, muvozanatli ovqatlanish va mashgʻulotlar uchun ratsionlar Toshkent boʻylab yetkaziladi.",
+    compareTitle: "Dasturlarni solishtiring",
+    compare: {
+      meals: "Kuniga necha mahal",
+      protein: "Oqsil",
+      price: "Narx",
+      audience: "Kimlar uchun",
+    },
+    choose: "Tanlash",
+    others: "Boshqa dasturlar",
+    profile: {
+      light: { protein: "Moʻtadil", audience: "Ochlik hissisiz vazn tashlamoqchi boʻlganlar uchun" },
+      balance: { protein: "Muvozanatli", audience: "Ovqat tayyorlamasdan har kuni toʻgʻri ovqatlanmoqchi boʻlganlar uchun" },
+      protein: { protein: "Yuqori, har bir mahal ovqatda", audience: "Mashgʻulot qiladigan, mushak oshirish yoki saqlashni istaganlar uchun" },
+    },
     seo: {
       light: {
         title: "ozish uchun ratsion, yetkazib berish bilan",
@@ -81,6 +100,7 @@ const uz: Dictionary = {
       "Har kun uchun sogʻlom menyu: taomlar, grammlar, kaloriya va OYU. LIGHT, BALANCE va PROTEIN dasturlarining 30 kunlik menyusini buyurtmadan oldin koʻring.",
     title: "Menyu",
     lead: "30 kunlik haqiqiy menyu. Uni toʻlovdan oldin koʻrasiz.",
+    leadSoon: "Grammlar, kaloriya va OYU koʻrsatilgan 30 kunlik menyu. Uni ishga tushirishdan oldin eʼlon qilamiz.",
     today: "Bugungi menyu",
     day: "Kun",
     program: "Dastur",
@@ -101,6 +121,8 @@ const uz: Dictionary = {
     full: "30 kunlik toʻliq menyu",
     prevDay: "Oldingi kun",
     nextDay: "Keyingi kun",
+    unpublished: "Menyu ishga tushirishdan oldin eʼlon qilinadi",
+    unpublishedText: "Ratsionni hoziroq tanlash mumkin. Taomlar va tarkibi haqida Telegramda aytib beramiz.",
     badges: { highProtein: "Oqsilga boy", light: "{kcal} kkal gacha" },
   },
   slots: {
@@ -229,6 +251,8 @@ const uz: Dictionary = {
       demo: "Onlayn buyurtma tez orada ochiladi. Hozircha Telegramda yozing — buyurtmani qoʻlda rasmiylashtiramiz.",
       captcha: "Robot emasligingizni tekshirib boʻlmadi. Internetni tekshiring, bir-ikki soniya kutib, tugmani yana bosing; tekshiruv chiqsa, belgilang. Boʻlmasa, Telegramda yozing.",
     },
+    help: "Savollaringiz bormi?",
+    helpLink: "Telegramda soʻrang",
     telegram: "Telegramda yozish",
     success: {
       title: "Buyurtma qabul qilindi",
@@ -236,6 +260,9 @@ const uz: Dictionary = {
       text: "Buyurtma, yetkazib berish vaqti va toʻlovni tasdiqlash uchun ish vaqtida siz bilan bogʻlanamiz.",
       telegram: "Telegramda yozish",
       home: "Bosh sahifaga",
+      nextTitle: "Keyingi qadamlar",
+      menu: "Hozircha menyuni koʻring",
+      join: "Telegramda biz bilan boʻling",
     },
   },
   privacy: {

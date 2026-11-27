@@ -230,14 +230,35 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Text highlight: a light gold tint, the text keeps its own colour (no solid gold block). */
 ::selection {
-  background: var(--color-gold);
-  color: var(--color-forest);
+  background: color-mix(in srgb, var(--color-gold) 35%, transparent);
 }
 
 :focus-visible {
   outline: 2px solid var(--color-gold);
   outline-offset: 2px;
+}
+
+/* Public site text fields: browsers treat every text-input focus as :focus-visible, even a click, so the gold
+   ring above showed on each click, and inside the calculators' unit boxes it sat on the inner input, short of
+   the box (owner, 27 Nov 2026). The field box shows focus instead: forest border plus a soft forest ring.
+   Unlayered, so it beats the rule above; the back office (body.admin) keeps its own kit. Radios, checkboxes and
+   sliders keep their gold keyboard ring. */
+body:not(.admin)
+  :is(input:not([type="radio"], [type="checkbox"], [type="range"]), select, textarea):focus-visible {
+  outline: none;
+}
+body:not(.admin) .field:is(:focus, :focus-within) {
+  border-color: var(--color-forest);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-forest) 15%, transparent);
+  outline: none;
+}
+body:not(.admin) .field[aria-invalid="true"]:is(:focus, :focus-within),
+body:not(.admin) .field:has([aria-invalid="true"]):focus-within {
+  border-color: var(--color-danger);
+  /* A full-strength 2 px ring: an invalid field is already red, so focus needs a clearly stronger signal. */
+  box-shadow: 0 0 0 2px var(--color-danger);
 }
 /* Headings focused by script to orient keyboard and screen-reader users (the quiz's next question) are not
    controls: no ring. */

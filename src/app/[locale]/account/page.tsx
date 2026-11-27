@@ -63,16 +63,13 @@ async function AccountContent({ locale, t }: { locale: Locale; t: Dictionary }) 
         <NameForm locale={locale} name={profile?.name ?? ""} t={a} />
 
         <dl className="mt-8 grid gap-5 border-t border-line pt-6">
-          <Row label={a.phone}>
-            {profile?.phone ? (
-              <>
-                <span className="font-semibold">{profile.phone}</span>
-                {profile.phone_verified && <span className="ml-2 text-sm text-muted">· {a.phoneVerified}</span>}
-              </>
-            ) : (
-              <span className="text-muted">{a.none}</span>
-            )}
-          </Row>
+          {/* No phone (an email or Google sign-in): the row is left out rather than shown as "not set". */}
+          {profile?.phone && (
+            <Row label={a.phone}>
+              <span className="font-semibold">{profile.phone}</span>
+              {profile.phone_verified && <span className="ml-2 text-sm text-muted">· {a.phoneVerified}</span>}
+            </Row>
+          )}
           <Row label={a.emailLabel}>
             {customer.email ? <span className="font-semibold break-all">{customer.email}</span> : <span className="text-muted">{a.none}</span>}
           </Row>
@@ -101,10 +98,8 @@ async function AccountContent({ locale, t }: { locale: Locale; t: Dictionary }) 
         </Suspense>
       </section>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Link href={`/${locale}/order`} className="btn btn-gold min-h-12">
-          {a.orderCta}
-        </Link>
+      {/* The order button lives in the orders card (MyOrders): one call to action per page. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <SignOutButton locale={locale} t={a} />
       </div>
     </div>
@@ -124,9 +119,14 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
   } catch (error) {
     console.error("account: orders read failed", error instanceof Error ? error.message : error);
     return (
-      <p role="alert" className="mt-4 rounded-2xl bg-danger/10 p-4 text-danger">
-        {a.ordersFailed}
-      </p>
+      <>
+        <p role="alert" className="mt-4 rounded-2xl bg-danger/10 p-4 text-danger">
+          {a.ordersFailed}
+        </p>
+        <Link href={`/${locale}/order`} className="btn btn-gold mt-5 min-h-12">
+          {a.orderCta}
+        </Link>
+      </>
     );
   }
 
@@ -177,6 +177,10 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
           </li>
         ))}
       </ul>
+      {/* One order button per page: here under the list, or in the empty or failed state above. */}
+      <Link href={`/${locale}/order`} className="btn btn-gold mt-5 min-h-12">
+        {a.orderCta}
+      </Link>
       {telegramOn && <p className="mt-5 text-sm text-muted">{a.ordersNote}</p>}
     </>
   );

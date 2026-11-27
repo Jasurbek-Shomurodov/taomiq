@@ -15,6 +15,9 @@ const ru = {
     cta: "Выбрать рацион",
     sections: "Разделы",
     close: "Закрыть",
+    /** Breadcrumbs: the first crumb, and the name of the breadcrumb navigation for screen readers. */
+    home: "Главная",
+    breadcrumbs: "Навигационная цепочка",
   },
   hero: {
     eyebrow: "Premium daily nutrition · Ташкент",
@@ -53,6 +56,26 @@ const ru = {
     kcal: "ккал",
     /** Name of the ration label figure in the hero (RationLabel), for screen readers. */
     rationLabel: "Этикетка рациона",
+    /** /programs: the overview page with every program and a comparison. Its h1 and lead are `title` and `lead`. */
+    metaTitle: "Программы питания с доставкой в Ташкенте: LIGHT, BALANCE, PROTEIN",
+    metaDescription:
+      "Сравните программы питания TAOMIQ: калорийность, приёмы пищи, белок и цена в день. Рационы для похудения, сбалансированного питания и тренировок с доставкой по Ташкенту.",
+    compareTitle: "Сравните программы",
+    compare: {
+      meals: "Приёмов пищи в день",
+      protein: "Белок",
+      price: "Цена",
+      audience: "Для кого",
+    },
+    choose: "Выбрать",
+    /** Program page: the sibling programs. */
+    others: "Другие программы",
+    /** Per program slug, for the comparison; a program added later in admin shows its tagline instead. */
+    profile: {
+      light: { protein: "Умеренный", audience: "Тем, кто снижает вес без чувства голода" },
+      balance: { protein: "Сбалансированный", audience: "Тем, кто хочет питаться правильно каждый день без готовки" },
+      protein: { protein: "Высокий, в каждом приёме пищи", audience: "Тем, кто тренируется и набирает или сохраняет мышцы" },
+    } as Record<string, { protein: string; audience: string } | undefined>,
     /** Per program slug: title after the program name, meta description, subtitle under the h1. */
     seo: {
       light: {
@@ -81,6 +104,8 @@ const ru = {
       "Меню правильного питания на каждый день: блюда, граммовки, калории и БЖУ. Посмотрите меню программ LIGHT, BALANCE и PROTEIN на 30 дней до заказа.",
     title: "Меню",
     lead: "Реальное меню на 30 дней. Вы видите его до оплаты.",
+    /** The lead while no calorie level has dishes yet: no "you see it before paying" claim. */
+    leadSoon: "Меню на 30 дней с граммовками, калориями и БЖУ. Публикуем его перед запуском.",
     today: "Сегодня в меню",
     day: "День",
     program: "Программа",
@@ -101,6 +126,9 @@ const ru = {
     full: "Всё меню на 30 дней",
     prevDay: "Предыдущий день",
     nextDay: "Следующий день",
+    /** /menu, when the chosen calorie level has no dishes on any day yet. */
+    unpublished: "Меню публикуется перед запуском",
+    unpublishedText: "Рацион можно выбрать уже сейчас. О блюдах и составе расскажем в Telegram.",
     /** Dish badges, from the portion's own numbers (src/lib/data/badges.ts). {kcal}: the threshold. */
     badges: { highProtein: "Много белка", light: "До {kcal} ккал" },
   },
@@ -235,6 +263,9 @@ const ru = {
       demo: "Онлайн-оформление откроется совсем скоро. А пока напишите нам в Telegram — оформим заказ вручную.",
       captcha: "Не удалось проверить, что вы не робот. Проверьте интернет, подождите пару секунд и нажмите кнопку ещё раз; если появится проверка, отметьте её. Не получается — напишите нам в Telegram.",
     },
+    /** Under each step heading (phones) and under the summary (desktop). */
+    help: "Есть вопросы?",
+    helpLink: "Спросите в Telegram",
     telegram: "Написать в Telegram",
     success: {
       title: "Заказ принят",
@@ -242,6 +273,10 @@ const ru = {
       text: "Мы свяжемся с вами в рабочее время, чтобы подтвердить заказ, время доставки и оплату.",
       telegram: "Написать в Telegram",
       home: "На главную",
+      /** Next steps after the order number: `text`, then the menu (when it has dishes), then Telegram. */
+      nextTitle: "Что дальше",
+      menu: "А пока посмотрите меню",
+      join: "Присоединяйтесь к нам в Telegram",
     },
   },
   privacy: {

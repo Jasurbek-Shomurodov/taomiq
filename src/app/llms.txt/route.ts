@@ -68,6 +68,7 @@ export async function GET() {
     "## Key pages",
     "",
     `- Home: ${everyLocale("")}`,
+    `- All programs compared (calorie levels, meals per day, protein, price per day, who each is for): ${everyLocale("/programs")}`,
     `- 30-day menu: ${everyLocale("/menu")}`,
     `- All prices (every program, calorie level and order length): ${everyLocale("/prices")}`,
     `- Program finder (three questions: goal, activity, sex, age, height and weight; recommends a program, calorie level and price per day): ${everyLocale("/quiz")}`,

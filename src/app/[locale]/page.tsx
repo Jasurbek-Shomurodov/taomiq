@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ViewTransition } from "react";
 import { FaqList } from "@/components/FaqList";
 import { MenuDay } from "@/components/MenuDay";
 import { PageTransition } from "@/components/PageTransition";
+import { ProgramCards } from "@/components/ProgramCards";
 import { RationLabel } from "@/components/RationLabel";
 import { HowItWorks, Included } from "@/components/ServiceSections";
 import { getDictionary } from "@/i18n";
@@ -42,7 +42,8 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   const featuredVariant = featured?.variants[0];
   const today = await getTodayCycleDay();
   const todayMenu = featuredVariant ? await getMenuDay(featuredVariant.id, today) : [];
-  // While the cook is still filling the cycle, fall back to day 1 so the section is never empty.
+  // While the cook is still filling the cycle, fall back to day 1. With no dishes on either day the section is left
+  // out: an empty box where the proof should be says less than nothing.
   const preview = todayMenu.length > 0 || !featuredVariant ? todayMenu : await getMenuDay(featuredVariant.id, 1);
   // The hero's ration label carries that day's totals only when the day is complete (every meal of the level is
   // on the menu): a half-filled day would print a total the customer never gets.
@@ -147,85 +148,13 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
           <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.programs.title}</h2>
           <p className="mt-3 max-w-2xl text-muted">{t.programs.lead}</p>
 
-          {/* Phones: a snap row, each card 85 % wide so the next one peeks in (dots where the browser
-              draws ::scroll-marker). From md: the three-column grid. The whole card links to the
-              program page; the menu link sits above that. */}
-          <ul className="program-row reveal -mx-5 mt-10 flex snap-x snap-mandatory scroll-px-5 gap-4 overflow-x-auto px-5 pb-2 md:mx-0 md:grid md:snap-none md:grid-cols-3 md:gap-5 md:overflow-visible md:px-0 md:pb-0">
-            {programs.map((program) => {
-              const from = Math.min(...program.variants.map((v) => v.price_per_day));
-              const tagline = localized(program, "tagline", locale);
-              return (
-                <li
-                  key={program.id}
-                  className="press lift relative flex w-[85%] shrink-0 snap-start flex-col rounded-3xl bg-forest p-7 text-ivory md:w-auto"
-                >
-                  {/* The cover photo fills the top of the card, edge to edge, with the card's radius. Without one
-                      the card is text only; cards stretch to one height in the row and the grid either way. */}
-                  {program.photo_url && (
-                    <div className="zoom relative -mx-7 -mt-7 mb-7 aspect-[3/2] rounded-t-3xl">
-                      <Image
-                        src={program.photo_url}
-                        alt={`${program.name} — ${tagline}`}
-                        fill
-                        sizes="(min-width: 768px) 33vw, 85vw"
-                        className="object-cover"
-                      />
-                    </div>
-                  )}
-                  <span className="h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
-                  <p className="label mt-5 text-ivory/60">TAOMIQ</p>
-                  <h3 className="font-serif text-4xl">
-                    <Link
-                      href={`/${locale}/programs/${program.slug}`}
-                      className="after:absolute after:inset-0 after:rounded-3xl after:content-['']"
-                    >
-                      {/* The name grows into the program page's h1 (globals.css, .program-morph). The span
-                          is the named box, so the link's card-wide ::after stays out of the snapshot. */}
-                      <ViewTransition name={`program-name-${program.slug}`} share="program-morph" default="none">
-                        <span className="inline-block">{program.name}</span>
-                      </ViewTransition>
-                    </Link>
-                  </h3>
-                  <p className="mt-1 text-gold">{tagline}</p>
-                  <p className="mt-4 text-sm leading-relaxed text-ivory/75">
-                    {localized(program, "description", locale)}
-                  </p>
-
-                  <p className="label mt-6 text-ivory/60">{t.programs.levels}</p>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {program.variants.map((variant) => (
-                      <span key={variant.id} className="rounded-full border border-ivory/25 px-3 py-1 text-sm tabular-nums">
-                        {variant.kcal} {t.programs.kcal}
-                      </span>
-                    ))}
-                  </div>
-
-                  <p className="mt-6 text-sm text-ivory/70">
-                    {t.hero.from}{" "}
-                    <span className="font-serif text-2xl text-ivory">{formatSum(from)}</span> {t.hero.perDay}
-                  </p>
-                  <div className="mt-auto flex flex-wrap gap-2 pt-6">
-                    {/* Looks like a button; the tap target is the whole card (the link on the name). */}
-                    <span aria-hidden className="btn btn-gold !px-5 !py-2.5 !text-sm">
-                      {t.programs.details}
-                    </span>
-                    <Link
-                      href={`/${locale}/menu?program=${program.slug}`}
-                      className="btn btn-outline relative z-10 !px-5 !py-2.5 !text-sm text-ivory"
-                    >
-                      {t.programs.viewMenu}
-                    </Link>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
+          <ProgramCards programs={programs} locale={locale} t={t} />
           <p className="mt-4 text-sm text-muted">{t.programs.priceNote}</p>
         </div>
       </section>
 
       {/* Today's menu */}
-      {featured && featuredVariant && (
+      {featured && featuredVariant && preview.length > 0 && (
         <section className="container-page py-16 md:py-20">
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>

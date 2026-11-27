@@ -7,10 +7,10 @@ import { GOAL_PROGRAM, isGoalPage } from "@/lib/goal-pages";
 
 /**
  * Pages without the bar: the order flow, the calculator's own result bar (.calc-bar), the other
- * calculators under /calculator/…, whose next step sits under their result, and the program finder (/quiz),
- * which pins its own Continue button.
+ * calculators under /calculator/…, whose next step sits under their result, the program finder (/quiz),
+ * which pins its own Continue button, and sign-in and the account page (/login, /account), which are not selling.
  */
-const OWN_ACTION = /^\/[^/]+\/(order|calculator|quiz)(\/|$)/;
+const OWN_ACTION = /^\/[^/]+\/(order|calculator|quiz|login|account)(\/|$)/;
 const PROGRAM_PAGE = /^\/[^/]+\/programs\/([^/]+)\/?$/;
 const GOAL_PAGE = /^\/[^/]+\/goals\/([^/]+)\/?$/;
 

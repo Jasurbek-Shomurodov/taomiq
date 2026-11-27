@@ -16,7 +16,9 @@ const ROUTES = [
   // A late day: the day picker has to scroll its own row to show it, never the page.
   "/ru/menu?program=balance&kcal=1800&day=24",
   "/ru/prices",
+  "/ru/programs",
   "/ru/programs/balance",
+  "/ru/goals/weight-loss",
   "/ru/delivery",
   "/ru/faq",
   "/ru/quiz",

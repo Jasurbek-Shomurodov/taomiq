@@ -98,6 +98,25 @@ export function programPriceList(
   };
 }
 
+/**
+ * The programs overview (/programs): a summary list of the program pages, each item only its name and URL. The
+ * Product nodes with their Offers stay on the program pages and /prices.
+ */
+export function programList(programs: Pick<Program, "slug" | "name">[], locale: Locale, name: string) {
+  return {
+    "@context": CONTEXT,
+    "@type": "ItemList",
+    name,
+    url: `${site.url}/${locale}/programs`,
+    itemListElement: programs.map((program, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: `${site.name} ${program.name}`,
+      url: `${site.url}/${locale}/programs/${program.slug}`,
+    })),
+  };
+}
+
 function programProductNode(program: Program, durations: Duration[], locale: Locale, kcalWord: string) {
   const url = `${site.url}/${locale}/programs/${program.slug}`;
   const offers = program.variants.flatMap((variant) =>
