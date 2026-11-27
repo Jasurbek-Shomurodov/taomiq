@@ -5,6 +5,7 @@ import {
   POSTHOG_ASSETS_HOST,
   isAnalyticsEnabled,
 } from "./src/lib/analytics/config";
+import { locales } from "./src/i18n/config";
 
 const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
@@ -48,6 +49,17 @@ const nextConfig: NextConfig = {
       { source: `${ANALYTICS_PATH}/static/:path*`, destination: `${POSTHOG_ASSETS_HOST}/static/:path*`, ...publicHost },
       { source: `${ANALYTICS_PATH}/array/:path*`, destination: `${POSTHOG_ASSETS_HOST}/array/:path*`, ...publicHost },
       { source: `${ANALYTICS_PATH}/:path*`, destination: `${POSTHOG_API_HOST}/:path*`, ...publicHost },
+    ];
+  },
+  // The protein, BMI, water and body goal tools were merged into the one calculator (docs/plans/site-ux-navigation-pass.md,
+  // slice 4): their old addresses, in every locale, move to it for good (308), so links and search results keep working.
+  async redirects() {
+    return [
+      {
+        source: `/:locale(${locales.join("|")})/calculator/:tool(protein|bmi|water|body)`,
+        destination: "/:locale/calculator",
+        permanent: true,
+      },
     ];
   },
   // PostHog's endpoints end in a slash (/k7r2/e/); Next.js would redirect them to the slash-less path. With this off,

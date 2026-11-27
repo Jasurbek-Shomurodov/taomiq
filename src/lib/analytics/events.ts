@@ -15,10 +15,11 @@ export type ClientEvents = {
   order_failed: { reason: "field-error" | "server" | "turnstile" };
   /** Quiz: the result was shown. */
   quiz_completed: { goal: string; program: string };
-  /** Calculator: a result was shown (once per visit). */
-  calculator_used: { kcal: number };
-  /** Body goal calculator (/calculator/body): a settled result was shown (once per visit). */
-  body_calculator_used: { kcal: number; direction: "lose" | "tone" | "keep" | "gain" };
+  /**
+   * Calculator: a settled result was shown after the visitor changed something (the prefilled example alone never
+   * counts), once per visit.
+   */
+  calculator_used: { kcal: number; direction: "lose" | "tone" | "keep" | "gain" };
   /** Account page: first render after signing in. */
   signed_in: { method: string };
 };

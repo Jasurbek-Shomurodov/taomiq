@@ -1,15 +1,14 @@
-import Link from "next/link";
 import type { ReactNode } from "react";
+import { Breadcrumbs } from "@/components/Breadcrumbs";
 import type { Dictionary } from "@/i18n";
 import type { Locale } from "@/i18n/config";
-import { CALCULATOR_TOOLS, type CalculatorTool } from "@/lib/calculator";
+import type { CalculatorProgram } from "@/lib/calculator";
 import { getDurations, getPrograms } from "@/lib/data/catalog";
 import { pricePerDay } from "@/lib/data/types";
-import type { CalculatorProgram } from "./Calculator";
 
 /**
- * The calculator suite's shared server parts: the catalogue as the calculators need it, the tab row between
- * the four calculators, the hero and the "how we calculate" section.
+ * The calculator's shared server parts (also used by the quiz): the catalogue as the calculator needs it, the
+ * hero and the "how we calculate" section.
  */
 
 /** Programs with their levels and lowest price per day. Empty when the catalogue cannot be read. */
@@ -37,66 +36,14 @@ export async function getCalculatorPrograms(): Promise<CalculatorProgram[]> {
   }
 }
 
-/** The calorie calculator, then the tools; real links, the current one marked. Scrolls sideways on narrow phones. */
-export function CalculatorTabs({
-  locale,
-  t,
-  current,
-}: {
-  locale: Locale;
-  t: Dictionary;
-  current: "calories" | CalculatorTool;
-}) {
-  const tabs = [
-    { key: "calories" as const, href: `/${locale}/calculator` },
-    ...CALCULATOR_TOOLS.map((tool) => ({ key: tool, href: `/${locale}/calculator/${tool}` })),
-  ];
-  return (
-    <nav aria-label={t.calcTools.crumb} className="-mx-5 overflow-x-auto px-5 [scrollbar-width:none] sm:mx-0 sm:px-0">
-      <ul className="flex w-max gap-2">
-        {tabs.map((tab) => {
-          const active = tab.key === current;
-          return (
-            <li key={tab.key}>
-              <Link
-                href={tab.href}
-                aria-current={active ? "page" : undefined}
-                className={`press inline-flex min-h-11 items-center whitespace-nowrap rounded-full border px-4 text-sm font-semibold ${
-                  active ? "border-gold bg-gold text-forest" : "border-ivory/30 text-ivory/85 hover:border-ivory hover:text-ivory"
-                }`}
-              >
-                {t.calcTools.tabs[tab.key]}
-              </Link>
-            </li>
-          );
-        })}
-      </ul>
-    </nav>
-  );
-}
-
-export function CalculatorHero({
-  locale,
-  t,
-  current,
-  title,
-  lead,
-}: {
-  locale: Locale;
-  t: Dictionary;
-  current: "calories" | CalculatorTool;
-  title: string;
-  lead: string;
-}) {
+/** The forest hero: Home › Calculator, the h1 and the lead. Also states the BreadcrumbList structured data. */
+export function CalculatorHero({ locale, t, title, lead }: { locale: Locale; t: Dictionary; title: string; lead: string }) {
   return (
     <section className="bg-forest text-ivory">
-      <div className="container-page pb-12 pt-6 md:pb-16 md:pt-8">
-        <CalculatorTabs locale={locale} t={t} current={current} />
-        <div className="hero-enter mt-8 md:mt-10">
-          <p className="label text-gold">TAOMIQ</p>
-          <h1 className="mt-3 font-serif text-4xl md:text-6xl">{title}</h1>
-          <p className="mt-3 max-w-xl text-lg text-ivory/80">{lead}</p>
-        </div>
+      <div className="container-page py-10 md:py-14">
+        <Breadcrumbs locale={locale} t={t} trail={[{ name: t.nav.calculator, path: "/calculator" }]} />
+        <h1 className="hero-enter mt-5 font-serif text-4xl md:text-6xl">{title}</h1>
+        <p className="mt-3 max-w-2xl text-lg text-ivory/80">{lead}</p>
       </div>
     </section>
   );

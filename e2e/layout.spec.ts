@@ -23,7 +23,7 @@ const ROUTES = [
   "/ru/faq",
   "/ru/quiz",
   "/ru/calculator",
-  "/ru/calculator/body",
+  "/uzc/calculator",
   "/uz",
   "/uzc/menu",
 ];

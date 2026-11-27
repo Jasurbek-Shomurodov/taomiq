@@ -18,8 +18,8 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/quiz">):
 }
 
 /**
- * The program finder: three questions, then the recommended program and calorie level from the calculator's own
- * formula, with the catalogue price and a pre-filled order link. Below it, how the number is worked out.
+ * The program finder: three questions, then the recommended program and calorie level (src/lib/calculator.ts),
+ * with the catalogue price and a pre-filled order link. Below it, how the number is worked out.
  */
 export default async function QuizPage({ params }: PageProps<"/[locale]/quiz">) {
   const { locale } = await params;

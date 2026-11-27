@@ -20,12 +20,12 @@ import {
   calculate,
   recommend,
   type Activity,
+  type CalculatorProgram,
   type Goal,
   type NumericField,
   type Sex,
 } from "@/lib/calculator";
 import { useCountUp } from "@/lib/use-count-up";
-import type { CalculatorProgram } from "../calculator/Calculator";
 import { NumberField, useNumberFields } from "../calculator/fields";
 
 type Props = {
@@ -52,8 +52,8 @@ const BODY_FIELDS: readonly NumericField[] = ["age", "height", "weight"];
 
 /**
  * The program finder: goal, activity, then sex / age / height / weight on one screen, then the result from the
- * calculator's own formula and recommendation (src/lib/calculator.ts). Answers live in component state; the step
- * lives in the URL hash. A reload starts over (the answers are gone), so a hash on arrival is dropped.
+ * quiz's calorie estimate, the calculator's protein rule and its recommendation (src/lib/calculator.ts). Answers
+ * live in component state; the step lives in the URL hash. A reload starts over (the answers are gone), so a hash on arrival is dropped.
  */
 export function Quiz({ locale, t, c, programs, telegramUrl }: Props) {
   const [requested, setRequested] = useState<Step>(0);

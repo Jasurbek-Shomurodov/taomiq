@@ -1,9 +1,10 @@
 /**
- * Body goal calculator (/calculator/body): the visitor sets sex, age, height, weight and how muscular they
- * are now, and the weight and muscularity they want, and gets calories, macros, fibre, water, a calm pace
- * and the adult reference intakes of key vitamins and minerals. Pure functions, no UI; plan in
+ * The calculator (/calculator): the visitor sets sex, age, height, weight and how muscular they are now, and
+ * the weight and muscularity they want, and gets calories, macros, water, BMI, fibre, a calm pace and the adult
+ * reference intakes of key vitamins and minerals. Pure functions, no UI; plans in
  * docs/plans/body-goal-calculator.md (§0 replaces the body-type pictures with one figure per side that
- * morphs with the sliders, src/components/BodyFigure.tsx).
+ * morphs with the sliders, src/components/BodyFigure.tsx) and docs/plans/site-ux-navigation-pass.md (slice 4:
+ * the one calculator, prefilled).
  *
  * Every number here is an estimate for healthy adults (18–80) choosing a ration, not a medical or
  * diet prescription.
@@ -12,9 +13,15 @@
 import {
   ACTIVITY_FACTOR,
   BMI_NORMAL,
+  PROTEIN_G_PER_KG_FOR_GOAL,
+  PROTEIN_MAX_PER_KG,
   RANGES,
+  bodyMassIndex,
+  referenceWeight,
+  splitMacros,
   waterNeed,
   type Activity,
+  type BmiResult,
   type Goal,
   type Sex,
   type WaterResult,
@@ -72,6 +79,26 @@ export const BODY_FAT_BANDS: Record<Sex, Record<BodyShape, BodyFatBand>> = {
     soft: { min: 32, max: 38 },
     heavy: { min: 39, max: null },
   },
+};
+
+/**
+ * What the calculator opens with, so a result shows on first paint (an example the page labels as such; every
+ * value can be changed). The goal weight starts at `suggestGoalWeight()` for this height and weight.
+ */
+export const CALCULATOR_DEFAULTS = {
+  sex: "female",
+  age: 30,
+  height: 165,
+  weight: 64, // BMI 23.5: the example reads as a normal weight
+  muscularity: "average",
+  activity: "light",
+} as const satisfies {
+  sex: Sex;
+  age: number;
+  height: number;
+  weight: number;
+  muscularity: Muscularity;
+  activity: Activity;
 };
 
 const round1 = (value: number) => Math.round(value * 10) / 10;
@@ -259,35 +286,17 @@ export const DIRECTION_GOAL: Record<Direction, Goal> = {
    --------------------------------------------------------------------------------------- */
 
 /**
- * Protein (and fat) per kg of the **reference weight** (`referenceWeight()`): 1.6 g/kg is where
- * muscle gains plateau (Morton et al., Br J Sports Med 2018); 2.0 in a deficit keeps muscle
- * (Helms et al., JISSN 2014, 1.8–2.2). A "muscular" goal adds 0.2; never above 2.2 (Morton's upper range).
+ * Protein per kg of the reference weight (`referenceWeight()` in src/lib/calculator.ts), by direction: the one
+ * rule the quiz uses too (`PROTEIN_G_PER_KG_FOR_GOAL`): 2.0 g/kg to lose or tone, 1.6 to keep or gain. A
+ * "muscular" goal adds 0.2, never above PROTEIN_MAX_PER_KG (2.0). Fat and carbs: `splitMacros()`.
  */
-export const PROTEIN_G_PER_KG: Record<Direction, number> = { lose: 2.0, tone: 2.0, keep: 1.6, gain: 1.6 };
+export const PROTEIN_G_PER_KG: Record<Direction, number> = {
+  lose: PROTEIN_G_PER_KG_FOR_GOAL[DIRECTION_GOAL.lose],
+  tone: PROTEIN_G_PER_KG_FOR_GOAL[DIRECTION_GOAL.tone],
+  keep: PROTEIN_G_PER_KG_FOR_GOAL[DIRECTION_GOAL.keep],
+  gain: PROTEIN_G_PER_KG_FOR_GOAL[DIRECTION_GOAL.gain],
+};
 export const MUSCULAR_PROTEIN_EXTRA = 0.2;
-export const PROTEIN_CAP_G_PER_KG = 2.2;
-/** If carbs would fall under the RDA (130 g, below), protein may drop to this, never lower. */
-export const PROTEIN_MIN_G_PER_KG = 1.6;
-/**
- * Fat: 0.8 g per kg of the reference weight, kept within 25–35 % of calories (35 % is the top of the adult
- * Acceptable Macronutrient Distribution Range, National Academies 2002/2005).
- */
-export const FAT_G_PER_KG = 0.8;
-export const FAT_MIN_SHARE = 0.25;
-export const FAT_MAX_SHARE = 0.35;
-/** Carbohydrate RDA for adults (National Academies DRI, 2002/2005): the brain's minimum glucose. */
-export const CARBS_MIN_G = 130;
-/** The reference weight is never above the weight at this BMI (an adjusted body weight). */
-export const REFERENCE_MAX_BMI = 25;
-
-/**
- * The weight the grams per kg apply to: the lower of today's and the goal weight, capped at the BMI 25 weight
- * for the height (an adjusted body weight). A heavier body or a far-off goal does not inflate protein and fat.
- */
-export function referenceWeight(input: { height: number; weight: number; goalWeight: number }): number {
-  const cap = REFERENCE_MAX_BMI * (input.height / 100) ** 2;
-  return Math.min(input.weight, input.goalWeight, cap);
-}
 
 /** Fibre Adequate Intake: 14 g per 1,000 kcal (National Academies DRI, 2002/2005). */
 export const FIBRE_G_PER_1000_KCAL = 14;
@@ -486,6 +495,8 @@ export type BodyGoalResult = {
   /** Protein actually used, g per kg of the reference weight, one decimal. */
   proteinPerKg: number;
   water: WaterResult;
+  /** BMI now, its WHO class and the normal weight range for the height. */
+  bmi: BmiResult;
   micronutrients: MicronutrientValue[];
 };
 
@@ -551,28 +562,16 @@ export function calculateBodyGoal(input: BodyGoalInput): BodyGoalResult {
     };
   }
 
-  // Macros (§3.4): protein and fat per kg of the reference weight, fat within 25–35 % of calories, carbs
-  // the rest. If carbs would fall under their RDA, fat gives way first (down to 25 %), then protein (down to
-  // PROTEIN_MIN_G_PER_KG); a very low calorie level can still leave carbs under 130 g. Whatever happens,
-  // protein and fat never add up to more than the calories: fat drops to its 25 % floor, then protein, so
-  // carbs are never negative and the three add up to the calories.
+  // Macros (§3.4): the shared rule in src/lib/calculator.ts.
   const refWeight = referenceWeight({ height, weight, goalWeight });
-  const proteinPerKgTarget = Math.min(
-    PROTEIN_G_PER_KG[direction] + (goalMuscularity === "muscular" ? MUSCULAR_PROTEIN_EXTRA : 0),
-    PROTEIN_CAP_G_PER_KG,
-  );
-  const fatMin = (FAT_MIN_SHARE * kcal) / 9;
-  const fatMax = (FAT_MAX_SHARE * kcal) / 9;
-  let fatGrams = clamp(FAT_G_PER_KG * refWeight, fatMin, fatMax);
-  let proteinGrams = proteinPerKgTarget * refWeight;
-  const carbGap = () => CARBS_MIN_G - (kcal - 4 * proteinGrams - 9 * fatGrams) / 4;
-  if (carbGap() > 0) fatGrams = Math.max(fatMin, fatGrams - (carbGap() * 4) / 9);
-  if (carbGap() > 0) proteinGrams = Math.max(PROTEIN_MIN_G_PER_KG * refWeight, proteinGrams - carbGap());
-  if (4 * proteinGrams + 9 * fatGrams > kcal) fatGrams = Math.min(fatGrams, fatMin);
-  if (4 * proteinGrams + 9 * fatGrams > kcal) proteinGrams = Math.max(0, (kcal - 9 * fatGrams) / 4);
-  const protein = Math.round(proteinGrams);
-  const fat = Math.round(fatGrams);
-  const carbs = Math.max(0, Math.round((kcal - 4 * protein - 9 * fat) / 4));
+  const macros = splitMacros({
+    kcal,
+    referenceWeight: refWeight,
+    proteinPerKg: Math.min(
+      PROTEIN_G_PER_KG[direction] + (goalMuscularity === "muscular" ? MUSCULAR_PROTEIN_EXTRA : 0),
+      PROTEIN_MAX_PER_KG,
+    ),
+  });
 
   return {
     bodyFat: round1(bodyFat),
@@ -590,13 +589,14 @@ export function calculateBodyGoal(input: BodyGoalInput): BodyGoalResult {
     kcalFloor,
     weeklyKg: pace === null ? null : Math.round(pace * 100) / 100,
     timeline,
-    protein,
-    fat,
-    carbs,
+    protein: macros.protein,
+    fat: macros.fat,
+    carbs: macros.carbs,
     fibre: Math.round((kcal / 1000) * FIBRE_G_PER_1000_KCAL),
     referenceWeight: round1(refWeight),
-    proteinPerKg: round1(proteinGrams / refWeight),
+    proteinPerKg: macros.proteinPerKg,
     water: waterNeed({ weight, activity }),
+    bmi: bodyMassIndex({ height, weight }),
     micronutrients: micronutrients(sex, age),
   };
 }

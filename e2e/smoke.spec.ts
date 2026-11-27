@@ -1,5 +1,12 @@
-import { bodyMassIndex, calculate, formatDecimal, proteinNeed, recommend, waterNeed } from "../src/lib/calculator";
-import { DIRECTION_GOAL, calculateBodyGoal, maxGoalWeight, minGoalWeight, suggestGoalWeight } from "../src/lib/body-goal";
+import { PROTEIN_MAX_PER_KG, calculate, formatDecimal, largestLevelFarBelow, recommend } from "../src/lib/calculator";
+import {
+  CALCULATOR_DEFAULTS,
+  DIRECTION_GOAL,
+  calculateBodyGoal,
+  maxGoalWeight,
+  minGoalWeight,
+  suggestGoalWeight,
+} from "../src/lib/body-goal";
 import { GOAL_PAGES, GOAL_PROGRAM } from "../src/lib/goal-pages";
 import { demoDurations, demoPrograms } from "../src/lib/data/demo";
 import { pricePerDay } from "../src/lib/data/types";
@@ -187,30 +194,158 @@ for (const locale of locales) {
   });
 }
 
-test("calculator gives a daily norm and a matching program", async ({ page }) => {
-  const t = ru.calculator;
-  await page.goto("/ru/calculator");
-
-  await choose(page, t.female);
-  await page.getByLabel(t.age, { exact: true }).fill("30");
-  await page.getByLabel(t.height, { exact: true }).fill("165");
-  await page.getByLabel(t.weight, { exact: true }).fill("60");
-  await choose(page, t.activities.moderate.title);
-  await choose(page, t.goals.maintain.title);
-
-  const result = calculate({ sex: "female", age: 30, height: 165, weight: 60, activity: "moderate", goal: "maintain" });
-  const plan = recommend(demoPrograms, result.kcal, "maintain");
-  expect(plan).not.toBeNull();
-
-  // The screen-reader summary carries the final numbers (the big figure counts up to them).
+test("calculator opens with an example result, then follows the sliders to calories, BMI, a program and vitamins", async ({
+  page,
+}) => {
+  const c = ru.calculator;
+  const tool = ru.bodyGoal;
   const summary = page.locator('[aria-live="polite"]');
-  await expect(summary).toContainText(`${t.resultLabel}: ${formatSum(result.kcal)} ${t.kcal}.`);
-  await expect(summary).toContainText(`${t.planLabel}: ${plan!.program.name} ${plan!.variant.kcal}.`);
-  await expect(page.getByText(t.planLabel, { exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: t.order })).toHaveAttribute(
+
+  await page.goto("/ru/calculator");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(c.title);
+  await expect(page.getByRole("navigation", { name: ru.nav.breadcrumbs }).getByText(ru.nav.calculator)).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  expect(await jsonLdTypes(page)).toContain("BreadcrumbList");
+
+  // The example (CALCULATOR_DEFAULTS) is filled in and labelled, and its result shows without any input.
+  const d = CALCULATOR_DEFAULTS;
+  await expect(page.getByText(tool.example)).toBeVisible();
+  await expect(page.getByRole("radio", { name: c.female })).toBeChecked();
+  await expect(page.getByLabel(c.age, { exact: true })).toHaveValue(String(d.age));
+  await expect(page.getByLabel(c.height, { exact: true })).toHaveValue(String(d.height));
+  await expect(page.getByLabel(c.weight, { exact: true })).toHaveValue(String(d.weight));
+  await expect(page.getByRole("radio", { name: c.activities[d.activity].title })).toBeChecked();
+  const exampleGoal = suggestGoalWeight({ height: d.height, weight: d.weight });
+  await expect(page.getByLabel(tool.goalWeight, { exact: true })).toHaveValue(String(exampleGoal));
+  const example = calculateBodyGoal({ ...d, goalWeight: exampleGoal });
+  await expect(summary).toContainText(`${tool.resultLabel}: ${formatSum(example.kcal)} ${c.kcal}.`);
+  await expect(summary).toContainText(`${tool.bmi}: ${formatDecimal(example.bmi.bmi)} · ${tool.bmiCategories[example.bmi.category]}.`);
+  await expect(page.getByText(tool.ageNote.replace("{min}", "18").replace("{max}", "80"))).toBeVisible();
+
+  // Analytics: the untouched example is never counted; the first settled result after a change is (once).
+  const usedFlag = () => page.evaluate(() => sessionStorage.getItem("taomiq:calculator_used"));
+  await page.waitForTimeout(2000);
+  expect(await usedFlag()).toBeNull();
+
+  await page.getByLabel(c.weight, { exact: true }).fill("80");
+  // + nudges the slider by one.
+  await page.getByRole("button", { name: tool.more.replace("{label}", c.weight) }).click();
+  await expect(page.getByLabel(c.weight, { exact: true })).toHaveValue("81");
+  await choose(page, c.activities.moderate.title);
+  await expect.poll(usedFlag, { timeout: 5000 }).toBe("1");
+
+  // The goal slider follows the new height and weight until it is moved.
+  const goalWeight = suggestGoalWeight({ height: 165, weight: 81 });
+  await expect(page.getByLabel(tool.goalWeight, { exact: true })).toHaveValue(String(goalWeight));
+  const result = calculateBodyGoal({
+    sex: "female",
+    age: 30,
+    height: 165,
+    weight: 81,
+    activity: "moderate",
+    muscularity: "average",
+    goalWeight,
+  });
+  const plan = recommend(demoPrograms, result.kcal, DIRECTION_GOAL[result.direction]);
+  expect(plan).not.toBeNull();
+  await expect(summary).toContainText(`${tool.resultLabel}: ${formatSum(result.kcal)} ${c.kcal}.`);
+  await expect(summary).toContainText(`${c.protein} ${result.protein} ${c.grams}`);
+  await expect(summary).toContainText(`${tool.bmi}: ${formatDecimal(result.bmi.bmi)} · ${tool.bmiCategories[result.bmi.category]}.`);
+  await expect(summary).toContainText(`${tool.direction}: ${tool.directions[result.direction]}.`);
+  await expect(summary).toContainText(`${c.planLabel}: ${plan!.program.name} ${plan!.variant.kcal}.`);
+  await expect(page.getByRole("link", { name: c.order })).toHaveAttribute(
     "href",
     `/ru/order?program=${plan!.program.slug}&kcal=${plan!.variant.kcal}`,
   );
+
+  // The goal weight stops at BMI 18.5 and says why…
+  const min = minGoalWeight(165);
+  await page.getByLabel(tool.goalWeight, { exact: true }).fill("40");
+  await expect(page.getByLabel(tool.goalWeight, { exact: true })).toHaveValue(String(min));
+  await expect(page.getByText(tool.goalMin.replace("{min}", String(min)))).toBeVisible();
+  // …and above, at the higher of today's weight and the BMI 30 weight.
+  await page.getByLabel(tool.goalWeight, { exact: true }).fill("200");
+  await expect(page.getByLabel(tool.goalWeight, { exact: true })).toHaveValue(String(maxGoalWeight(165, 81)));
+
+  // At the end of its range a slider says what the range is.
+  await page.getByLabel(c.height, { exact: true }).fill("140");
+  await expect(page.getByText(tool.rangeNote.replace("{min}", "140").replace("{max}", "220").replace("{unit}", c.heightUnit))).toBeVisible();
+
+  // Vitamins and minerals for a 30-year-old woman: iron 18 mg, sodium as a limit.
+  const vitamins = page.getByRole("region", { name: tool.vitaminsTitle });
+  await expect(vitamins.locator("li").filter({ hasText: tool.nutrients.iron.name })).toContainText(`18 ${tool.units.mg}`);
+  await expect(vitamins.locator("li").filter({ hasText: tool.nutrients.sodium.name })).toContainText(
+    `${tool.limit} 2 300 ${tool.units.mg}`,
+  );
+  await expect(vitamins.getByText(tool.healthNote)).toBeVisible();
+});
+
+test("calculator: a norm far above the largest ration says so instead of 'the closest level'", async ({ page }) => {
+  const c = ru.calculator;
+  const tool = ru.bodyGoal;
+  await page.goto("/ru/calculator");
+  await choose(page, c.male);
+  await page.getByLabel(c.age, { exact: true }).fill("25");
+  await page.getByLabel(c.height, { exact: true }).fill("185");
+  await page.getByLabel(c.weight, { exact: true }).fill("85");
+  await page.locator("label").filter({ has: page.getByRole("radio", { name: tool.muscularityLevels.muscular.title }) }).first().click();
+  await choose(page, c.activities.high.title);
+  await page.getByLabel(tool.goalWeight, { exact: true }).fill("93");
+
+  const result = calculateBodyGoal({
+    sex: "male",
+    age: 25,
+    height: 185,
+    weight: 85,
+    activity: "high",
+    muscularity: "muscular",
+    goalWeight: 93,
+  });
+  const largest = largestLevelFarBelow(demoPrograms, result.kcal);
+  expect(largest).not.toBeNull();
+  const note = tool.aboveLargest
+    .replace("{gap}", formatSum(result.kcal - largest!))
+    .replace("{max}", formatSum(largest!));
+  await expect(page.getByText(note)).toBeVisible();
+  await expect(page.getByText(c.planNote)).toBeHidden();
+  // One protein rule everywhere: never above 2.0 g per kg.
+  expect(result.proteinPerKg).toBeLessThanOrEqual(PROTEIN_MAX_PER_KG);
+});
+
+test("calculator maths: the closest level wins, the goal only breaks ties; protein never above 2.0 g/kg", () => {
+  // The live-site review's cases (27 Nov 2026): 2 450 kcal to keep → PROTEIN 2500, 2 300 to gain → BALANCE 2200.
+  expect(recommend(demoPrograms, 2450, "maintain")?.variant.kcal).toBe(2500);
+  expect(recommend(demoPrograms, 2300, "gain")?.variant.kcal).toBe(2200);
+  // 1 650 is as close to LIGHT 1500 as to BALANCE 1800: the goal's program wins the tie.
+  expect(recommend(demoPrograms, 1650, "lose")?.program.slug).toBe("light");
+  expect(largestLevelFarBelow(demoPrograms, 3400)).toBeNull();
+  expect(largestLevelFarBelow(demoPrograms, 3500)).toBe(2500);
+
+  const quiz = calculate({ sex: "male", age: 25, height: 185, weight: 85, activity: "high", goal: "gain" });
+  expect(quiz.protein / 85).toBeLessThanOrEqual(PROTEIN_MAX_PER_KG);
+  const cut = calculateBodyGoal({
+    sex: "male",
+    age: 30,
+    height: 180,
+    weight: 100,
+    activity: "high",
+    muscularity: "average",
+    goalMuscularity: "muscular",
+    goalWeight: 80,
+  });
+  expect(cut.proteinPerKg).toBeLessThanOrEqual(PROTEIN_MAX_PER_KG);
+});
+
+test("the old protein, BMI, water and body goal addresses move to the one calculator for good", async ({ request }) => {
+  for (const locale of locales) {
+    for (const tool of ["protein", "bmi", "water", "body"]) {
+      const response = await request.get(`/${locale}/calculator/${tool}`, { maxRedirects: 0 });
+      expect(response.status(), `${locale}/${tool}`).toBe(308);
+      expect(new URL(response.headers()["location"], "http://localhost").pathname).toBe(`/${locale}/calculator`);
+    }
+  }
 });
 
 test("quiz: three questions lead to a program and a pre-filled order link; Back returns a step", async ({ page }) => {
@@ -273,108 +408,6 @@ for (const locale of locales) {
     expect(unknown?.status()).toBe(404);
   });
 }
-
-test("calculator suite: protein, BMI and water give their estimates; the tabs mark the current tool", async ({ page }) => {
-  const c = ru.calculator;
-  const tools = ru.calcTools;
-  const summary = page.locator('[aria-live="polite"]');
-
-  await page.goto("/ru/calculator/protein");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(tools.protein.title);
-  await expect(page.getByRole("navigation", { name: tools.crumb }).getByRole("link", { name: tools.tabs.protein })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
-  await page.getByLabel(c.weight, { exact: true }).fill("80");
-  await choose(page, c.activities.high.title);
-  await choose(page, c.goals.gain.title);
-  const protein = proteinNeed({ weight: 80, activity: "high", goal: "gain" });
-  await expect(summary).toContainText(`${tools.protein.resultLabel}: ${protein.min}–${protein.max} ${c.grams}.`);
-  await expect(page.getByRole("link", { name: c.order })).toHaveAttribute("href", `/ru/order?program=${protein.program}`);
-
-  await page.goto("/ru/calculator/bmi");
-  await page.getByLabel(c.height, { exact: true }).fill("170");
-  await page.getByLabel(c.weight, { exact: true }).fill("70");
-  const bmi = bodyMassIndex({ height: 170, weight: 70 });
-  await expect(summary).toContainText(
-    `${tools.bmi.resultLabel}: ${formatDecimal(bmi.bmi)} ${tools.bmi.unit}, ${tools.bmi.categories[bmi.category]}.`,
-  );
-
-  await page.goto("/ru/calculator/water");
-  await page.getByLabel(c.weight, { exact: true }).fill("70");
-  await choose(page, c.activities.moderate.title);
-  const water = waterNeed({ weight: 70, activity: "moderate" });
-  await expect(summary).toContainText(`${tools.water.resultLabel}: ${formatDecimal(water.min)}–${formatDecimal(water.max)} ${tools.water.unit}.`);
-});
-
-test("body goal calculator: sliders and figures give calories, a program and vitamins", async ({ page }) => {
-  const c = ru.calculator;
-  const tool = ru.calcTools.body;
-  const summary = page.locator('[aria-live="polite"]');
-
-  await page.goto("/ru/calculator/body");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText(tool.title);
-  await expect(page.getByRole("navigation", { name: ru.calcTools.crumb }).getByRole("link", { name: ru.calcTools.tabs.body })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
-  // Nothing to show until the sex, muscularity and activity are chosen.
-  await expect(page.getByText(tool.resultEmpty)).toBeVisible();
-  await expect(page.getByText(tool.figuresEmpty)).toBeVisible();
-
-  await choose(page, c.female);
-  await expect(page.getByText(tool.figuresEmpty)).toBeHidden();
-  await page.getByLabel(c.height, { exact: true }).fill("165");
-  await page.getByLabel(c.weight, { exact: true }).fill("80");
-  // + nudges the slider by one.
-  await page.getByRole("button", { name: tool.more.replace("{label}", c.weight) }).click();
-  await expect(page.getByLabel(c.weight, { exact: true })).toHaveValue("81");
-  const nowGroup = page.getByRole("group", { name: tool.muscularity });
-  const average = page.getByRole("radio", { name: tool.muscularityLevels.average.title });
-  await nowGroup.locator("label").filter({ has: average }).click();
-  await expect(nowGroup.getByRole("radio", { name: tool.muscularityLevels.average.title })).toBeChecked();
-  await choose(page, c.activities.moderate.title);
-
-  // The goal slider starts at a first step for this height and weight.
-  const goalWeight = suggestGoalWeight({ height: 165, weight: 81 });
-  await expect(page.getByLabel(tool.goalWeight, { exact: true })).toHaveValue(String(goalWeight));
-  const result = calculateBodyGoal({
-    sex: "female",
-    age: 30,
-    height: 165,
-    weight: 81,
-    activity: "moderate",
-    muscularity: "average",
-    goalWeight,
-  });
-  const plan = recommend(demoPrograms, result.kcal, DIRECTION_GOAL[result.direction]);
-  expect(plan).not.toBeNull();
-  await expect(summary).toContainText(`${tool.resultLabel}: ${formatSum(result.kcal)} ${c.kcal}.`);
-  await expect(summary).toContainText(`${tool.direction}: ${tool.directions[result.direction]}.`);
-  await expect(summary).toContainText(`${c.planLabel}: ${plan!.program.name} ${plan!.variant.kcal}.`);
-  await expect(page.getByRole("link", { name: c.order })).toHaveAttribute(
-    "href",
-    `/ru/order?program=${plan!.program.slug}&kcal=${plan!.variant.kcal}`,
-  );
-
-  // The goal weight stops at BMI 18.5 and says why.
-  const min = minGoalWeight(165);
-  await page.getByLabel(tool.goalWeight, { exact: true }).fill("40");
-  await expect(page.getByLabel(tool.goalWeight, { exact: true })).toHaveValue(String(min));
-  await expect(page.getByText(tool.goalMin.replace("{min}", String(min)))).toBeVisible();
-  // …and above, at the higher of today's weight and the BMI 30 weight.
-  await page.getByLabel(tool.goalWeight, { exact: true }).fill("200");
-  await expect(page.getByLabel(tool.goalWeight, { exact: true })).toHaveValue(String(maxGoalWeight(165, 81)));
-
-  // Vitamins and minerals for a 30-year-old woman: iron 18 mg, sodium as a limit.
-  const vitamins = page.getByRole("region", { name: tool.vitaminsTitle });
-  await expect(vitamins.getByText(tool.nutrients.iron.name)).toBeVisible();
-  await expect(vitamins.locator("li").filter({ hasText: tool.nutrients.iron.name })).toContainText(`18 ${tool.units.mg}`);
-  await expect(vitamins.locator("li").filter({ hasText: tool.nutrients.sodium.name })).toContainText(
-    `${tool.limit} 2 300 ${tool.units.mg}`,
-  );
-  await expect(vitamins.getByText(tool.healthNote)).toBeVisible();
-});
 
 test("order form: errors keep typed values, a valid order gets the demo notice", async ({ page, isMobile }) => {
   test.skip(isMobile, "phones get the stepped form: see the phone test below");
@@ -654,7 +687,9 @@ test("robots.txt and sitemap.xml are served on the public host", async ({ reques
   const sitemap = await request.get("/sitemap.xml");
   expect(sitemap.status()).toBe(200);
   const urls = await sitemap.text();
-  for (const path of ["/uz/menu", "/uz/programs", "/uz/faq", "/uz/prices", "/uz/goals/weight-loss", "/uz/calculator/body", "/uz/calculator/protein", "/uz/quiz"]) {
+  // The merged tools' old addresses (they redirect to /calculator) are no longer listed.
+  expect(urls).not.toContain("/calculator/");
+  for (const path of ["/uz/menu", "/uz/programs", "/uz/faq", "/uz/prices", "/uz/goals/weight-loss", "/uz/calculator", "/uz/quiz"]) {
     expect(urls).toContain(path);
   }
 });

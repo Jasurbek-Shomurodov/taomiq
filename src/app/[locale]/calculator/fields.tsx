@@ -1,12 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import type { Dictionary } from "@/i18n";
-import type { Locale } from "@/i18n/config";
 import { RANGES, parseField, type NumericField } from "@/lib/calculator";
 
-/** A radio styled as a tappable card or chip (same look as the order form). Every calculator uses it. */
+/** A radio styled as a tappable card or chip (same look as the order form). The calculator uses it. */
 export function Option({
   name,
   value,
@@ -37,49 +34,7 @@ export function Option({
 }
 
 /**
- * The small calculators' layout: the form, then (from md beside it, sticky) the forest result card. Screen
- * readers hear the final result from the live region; the counting figures are hidden from them.
- */
-export function ToolLayout({
-  form,
-  label,
-  emptyText,
-  announcement,
-  result,
-}: {
-  form: ReactNode;
-  /** The card's gold label ("Protein per day"). */
-  label: string;
-  emptyText: string;
-  /** Plain-text result for the live region; empty while there is none. */
-  announcement: string;
-  /** The result, or null while fields are missing. */
-  result: ReactNode | null;
-}) {
-  return (
-    <section className="container-page grid gap-10 py-10 md:grid-cols-[minmax(0,1fr)_22rem] md:py-14 lg:gap-14">
-      <form className="grid min-w-0 content-start gap-10" onSubmit={(e) => e.preventDefault()} noValidate>
-        {form}
-      </form>
-      <aside>
-        <p className="sr-only" aria-live="polite" aria-atomic="true">
-          {announcement}
-        </p>
-        <div className="rounded-3xl bg-forest p-6 text-ivory md:sticky md:top-24">
-          <p className="label text-gold">{label}</p>
-          {result === null ? (
-            <p className="mt-4 leading-relaxed text-ivory/75">{emptyText}</p>
-          ) : (
-            <div className="motion-safe:animate-rise">{result}</div>
-          )}
-        </div>
-      </aside>
-    </section>
-  );
-}
-
-/**
- * Typed numbers for the small calculators: the raw text per field, the parsed value (null when empty or out
+ * Typed numbers for the quiz: the raw text per field, the parsed value (null when empty or out
  * of range, see parseField) and whether to show the range error, which waits until the visitor leaves the field.
  */
 export function useNumberFields<F extends NumericField>(fields: readonly F[]) {
@@ -153,22 +108,6 @@ export function NumberField({
           {rangeError.replace("{min}", String(RANGES[field].min)).replace("{max}", String(RANGES[field].max))}
         </p>
       )}
-    </div>
-  );
-}
-
-/** BMI and water: the next step is the calorie calculator (a ration level), then the programs. */
-export function NextSteps({ locale, tools }: { locale: Locale; tools: Dictionary["calcTools"] }) {
-  return (
-    <div className="mt-6 border-t border-ivory/15 pt-5">
-      <p className="label text-gold">{tools.nextTitle}</p>
-      <p className="mt-3 text-sm leading-relaxed text-ivory/75">{tools.caloriesHint}</p>
-      <Link href={`/${locale}/calculator`} className="btn btn-gold mt-5 w-full">
-        {tools.caloriesLink}
-      </Link>
-      <Link href={`/${locale}#programs`} className="btn btn-outline mt-3 w-full text-ivory">
-        {tools.programsLink}
-      </Link>
     </div>
   );
 }

@@ -1,8 +1,8 @@
 /**
- * Calorie and macro estimate for the public calculator.
- * Mifflin-St Jeor resting energy × activity factor, adjusted for the goal.
- * An estimate for choosing a ration, not a medical prescription.
- * Below it: the protein, BMI and water tools of the calculator suite.
+ * The shared maths of the public calculator (/calculator, src/lib/body-goal.ts) and the program finder (/quiz):
+ * input ranges, activity factors, one protein rule and macro split, BMI, water, and the program level that fits.
+ * The quiz's own calorie estimate is `calculate()`: Mifflin-St Jeor resting energy × activity factor, adjusted for
+ * the goal. Estimates for choosing a ration, not a medical prescription.
  */
 
 export type Sex = "female" | "male";
@@ -20,24 +20,17 @@ export const ACTIVITY_FACTOR: Record<Activity, number> = {
   high: 1.725,
 };
 
-/** Calorie change for the goal: a moderate deficit or surplus, nothing aggressive. */
+/** The quiz's calorie change for the goal: a moderate deficit or surplus, nothing aggressive. */
 const GOAL_FACTOR: Record<Goal, number> = {
   lose: 0.85,
   maintain: 1,
   gain: 1.1,
 };
 
-/** Share of calories from protein / fat / carbohydrates. */
-const MACRO_SPLIT: Record<Goal, { protein: number; fat: number; carbs: number }> = {
-  lose: { protein: 0.3, fat: 0.3, carbs: 0.4 },
-  maintain: { protein: 0.25, fat: 0.3, carbs: 0.45 },
-  gain: { protein: 0.25, fat: 0.25, carbs: 0.5 },
-};
-
 /** Never suggest less than this; matches the lowest program level (docs/03). */
 export const MIN_KCAL = 1200;
 
-/** Accepted input ranges (the formula is meant for adults). */
+/** Accepted input ranges (the formulas are meant for adults). */
 export const RANGES = {
   age: { min: 18, max: 80 },
   height: { min: 140, max: 220 },
@@ -45,15 +38,20 @@ export const RANGES = {
 } as const;
 export type NumericField = keyof typeof RANGES;
 
-/** Which program fits each goal best when calorie levels are equally close. */
+/** Which program wins when two calorie levels are equally close to the norm. */
 export const GOAL_PROGRAM: Record<Goal, string> = {
   lose: "light",
   maintain: "balance",
   gain: "protein",
 };
 
-/** Extra distance (kcal) given to levels outside the goal's program, so it wins close calls. */
-const OTHER_PROGRAM_PENALTY = 200;
+/** A program and its calorie levels, as the calculator and the quiz get them from the catalogue. */
+export type CalculatorProgram = {
+  slug: string;
+  name: string;
+  tagColor: string;
+  variants: { kcal: number; fromPrice: number }[];
+};
 
 export type CalculatorInput = {
   sex: Sex;
@@ -83,6 +81,82 @@ export function parseField(field: NumericField, raw: string): number | null {
   return rounded >= min && rounded <= max ? rounded : null;
 }
 
+/* ---------------------------------------------------------------------------------------
+   Protein, fat and carbs: one rule for the calculator and the quiz
+   --------------------------------------------------------------------------------------- */
+
+/**
+ * Protein in g per kg of the reference weight (`referenceWeight()`): 1.6 g/kg is where muscle gains plateau
+ * (Morton et al., Br J Sports Med 2018); 2.0 in a deficit keeps muscle (Helms et al., JISSN 2014, 1.8–2.2).
+ */
+export const PROTEIN_G_PER_KG_FOR_GOAL: Record<Goal, number> = { lose: 2.0, maintain: 1.6, gain: 1.6 };
+/** Never more protein than this per kg, whatever the goal (the site states it on the calculator). */
+export const PROTEIN_MAX_PER_KG = 2.0;
+/** If carbs would fall under the RDA (CARBS_MIN_G), protein may drop to this, never lower. */
+export const PROTEIN_MIN_G_PER_KG = 1.6;
+/**
+ * Fat: 0.8 g per kg of the reference weight, kept within 25–35 % of calories (35 % is the top of the adult
+ * Acceptable Macronutrient Distribution Range, National Academies 2002/2005).
+ */
+export const FAT_G_PER_KG = 0.8;
+export const FAT_MIN_SHARE = 0.25;
+export const FAT_MAX_SHARE = 0.35;
+/** Carbohydrate RDA for adults (National Academies DRI, 2002/2005): the brain's minimum glucose. */
+export const CARBS_MIN_G = 130;
+/** The reference weight is never above the weight at this BMI (an adjusted body weight). */
+export const REFERENCE_MAX_BMI = 25;
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+/**
+ * The weight the grams per kg apply to: the lower of today's and the goal weight, capped at the BMI 25 weight
+ * for the height (an adjusted body weight). A heavier body or a far-off goal does not inflate protein and fat.
+ */
+export function referenceWeight(input: { height: number; weight: number; goalWeight: number }): number {
+  const cap = REFERENCE_MAX_BMI * (input.height / 100) ** 2;
+  return Math.min(input.weight, input.goalWeight, cap);
+}
+
+export type Macros = {
+  /** Grams a day, whole. */
+  protein: number;
+  fat: number;
+  carbs: number;
+  /** Protein actually used, g per kg of the reference weight, one decimal. */
+  proteinPerKg: number;
+};
+
+/**
+ * Protein and fat per kg of the reference weight, fat within 25–35 % of calories, carbs the rest. Protein is never
+ * above PROTEIN_MAX_PER_KG. If carbs would fall under their RDA, fat gives way first (down to 25 %), then protein
+ * (down to PROTEIN_MIN_G_PER_KG); a very low calorie level can still leave carbs under 130 g. Whatever happens,
+ * protein and fat never add up to more than the calories: fat drops to its 25 % floor, then protein, so carbs are
+ * never negative and the three add up to the calories.
+ */
+export function splitMacros(input: { kcal: number; referenceWeight: number; proteinPerKg: number }): Macros {
+  const { kcal, referenceWeight: refWeight } = input;
+  const proteinPerKgTarget = Math.min(input.proteinPerKg, PROTEIN_MAX_PER_KG);
+  const fatMin = (FAT_MIN_SHARE * kcal) / 9;
+  const fatMax = (FAT_MAX_SHARE * kcal) / 9;
+  let fatGrams = clamp(FAT_G_PER_KG * refWeight, fatMin, fatMax);
+  let proteinGrams = proteinPerKgTarget * refWeight;
+  const proteinFloor = Math.min(PROTEIN_MIN_G_PER_KG, proteinPerKgTarget) * refWeight;
+  const carbGap = () => CARBS_MIN_G - (kcal - 4 * proteinGrams - 9 * fatGrams) / 4;
+  if (carbGap() > 0) fatGrams = Math.max(fatMin, fatGrams - (carbGap() * 4) / 9);
+  if (carbGap() > 0) proteinGrams = Math.max(proteinFloor, proteinGrams - carbGap());
+  if (4 * proteinGrams + 9 * fatGrams > kcal) fatGrams = Math.min(fatGrams, fatMin);
+  if (4 * proteinGrams + 9 * fatGrams > kcal) proteinGrams = Math.max(0, (kcal - 9 * fatGrams) / 4);
+  const protein = Math.round(proteinGrams);
+  const fat = Math.round(fatGrams);
+  return {
+    protein,
+    fat,
+    carbs: Math.max(0, Math.round((kcal - 4 * protein - 9 * fat) / 4)),
+    proteinPerKg: Math.round((proteinGrams / refWeight) * 10) / 10,
+  };
+}
+
+/** The quiz's estimate: Mifflin-St Jeor × activity × goal factor, then the shared macro split. */
 export function calculate(input: CalculatorInput): CalculatorResult {
   const resting =
     10 * input.weight + 6.25 * input.height - 5 * input.age + (input.sex === "male" ? 5 : -161);
@@ -90,68 +164,17 @@ export function calculate(input: CalculatorInput): CalculatorResult {
   const floored = raw < MIN_KCAL;
   const kcal = Math.round(Math.max(raw, MIN_KCAL) / 10) * 10;
 
-  const split = MACRO_SPLIT[input.goal];
-  return {
+  const { protein, fat, carbs } = splitMacros({
     kcal,
-    floored,
-    protein: Math.round((kcal * split.protein) / 4),
-    fat: Math.round((kcal * split.fat) / 9),
-    carbs: Math.round((kcal * split.carbs) / 4),
-  };
+    referenceWeight: referenceWeight({ height: input.height, weight: input.weight, goalWeight: input.weight }),
+    proteinPerKg: PROTEIN_G_PER_KG_FOR_GOAL[input.goal],
+  });
+  return { kcal, floored, protein, fat, carbs };
 }
 
 /* ---------------------------------------------------------------------------------------
-   The small tools (/calculator/protein, /bmi, /water; /calculator/body lives in src/lib/body-goal.ts). Standard, conservative estimates for
-   adults, stated as such on each page; none of them is a medical prescription.
+   BMI and water. Standard, conservative estimates for adults; neither is a medical prescription.
    --------------------------------------------------------------------------------------- */
-
-/** The tools' URL segments under /calculator, in tab order after the calorie calculator itself. */
-export const CALCULATOR_TOOLS = ["body", "protein", "bmi", "water"] as const;
-export type CalculatorTool = (typeof CALCULATOR_TOOLS)[number];
-
-/** Rounds to `step` (5 g, 0.1 l …). */
-const roundTo = (value: number, step: number) => Math.round(value / step) * step;
-
-/**
- * Protein per kg of body weight by activity: from the adult reference intake of 0.8 g/kg for people who
- * barely move, up to the 1.4–1.8 g/kg commonly cited for people who train most days.
- */
-const PROTEIN_PER_KG: Record<Activity, readonly [min: number, max: number]> = {
-  low: [0.8, 1.0],
-  light: [1.0, 1.2],
-  moderate: [1.2, 1.6],
-  high: [1.4, 1.8],
-};
-/** Losing weight (keep muscle on fewer calories) and gaining muscle both add 0.2 g/kg; never above this. */
-const PROTEIN_GOAL_EXTRA: Record<Goal, number> = { lose: 0.2, maintain: 0, gain: 0.2 };
-export const PROTEIN_MAX_PER_KG = 2.0;
-/** From this lower bound (g/kg) the need counts as high and the PROTEIN program is suggested. */
-export const HIGH_PROTEIN_PER_KG = 1.4;
-
-export type ProteinResult = {
-  /** g/kg, one decimal. */
-  minPerKg: number;
-  maxPerKg: number;
-  /** Grams per day, rounded to 5. */
-  min: number;
-  max: number;
-  /** Catalogue slug of the program that fits best. */
-  program: string;
-};
-
-export function proteinNeed(input: { weight: number; activity: Activity; goal: Goal }): ProteinResult {
-  const [baseMin, baseMax] = PROTEIN_PER_KG[input.activity];
-  const extra = PROTEIN_GOAL_EXTRA[input.goal];
-  const minPerKg = Math.min(baseMin + extra, PROTEIN_MAX_PER_KG);
-  const maxPerKg = Math.min(baseMax + extra, PROTEIN_MAX_PER_KG);
-  return {
-    minPerKg: Math.round(minPerKg * 10) / 10,
-    maxPerKg: Math.round(maxPerKg * 10) / 10,
-    min: roundTo(input.weight * minPerKg, 5),
-    max: roundTo(input.weight * maxPerKg, 5),
-    program: minPerKg >= HIGH_PROTEIN_PER_KG - 1e-9 ? "protein" : GOAL_PROGRAM[input.goal],
-  };
-}
 
 /** WHO adult BMI classes (kg/m²): below 18.5, 18.5–24.9, 25–29.9, 30 and above. */
 export type BmiCategory = "under" | "normal" | "over" | "obese";
@@ -188,27 +211,18 @@ export function bodyMassIndex(input: { height: number; weight: number }): BmiRes
 /** Daily fluid: 30–35 ml per kg of body weight, plus a little for training. */
 export const WATER_ML_PER_KG = { min: 30, max: 35 } as const;
 export const WATER_ACTIVITY_ML: Record<Activity, number> = { low: 0, light: 250, moderate: 500, high: 750 };
-/** One glass, for the "≈ N glasses" line. */
-export const GLASS_ML = 250;
 
 export type WaterResult = {
   /** Litres, one decimal. */
   min: number;
   max: number;
-  /** Glasses of GLASS_ML, whole. */
-  glassesMin: number;
-  glassesMax: number;
 };
 
 export function waterNeed(input: { weight: number; activity: Activity }): WaterResult {
   const extra = WATER_ACTIVITY_ML[input.activity];
-  const minMl = input.weight * WATER_ML_PER_KG.min + extra;
-  const maxMl = input.weight * WATER_ML_PER_KG.max + extra;
   return {
-    min: Math.round(minMl / 100) / 10,
-    max: Math.round(maxMl / 100) / 10,
-    glassesMin: Math.round(minMl / GLASS_ML),
-    glassesMax: Math.round(maxMl / GLASS_ML),
+    min: Math.round((input.weight * WATER_ML_PER_KG.min + extra) / 100) / 10,
+    max: Math.round((input.weight * WATER_ML_PER_KG.max + extra) / 100) / 10,
   };
 }
 
@@ -217,22 +231,43 @@ export function formatDecimal(value: number, digits = 1): string {
   return value.toFixed(digits).replace(".", ",");
 }
 
+/* ---------------------------------------------------------------------------------------
+   The program level that fits
+   --------------------------------------------------------------------------------------- */
+
 /**
- * The program level closest to the target, preferring the goal's own program on close calls.
- * Works on whatever programs and levels the catalogue currently has.
+ * The calorie level closest to the norm, across every program the catalogue currently has. Only when two levels
+ * are equally close does the goal decide (its own program first, GOAL_PROGRAM), so "the closest level" on the
+ * page is always true.
  */
 export function recommend<P extends { slug: string; variants: { kcal: number }[] }>(
   programs: P[],
   kcal: number,
   goal: Goal,
 ): { program: P; variant: P["variants"][number] } | null {
-  let best: { program: P; variant: P["variants"][number]; score: number } | null = null;
+  let best: { program: P; variant: P["variants"][number]; distance: number; preferred: boolean } | null = null;
   for (const program of programs) {
     for (const variant of program.variants) {
-      const score =
-        Math.abs(variant.kcal - kcal) + (program.slug === GOAL_PROGRAM[goal] ? 0 : OTHER_PROGRAM_PENALTY);
-      if (!best || score < best.score) best = { program, variant, score };
+      const distance = Math.abs(variant.kcal - kcal);
+      const preferred = program.slug === GOAL_PROGRAM[goal];
+      if (!best || distance < best.distance || (distance === best.distance && preferred && !best.preferred)) {
+        best = { program, variant, distance, preferred };
+      }
     }
   }
   return best && { program: best.program, variant: best.variant };
+}
+
+/** A norm at least this many kcal above the largest ration gets a note instead of "the closest level". */
+export const FAR_ABOVE_LARGEST_KCAL = 1000;
+
+/**
+ * The largest calorie level on offer, when the norm is FAR_ABOVE_LARGEST_KCAL or more above it; otherwise null.
+ * One ration alone would leave such a visitor far short, so the page says so.
+ */
+export function largestLevelFarBelow(programs: { variants: { kcal: number }[] }[], kcal: number): number | null {
+  const levels = programs.flatMap((p) => p.variants.map((v) => v.kcal));
+  if (levels.length === 0) return null;
+  const largest = Math.max(...levels);
+  return kcal - largest >= FAR_ABOVE_LARGEST_KCAL ? largest : null;
 }

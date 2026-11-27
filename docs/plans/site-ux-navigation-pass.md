@@ -107,6 +107,8 @@ breadcrumbs on calculator pages yet.
 
 ### Slice 4 · One calculator (after the owner's OK)
 
+Status: owner approved 27 Nov 2026; built 28 Nov 2026, not yet shipped.
+
 - `/{locale}/calculator` becomes the body goal calculator (`calculator/body/BodyGoalCalculator.tsx`, maths
   in `src/lib/body-goal.ts`). It opens prefilled: woman, 30, 165 cm, 68 kg, average build, light activity,
   goal weight from `suggestGoalWeight`. A note says the numbers are an example.
