@@ -12,7 +12,8 @@ export type Goal = "lose" | "maintain" | "gain";
 export const ACTIVITIES: readonly Activity[] = ["low", "light", "moderate", "high"];
 export const GOALS: readonly Goal[] = ["lose", "maintain", "gain"];
 
-const ACTIVITY_FACTOR: Record<Activity, number> = {
+/** Physical activity multipliers applied to resting energy (Harris-Benedict style levels). */
+export const ACTIVITY_FACTOR: Record<Activity, number> = {
   low: 1.2,
   light: 1.375,
   moderate: 1.55,
