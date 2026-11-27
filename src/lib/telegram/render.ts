@@ -571,7 +571,8 @@ function renderOrder(p: Payload, locale: Locale): string {
     case "payment_method":
       return lines(x.order.method(no), `${method(p.method_from)} → ${method(p.method_to)}`, plan, actor && x.by(actor));
     default: {
-      const fields = fieldList(list(p.fields), t.order.fields, x);
+      // A pause added or removed (0028) is an edit named "pause".
+      const fields = fieldList(list(p.fields), { ...t.order.fields, pause: t.order.pauses.field }, x);
       return lines(
         fields ? `${x.order.edited(no)}: ${fields.toLocaleLowerCase(locale === "ru" ? "ru" : "uz")}` : x.order.edited(no),
         plan,

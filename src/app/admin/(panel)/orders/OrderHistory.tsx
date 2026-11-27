@@ -52,8 +52,18 @@ export function OrderHistory({
   );
 }
 
+/** The pause of an edit event (migration 0028): { action, from, to, source, end }, or null. */
+function pauseOf(event: OrderEvent): { action: string; from: string; to: string; source: unknown; end: unknown } | null {
+  const pause = event.kind === "edited" ? event.detail?.pause : undefined;
+  if (!pause || typeof pause !== "object") return null;
+  const { action, from, to, source, end } = pause as Record<string, unknown>;
+  if (typeof action !== "string" || typeof from !== "string" || typeof to !== "string") return null;
+  return { action, from, to, source, end };
+}
+
 function actorLabel(event: OrderEvent, t: AdminDictionary): string {
   if (event.actor_name) return event.actor_name;
+  if (pauseOf(event)?.source === "customer") return t.order.pauses.events.byCustomer;
   if (event.actor) return t.order.actorStaff;
   // No signed-in person: the site's order (service key) or a change made outside the app.
   return event.kind === "created" && event.detail.by === "site" ? t.order.actorSite : t.order.actorSystem;
@@ -104,6 +114,20 @@ function EventBody({ event, locale, t }: { event: OrderEvent; locale: Locale; t:
 
   if (event.kind === "note") {
     return <p className="text-adm-text">{e.note}</p>;
+  }
+
+  const pause = pauseOf(event);
+  if (pause) {
+    const p = t.order.pauses;
+    const range = p.range(formatDay(pause.from, locale), formatDay(pause.to, locale));
+    return (
+      <div className="grid gap-0.5">
+        <p className="text-adm-text">{pause.action === "cancelled" ? p.events.cancelled(range) : p.events.added(range)}</p>
+        {typeof pause.end === "string" && pause.end && (
+          <p className="text-sm text-adm-muted">{p.events.end(formatDay(pause.end, locale))}</p>
+        )}
+      </div>
+    );
   }
 
   // edited: { field: { from, to } }

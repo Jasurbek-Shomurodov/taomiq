@@ -3,7 +3,8 @@
 //  - Auth: GET /auth/v1/user (the fixture customer when the bearer token carries the fixture's signature, else 401),
 //    POST /auth/v1/logout (204).
 //  - Customer data: GET /rest/v1/profiles, POST /rest/v1/rpc/my_orders (the fixture order, then its progressOrders with
-//    start dates counted from today in Tashkent, so the account's status lines are the same whatever day the suite runs).
+//    start dates counted from today in Tashkent, so the account's status lines are the same whatever day the suite runs),
+//    POST /rest/v1/rpc/my_order_pauses (none).
 //  - Catalogue (read by the build too, e.g. generateStaticParams of /[locale]/programs/[slug]): one program with one
 //    calorie level, the durations and a small 30-day menu. Every other table is empty.
 // The customer is made up (e2e/account-fixture.json). Nothing here is a real key or a real person.
@@ -146,6 +147,9 @@ export function startMockSupabase(port) {
         return rows(signedIn ? [fixture.profile] : []);
       case "/rest/v1/rpc/my_orders":
         return send(200, signedIn ? myOrders() : []);
+      case "/rest/v1/rpc/my_order_pauses":
+        // The fixture customer has no paused days (migration 0028).
+        return send(200, []);
       case "/rest/v1/programs":
         return rows([program]);
       case "/rest/v1/durations":

@@ -113,7 +113,7 @@ export type OrderEvent = {
   to_status: string | null;
   /**
    * created: { by: "site" | "staff" } · status: { payment_method } (to paid) or { reason } (to cancelled) ·
-   * edited: { field: { from, to } } · payment_method: { from, to } · note: {}.
+   * edited: { field: { from, to } }, or { pause: { action, from, to, source, end } } (0028) · payment_method: { from, to } · note: {}.
    */
   detail: Record<string, unknown>;
 };

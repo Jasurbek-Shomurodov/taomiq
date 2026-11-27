@@ -9,6 +9,7 @@ import type { EntryCategory, EntryKind, PaymentMethod } from "@/lib/admin/financ
 import type { RateUnit, SalaryEventKind } from "@/lib/admin/finance/payroll";
 import type { StaffOrderField } from "@/lib/admin/order-form";
 import type { EditedField, ForwardStatus, OrderStatus } from "@/lib/admin/orders";
+import type { PauseError } from "@/lib/admin/pauses";
 import type { ReportPreset, ReportTab } from "@/lib/admin/reports";
 import type { CostState, RecipeState, TechCardFilter, TechLineProblem, TechUnit, UncountedDish } from "@/lib/admin/tech-cards";
 import type { Slot } from "@/lib/data/types";
@@ -516,6 +517,62 @@ const ru = {
     yes: "да",
     no: "нет",
     empty: "пусто",
+    /** Paused delivery days (public.order_pauses, migration 0028): the order page's panel and its day picker. */
+    pauses: {
+      title: "Паузы доставки",
+      description: "Дни на паузе переносятся в конец заказа: оплаченные дни не теряются.",
+      lastDelivery: "Последняя доставка",
+      /** The end with pauses and the one without. */
+      endsInstead: (end: string, was: string) => `${end} вместо ${was}`,
+      skipped: (count: number, max: number) => `На паузе ${count} из ${max} ${plural(max, ["дня", "дней", "дней"])} доставки.`,
+      none: "Пауз нет.",
+      notPausable: "Паузу можно поставить, пока заказ подтверждён, оплачен или доставляется.",
+      add: "Поставить на паузу",
+      pickTitle: "Пауза доставки",
+      pickText: "Выберите первый и последний день паузы. В календаре только дни доставки этого заказа.",
+      pickHint: "Нажмите на первый день, затем на последний. Один день — одно нажатие.",
+      calendarAria: "Дни доставки заказа",
+      weekdays: ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс"],
+      legendPaused: "на паузе",
+      legendSelected: "выбрано",
+      range: (from: string, to: string) => (from === to ? from : `${from} – ${to}`),
+      previewEnd: (end: string, was: string) => `Заказ закончится ${end} вместо ${was}.`,
+      previewAdded: (count: number) => `Переносится ${count} ${plural(count, ["день", "дня", "дней"])} доставки.`,
+      confirm: "Поставить паузу",
+      remove: "Убрать",
+      removeTitle: "Убрать паузу?",
+      removeText: (range: string) => `Дни ${range} снова будут доставлены, конец заказа сдвинется обратно.`,
+      removeKeep: "Оставить",
+      started: "уже началась",
+      byCustomer: "клиент",
+      saved: (end: string) => `Пауза сохранена. Последняя доставка: ${end}.`,
+      savedNoDate: "Пауза сохранена.",
+      cancelled: (end: string) => `Пауза убрана. Последняя доставка: ${end}.`,
+      cancelledNoDate: "Пауза убрана.",
+      limitReached: (max: number | null) =>
+        max === null
+          ? "Слишком много дней на паузе."
+          : `На паузе может быть не больше ${max} ${plural(max, ["дня", "дней", "дней"])} доставки за заказ.`,
+      loadFailed: "Не удалось загрузить паузы заказа.",
+      /** The field name in Telegram and the audit feed. */
+      field: "Пауза",
+      errors: {
+        bad_range: "Проверьте даты паузы: не длиннее 93 дней, последний день не раньше первого.",
+        pause_too_soon: "Пауза может начаться не раньше завтрашнего дня.",
+        not_pausable: "Паузу можно поставить, пока заказ подтверждён, оплачен или доставляется.",
+        no_delivery_days: "В эти дни у заказа нет доставок (или они уже на паузе).",
+        pause_limit: "Слишком много дней на паузе.",
+        already_cancelled: "Эта пауза уже убрана.",
+        pause_started: "Пауза уже началась: убрать её нельзя.",
+        not_found: "Пауза не найдена.",
+      } satisfies Record<PauseError, string>,
+      events: {
+        added: (range: string) => `Пауза доставки: ${range}`,
+        cancelled: (range: string) => `Пауза убрана: ${range}`,
+        end: (end: string) => `Последняя доставка: ${end}`,
+        byCustomer: "Клиент в аккаунте",
+      },
+    },
   },
   /** The manual order form (/orders/new) and the edit of an open order (/orders/[id]/edit). Owners and managers. */
   orderForm: {
@@ -579,6 +636,7 @@ const ru = {
       notFound: "Заказ не найден.",
       stale: "Заказ изменился, пока форма была открыта. Откройте его заново и повторите правку.",
       scheduleLocked: "Заказ уже начался: дату первой доставки и график изменить нельзя.",
+      hasPauses: "У заказа есть паузы доставки: сначала уберите их на странице заказа, потом меняйте дату первой доставки или график.",
       notEditable: "Заказ закрыт, изменить его нельзя.",
     },
   },

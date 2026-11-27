@@ -9,6 +9,7 @@ import {
   type OrderRow,
   type OrderStatus,
 } from "./orders";
+import { PAUSE_MAX_DAYS_KEY, parsePauseMax, type OrderPause } from "./pauses";
 
 /** Programs with all calorie levels, including inactive ones. */
 export async function listPrograms(supabase: SupabaseClient): Promise<Program[]> {
@@ -154,4 +155,26 @@ export async function listOrderEvents(supabase: SupabaseClient, orderId: string)
   return ((data ?? []) as OrderEvent[]).filter((event) =>
     (ORDER_EVENT_KINDS as readonly string[]).includes(event.kind),
   );
+}
+
+// ---------- pauses (public.order_pauses, migration 0028) ----------
+
+/** An order's pauses, active and cancelled, by first day. Owners and managers only (RLS). */
+export async function listOrderPauses(supabase: SupabaseClient, orderId: string): Promise<OrderPause[]> {
+  const { data, error } = await supabase
+    .from("order_pauses")
+    .select("id, from_date, to_date, source, created_at, cancelled_at")
+    .eq("order_id", orderId)
+    .order("from_date", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(200);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as OrderPause[];
+}
+
+/** The cap of paused delivery days per order: settings key pause_max_days, else the default (private.pause_max_days). */
+export async function getPauseMaxDays(supabase: SupabaseClient): Promise<number> {
+  const { data, error } = await supabase.from("settings").select("value").eq("key", PAUSE_MAX_DAYS_KEY).maybeSingle();
+  if (error) throw new Error(error.message);
+  return parsePauseMax((data as { value?: unknown } | null)?.value);
 }

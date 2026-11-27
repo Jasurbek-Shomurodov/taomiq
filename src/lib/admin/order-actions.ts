@@ -18,7 +18,9 @@ import {
   type StaffOrderErrors,
   type StaffOrderSchedule,
 } from "./order-form";
-import { ORDER_STATUSES, canChangePaymentMethod, isPaymentMethod } from "./orders";
+import { isCalendarDay } from "./finance/month";
+import { ORDER_STATUSES, canChangePaymentMethod, formatDay, isPaymentMethod } from "./orders";
+import { pauseErrorOf } from "./pauses";
 import { tashkentDay } from "./stats";
 
 /*
@@ -155,6 +157,7 @@ export async function editOrder(_prev: StaffOrderState, form: FormData): Promise
     const message = error.message;
     if (message.includes("stale")) return { error: t.errors.stale };
     if (message.includes("schedule_locked")) return { error: t.errors.scheduleLocked };
+    if (message.includes("has_pauses")) return { error: t.errors.hasPauses };
     if (message.includes("not_editable")) return { error: t.errors.notEditable };
     if (message.includes("not_found")) return { error: t.errors.notFound };
     const field = dbFieldError(message);
@@ -202,4 +205,69 @@ export async function changePaymentMethod(_prev: FormState, form: FormData): Pro
   refresh();
   if (!data?.length) return { error: t.statusChanged };
   return { ok: t.methodSaved };
+}
+
+// ---------- pauses (migration 0028; docs/plans/pause-and-skip-days.md, slice 2) ----------
+
+/** The end date in a pause function's answer ({ end_date: "YYYY-MM-DD" }), or null. */
+function endDateOf(data: unknown): string | null {
+  const end = (data as { end_date?: unknown } | null)?.end_date;
+  return typeof end === "string" && isCalendarDay(end) ? end : null;
+}
+
+/**
+ * Pauses an order's delivery days from `from` to `to` (calendar days, both included). The database checks the order's
+ * status, the dates, that the range holds a delivery day and the cap of paused days, writes the history row and queues
+ * the owner-group message.
+ */
+export async function pauseOrder(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase, staff } = await requireOrdersAccess();
+  const t = getAdminDictionary(staff.locale);
+  const p = t.order.pauses;
+  const id = text(form, "id");
+  const from = text(form, "from");
+  const to = text(form, "to");
+  if (!UUID_RE.test(id)) return { error: t.order.notFound };
+  if (!isCalendarDay(from) || !isCalendarDay(to) || to < from) return { error: p.errors.bad_range };
+
+  const { data, error } = await supabase.rpc("staff_pause_order", { p_order_id: id, p_from: from, p_to: to });
+  if (error) {
+    const code = pauseErrorOf(error.message);
+    if (code) return { error: code === "pause_limit" ? p.limitReached(Number(error.details) || null) : p.errors[code] };
+    console.error("orders: staff_pause_order failed", error.code);
+    if (error.code === "42501") return { error: t.orderForm.errors.notAllowed };
+    return { error: t.common.saveFailed(error.code || "—") };
+  }
+
+  scheduleTelegramDrain();
+  refresh();
+  const end = endDateOf(data);
+  return { ok: end ? p.saved(formatDay(end, staff.locale)) : p.savedNoDate };
+}
+
+/** Removes a pause that has not started: its days are delivered again and the end moves back. */
+export async function cancelOrderPause(_prev: FormState, form: FormData): Promise<FormState> {
+  const { supabase, staff } = await requireOrdersAccess();
+  const t = getAdminDictionary(staff.locale);
+  const p = t.order.pauses;
+  const pauseId = text(form, "pause_id");
+  if (!UUID_RE.test(pauseId)) return { error: p.errors.not_found };
+
+  const { data, error } = await supabase.rpc("staff_cancel_pause", { p_pause_id: pauseId });
+  if (error) {
+    const code = pauseErrorOf(error.message);
+    if (code) {
+      // Someone else already removed it, or it started meanwhile: the page shows the pauses as they are now.
+      refresh();
+      return { error: p.errors[code] };
+    }
+    console.error("orders: staff_cancel_pause failed", error.code);
+    if (error.code === "42501") return { error: t.orderForm.errors.notAllowed };
+    return { error: t.common.saveFailed(error.code || "—") };
+  }
+
+  scheduleTelegramDrain();
+  refresh();
+  const end = endDateOf(data);
+  return { ok: end ? p.cancelled(formatDay(end, staff.locale)) : p.cancelledNoDate };
 }

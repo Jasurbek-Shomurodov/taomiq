@@ -14,13 +14,16 @@ import {
   type Order,
   type OrderEvent,
 } from "@/lib/admin/orders";
-import { getOrder, listOrderEvents } from "@/lib/admin/queries";
+import { canPause, PAUSE_MAX_DAYS_DEFAULT, type OrderPause } from "@/lib/admin/pauses";
+import { getOrder, getPauseMaxDays, listOrderEvents, listOrderPauses } from "@/lib/admin/queries";
+import { tashkentDay } from "@/lib/admin/stats";
 import { BeforeHydration } from "../../../kit/BeforeHydration";
 import { Notice } from "../../../kit/Notice";
 import { Panel } from "../../../kit/Panel";
 import { TopBarActions, TopBarBack, TopBarTitle } from "../../../shell/TopBarSlot";
 import { NoteForm, PaymentMethodControl, StatusControls } from "../OrderControls";
 import { OrderHistory } from "../OrderHistory";
+import { OrderPauses } from "../OrderPauses";
 import { StatusBadge } from "../StatusBadge";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -45,6 +48,12 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
     console.error("order history read failed", error instanceof Error ? error.message : error);
     return null;
   });
+  // Pauses (migration 0028) the same way: a failed read leaves the order usable, and their panel says so.
+  const pausesRead = listOrderPauses(supabase, id).catch((error: unknown) => {
+    console.error("order pauses read failed", error instanceof Error ? error.message : error);
+    return null;
+  });
+  const pauseMaxRead = getPauseMaxDays(supabase).catch(() => PAUSE_MAX_DAYS_DEFAULT);
   try {
     order = await getOrder(supabase, id);
   } catch (error) {
@@ -52,6 +61,8 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
     console.error("order read failed", error instanceof Error ? error.message : error);
   }
   const events: OrderEvent[] | null = await eventsRead;
+  const pauses: OrderPause[] | null = await pausesRead;
+  const pauseMax = await pauseMaxRead;
 
   if (failed) {
     return (
@@ -162,6 +173,30 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
             )}
             <p className="adm-caption mt-3">{t.order.priceFixed}</p>
           </Card>
+
+          {pauses === null ? (
+            <Panel title={t.order.pauses.title}>
+              <Notice tone="negative" retry={{ href: `/orders/${order.id}`, label: t.common.retry }}>
+                {t.order.pauses.loadFailed}
+              </Notice>
+            </Panel>
+          ) : (
+            (canPause(order.status) || pauses.length > 0) && (
+              <OrderPauses
+                order={{
+                  id: order.id,
+                  status: order.status,
+                  start_date: order.start_date,
+                  weekdays_only: order.weekdays_only,
+                  days: order.days,
+                }}
+                pauses={pauses}
+                max={pauseMax}
+                today={tashkentDay(new Date())!}
+                locale={locale}
+              />
+            )
+          )}
 
           <Card title={t.order.delivery}>
             <Rows

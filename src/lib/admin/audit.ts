@@ -537,6 +537,8 @@ export function auditLine(item: AuditItem, t: AdminDictionary, locale: Locale): 
       const labels = EDITED_FIELDS.filter((field: EditedField) => fields.includes(field)).map(
         (field) => t.order.fields[field],
       );
+      // A pause added or removed (0028) is an edit named "pause".
+      if (fields.includes("pause")) labels.push(t.order.pauses.field);
       return {
         title: l.orderEdited(n),
         facts: [],

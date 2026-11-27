@@ -1,10 +1,11 @@
 import type { OrderStatus } from "@/lib/admin/orders";
-import { daysBetween, deliveredDays, orderEndDate } from "@/lib/order/days";
+import { daysBetween, deliveredDays, orderEndDate, type DayRange } from "@/lib/order/days";
 
 /**
- * The plain status line of an order on the customer's account page, from the fields public.my_orders() already
- * returns (no migration): "Starts 3 Dec", "Day 3 of 7 · ends 9 Dec", "Ended 5 Dec". Plain module (no server-only):
- * e2e/order-days.spec.ts checks it directly.
+ * The plain status line of an order on the customer's account page, from the fields public.my_orders() returns and
+ * the order's pauses (public.my_order_pauses, 0028): "Starts 3 Dec", "Day 3 of 7 · ends 9 Dec", "Ended 5 Dec". Paused
+ * days are skipped and move the end later, by the database's rule (src/lib/order/days.ts). Plain module (no
+ * server-only): e2e/order-days.spec.ts checks it directly.
  */
 export type OrderProgress =
   | { kind: "starts"; date: string }
@@ -17,6 +18,8 @@ export type ProgressOrder = {
   start_date: string;
   days: number;
   weekdays_only: boolean;
+  /** Active pauses; omitted or [] for none. Null: they could not be read, so no line is shown. */
+  pauses?: readonly DayRange[] | null;
 };
 
 /** An order whose last delivery is this many days away or fewer gets the Renew button. */
@@ -32,13 +35,18 @@ const DELIVERING: readonly OrderStatus[] = ["confirmed", "paid", "active"];
 export function orderProgress(order: ProgressOrder, today: string): OrderProgress | null {
   const { status, start_date: start, days, weekdays_only: weekdaysOnly } = order;
   if (status === "cancelled") return null;
-  const end = orderEndDate(start, weekdaysOnly, days);
+  // Unknown pauses: any end date shown could be wrong.
+  if (order.pauses === null) return null;
+  const pauses = order.pauses ?? [];
+  const end = orderEndDate(start, weekdaysOnly, days, pauses);
   if (!end) return null;
   if (status === "completed") return today > end ? { kind: "ended", date: end } : null;
-  if (today < start) return { kind: "starts", date: start };
+  // The first delivery: the start, or the first day after a pause that covers it.
+  const first = orderEndDate(start, weekdaysOnly, 1, pauses) ?? start;
+  if (today < first) return { kind: "starts", date: first };
   if (!DELIVERING.includes(status)) return null;
   if (today > end) return { kind: "ended", date: end };
-  return { kind: "running", day: Math.max(1, deliveredDays(start, weekdaysOnly, days, today)), days, end };
+  return { kind: "running", day: Math.max(1, deliveredDays(start, weekdaysOnly, days, today, pauses)), days, end };
 }
 
 /** A running order whose last delivery is at most RENEW_WITHIN_DAYS away: time to offer the next one. */
