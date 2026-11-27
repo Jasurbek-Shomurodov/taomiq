@@ -1,4 +1,15 @@
 import { orderProgress, renewDue, type ProgressOrder } from "../src/lib/account/order-status";
+import {
+  customerCanRemove,
+  customerFirstPauseDay,
+  customerPauseErrorOf,
+  formatPauseRange,
+  hasDaysToPause,
+  previewCustomerPause,
+} from "../src/lib/account/pauses";
+import { renderTelegramMessage } from "../src/lib/telegram/render";
+import { getAdminDictionary } from "../src/i18n/admin";
+import { getDictionary } from "../src/i18n";
 import { canCancelPause, parsePauseMax, previewPause } from "../src/lib/admin/pauses";
 import {
   daysBetween,
@@ -207,4 +218,91 @@ test("account status line with pauses: later end, paused start, Renew from the p
   // Pauses that could not be read: no line rather than a wrong date. No pauses: as before.
   expect(orderProgress({ ...base, pauses: null }, "2026-12-05")).toBeNull();
   expect(orderProgress({ ...base, pauses: [] }, "2026-12-03")).toEqual({ kind: "running", day: 3, days: 7, end: "2026-12-07" });
+});
+
+test("customer pauses: the cutoff rule, what can be removed, the preview from the first allowed day", () => {
+  // Before the cutoff hour (Tashkent, UTC+5) the first day is tomorrow, from the cutoff hour on the day after; the
+  // rule of private.customer_pause_first_day (0029) and of a new order's start date.
+  expect(customerFirstPauseDay(new Date("2026-11-28T08:59:59Z"), 14)).toBe("2026-11-29"); // 13:59
+  expect(customerFirstPauseDay(new Date("2026-11-28T09:00:00Z"), 14)).toBe("2026-11-30"); // 14:00
+  expect(customerFirstPauseDay(new Date("2026-11-28T18:59:00Z"), 14)).toBe("2026-11-30"); // 23:59
+  expect(customerFirstPauseDay(new Date("2026-11-28T19:00:00Z"), 14)).toBe("2026-11-30"); // 00:00 on the 29th
+  expect(customerFirstPauseDay(new Date("2026-11-28T04:59:00Z"), 10)).toBe("2026-11-29"); // 09:59, cutoff 10
+  expect(customerFirstPauseDay(new Date("2026-11-28T05:00:00Z"), 10)).toBe("2026-11-30"); // 10:00, cutoff 10
+
+  // The checks of pause_my_order from that day: the day before it is too soon, it is fine.
+  const order = { status: "active" as const, start_date: "2026-11-27", weekdays_only: false, days: 20 };
+  expect(previewCustomerPause(order, [], "2026-11-29", "2026-11-29", "2026-11-30", 30)).toMatchObject({
+    ok: false,
+    error: "pause_too_soon",
+  });
+  expect(previewCustomerPause(order, [], "2026-11-30", "2026-12-01", "2026-11-30", 30)).toEqual({
+    ok: true,
+    preview: { endBefore: "2026-12-16", endAfter: "2026-12-18", skipped: 2, added: 2 },
+  });
+  expect(previewCustomerPause({ ...order, status: "new" }, [], "2026-11-30", "2026-11-30", "2026-11-30", 30)).toMatchObject({
+    ok: false,
+    error: "not_pausable",
+  });
+
+  // The sheet is offered while the order still delivers on the first allowed day or later, and pauses were read.
+  expect(hasDaysToPause(order, [], "2026-12-16")).toBe(true);
+  expect(hasDaysToPause(order, [], "2026-12-17")).toBe(false);
+  expect(hasDaysToPause(order, [{ from: "2026-12-01", to: "2026-12-01" }], "2026-12-17")).toBe(true);
+  expect(hasDaysToPause(order, null, "2026-11-30")).toBe(false);
+  expect(hasDaysToPause({ ...order, status: "completed" }, [], "2026-11-30")).toBe(false);
+
+  // Remove: only the customer's own pause, from the first allowed day on, and only with its id.
+  const mine = { id: "p1", from: "2026-11-30", to: "2026-12-01", source: "customer" as const };
+  expect(customerCanRemove(mine, "2026-11-30")).toBe(true);
+  expect(customerCanRemove(mine, "2026-12-01")).toBe(false);
+  expect(customerCanRemove({ ...mine, source: "staff" }, "2026-11-30")).toBe(false);
+  expect(customerCanRemove({ ...mine, id: null }, "2026-11-30")).toBe(false);
+
+  // The database's error names, each matched as itself.
+  expect(customerPauseErrorOf("pause_locked")).toBe("pause_locked");
+  expect(customerPauseErrorOf("pause_limit")).toBe("pause_limit");
+  expect(customerPauseErrorOf("staff_pause")).toBe("staff_pause");
+  expect(customerPauseErrorOf("too_many_changes")).toBe("too_many_changes");
+  expect(customerPauseErrorOf("permission denied for function pause_my_order")).toBeNull();
+
+  const months = getDictionary("ru").order.monthNames;
+  expect(formatPauseRange("2026-12-03", "2026-12-03", months)).toBe("3 дек");
+  expect(formatPauseRange("2026-12-03", "2026-12-05", months)).toBe("3–5 дек");
+  expect(formatPauseRange("2026-11-30", "2026-12-02", months)).toBe("30 ноя – 2 дек");
+});
+
+test("the owner-group message of a pause names the days, the new end and a customer's own pause", () => {
+  const payload = {
+    event: "edited",
+    number: 1042,
+    program: "BALANCE",
+    kcal: 1800,
+    days: 14,
+    total: 3570000,
+    fields: ["pause"],
+    pause: { action: "added", source: "customer", from: "2026-12-03", to: "2026-12-05", end: "2026-12-17" },
+    actor: null,
+  };
+  const ru = getAdminDictionary("ru").order.pauses.events;
+  const text = renderTelegramMessage("order", payload, "ru");
+  expect(text).toContain("1042");
+  expect(text).toContain(ru.added("03.12.2026 – 05.12.2026"));
+  expect(text).toContain(ru.end("17.12.2026"));
+  expect(text).toContain(ru.byCustomer);
+
+  // Removed by staff: the staff name, not the customer line.
+  const staff = renderTelegramMessage(
+    "order",
+    { ...payload, pause: { ...payload.pause, action: "cancelled", source: "staff" }, actor: "Dilnoza" },
+    "uz",
+  );
+  const uz = getAdminDictionary("uz").order.pauses.events;
+  expect(staff).toContain(uz.cancelled("03.12.2026 – 05.12.2026"));
+  expect(staff).toContain("Dilnoza");
+  expect(staff).not.toContain(uz.byCustomer);
+
+  // A row queued before 0029 (no pause key) keeps the plain edit line.
+  const old = renderTelegramMessage("order", { ...payload, pause: undefined }, "ru");
+  expect(old).not.toContain(ru.byCustomer);
 });

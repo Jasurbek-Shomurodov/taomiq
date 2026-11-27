@@ -22,6 +22,9 @@
     "total": 1960000,
     "created_at": "2026-11-24T10:00:00Z"
   },
+  "pauses//": "The account pause suite (e2e/account-pauses.spec.ts): its sessions start with one pause staff set on pauseOrder, staffPauseOffsetDays after today (scripts/e2e-mock-supabase.mjs).",
+  "pauseOrder": 873573,
+  "staffPauseOffsetDays": 12,
   "progressOrders//": "More orders of the same customer, with start dates relative to today in Tashkent (start_offset_days), for the status line and the Renew button (e2e/account-orders.spec.ts).",
   "progressOrders": [
     { "number": 873570, "status": "active", "program_name": "BALANCE", "kcal": 1800, "days": 4, "weekdays_only": false, "start_offset_days": -2, "total": 1120000 },

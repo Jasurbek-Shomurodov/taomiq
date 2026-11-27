@@ -571,7 +571,22 @@ function renderOrder(p: Payload, locale: Locale): string {
     case "payment_method":
       return lines(x.order.method(no), `${method(p.method_from)} → ${method(p.method_to)}`, plan, actor && x.by(actor));
     default: {
-      // A pause added or removed (0028) is an edit named "pause".
+      // A pause added or removed (0028), with its days, source and new end since 0029: which days, the last delivery,
+      // and for a customer's own pause that the customer did it in the account (no staff name to show).
+      const pause = p.pause && typeof p.pause === "object" ? (p.pause as Payload) : null;
+      if (pause && str(pause.from) && str(pause.to)) {
+        const e = t.order.pauses.events;
+        const range = t.order.pauses.range(formatMessageDay(pause.from), formatMessageDay(pause.to));
+        const byCustomer = pause.source === "customer";
+        return lines(
+          `${x.order.edited(no)}: ${t.order.pauses.field.toLocaleLowerCase(locale === "ru" ? "ru" : "uz")}`,
+          pause.action === "cancelled" ? e.cancelled(range) : e.added(range),
+          str(pause.end) && e.end(formatMessageDay(pause.end)),
+          plan,
+          byCustomer ? e.byCustomer : actor && x.by(actor),
+          x.seeOrders,
+        );
+      }
       const fields = fieldList(list(p.fields), { ...t.order.fields, pause: t.order.pauses.field }, x);
       return lines(
         fields ? `${x.order.edited(no)}: ${fields.toLocaleLowerCase(locale === "ru" ? "ru" : "uz")}` : x.order.edited(no),

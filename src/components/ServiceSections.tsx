@@ -1,4 +1,5 @@
 import type { Dictionary } from "@/i18n";
+import { isAccountEnabled } from "@/lib/account/methods";
 import { getOrderSettings } from "@/lib/data/catalog";
 import { DEFAULT_CUTOFF_HOUR } from "@/lib/order/rules";
 
@@ -22,8 +23,9 @@ export function HowItWorks({ t, id }: { t: Dictionary; /** Anchor for in-page li
 
 /**
  * "Already included in the price": delivery, exclusions and swaps, pause, one price. Home and goal pages. Only what
- * is true today (docs/plans/customer-site-round-2.md, item 2): a pause or a move is asked for by message before the
- * order cutoff hour the day before (from the settings, so it matches the order form's start-date hint).
+ * is true today (docs/plans/customer-site-round-2.md, item 2): a pause or a move is made in the account before the
+ * order cutoff hour the day before (docs/plans/pause-and-skip-days.md, slice 3), or asked for by message while customer
+ * sign-in is off. The hour comes from the settings, so it matches the order form's start-date hint and the account.
  */
 export async function Included({ t }: { t: Dictionary }) {
   let cutoffHour = DEFAULT_CUTOFF_HOUR;
@@ -32,7 +34,11 @@ export async function Included({ t }: { t: Dictionary }) {
   } catch (error) {
     console.error("included: settings unavailable", error);
   }
-  const items = t.included.items.map((item) => item.replace("{hour}", String(cutoffHour)));
+  const pause = isAccountEnabled ? t.included.pause : t.included.pauseByMessage;
+  // The pause line is the fourth, before the price.
+  const items = [...t.included.items.slice(0, 3), pause, ...t.included.items.slice(3)].map((item) =>
+    item.replace("{hour}", String(cutoffHour)),
+  );
   return (
     <section className="bg-forest py-16 text-ivory md:py-20">
       <div className="container-page grid gap-10 md:grid-cols-2 md:items-center">

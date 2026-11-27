@@ -561,10 +561,12 @@ test("the trial says it costs the same per day as a week, and 'included' promise
 
   await page.goto("/uz");
   await expect(page.getByText(note)).toBeVisible();
-  // The pause line names the order cutoff hour from the settings (demo: 14:00).
-  for (const item of uz.included.items) {
+  // The pause line names the order cutoff hour from the settings (demo: 14:00). Customer sign-in is off in the demo
+  // build, so a pause is asked for by message, not made in the account.
+  for (const item of [...uz.included.items, uz.included.pauseByMessage]) {
     await expect(page.getByText(item.replace("{hour}", "14"), { exact: true })).toBeVisible();
   }
+  await expect(page.getByText(uz.included.pause.replace("{hour}", "14"), { exact: true })).toHaveCount(0);
   await expect(page.getByText(/\{hour\}/)).toHaveCount(0);
 
   await page.goto("/uz/prices");

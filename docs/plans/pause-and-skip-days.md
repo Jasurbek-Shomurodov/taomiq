@@ -1,7 +1,7 @@
 # Plan · Pause and skip delivery days
 
 
-Status: slices 1-2 shipped (migration 0028, staff pauses, customer account end date). Slice 3 (customer self-service pauses) is next.
+Status: all three slices shipped (0028, 0029).
 Approved for planning by Jasurbek on 27 Nov 2026 (round-two research, item 4). The site lists "Pause and move
 days without losing what you paid" under "Already included". Today nothing in the data can hold a pause:
 `orders` has `start_date`, `days` and `weekdays_only`, and every sheet derives the delivery days from those

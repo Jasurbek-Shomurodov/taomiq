@@ -31,7 +31,7 @@ export default async function DeliveryPage({ params }: PageProps<"/[locale]/deli
   const t = getDictionary(locale);
 
   // Windows and cutoff are data (settings table). If they cannot be read, show the defaults the order form also uses.
-  let settings: OrderSettings;
+  let settings: Pick<OrderSettings, "deliveryWindows" | "cutoffHour">;
   try {
     settings = await getOrderSettings();
   } catch (error) {

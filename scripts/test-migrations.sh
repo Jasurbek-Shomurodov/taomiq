@@ -1,7 +1,7 @@
 #!/bin/sh
 # Applies every migration in supabase/migrations to a throwaway local Postgres, in order, and stops at the first
 # error. The project is on Supabase's Free plan, which has no branches, so this is the test a migration gets before
-# production (CLAUDE.md, "Migration policy").
+# production (CLAUDE.md, "Migration policy"). Then it runs the checks in supabase/local-test/*.test.sql.
 #
 #   scripts/test-migrations.sh            apply everything, then stop and delete the server
 #   scripts/test-migrations.sh --keep     leave it running and print the psql command, to run checks by hand
@@ -28,6 +28,12 @@ for file in "$root"/supabase/migrations/*.sql; do
   run -d taomiq_test -f "$file"
 done
 echo "all migrations applied"
+# Checks of the functions, each file one transaction that rolls itself back (supabase/local-test/*.test.sql).
+for file in "$root"/supabase/local-test/*.test.sql; do
+  [ -e "$file" ] || continue
+  echo "checking $(basename "$file")"
+  run -d taomiq_test -f "$file"
+done
 
 if [ "${1:-}" = "--keep" ]; then
   echo "server left running:  psql -h 127.0.0.1 -p $port -U postgres -d taomiq_test"

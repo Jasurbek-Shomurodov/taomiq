@@ -1,6 +1,7 @@
 import { cacheLife, cacheTag } from "next/cache";
 import { createPublicClient } from "@/lib/supabase/public";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { PAUSE_MAX_DAYS_DEFAULT, PAUSE_MAX_DAYS_KEY, parsePauseMax } from "@/lib/admin/pauses";
 import { DEFAULT_CUTOFF_HOUR, DEFAULT_DELIVERY_WINDOWS } from "@/lib/order/rules";
 import { DEMO_ANCHOR, demoDishes, demoDurations, demoMenu, demoPrograms } from "./demo";
 import { cycleDayFor, type Dish, type Duration, type MenuEntry, type Program } from "./types";
@@ -99,8 +100,10 @@ export async function hasAnyMenu(programs: Pick<Program, "variants">[]): Promise
 export type OrderSettings = {
   /** Two-hour delivery windows offered on the order form, e.g. "07:00–09:00". */
   deliveryWindows: string[];
-  /** Orders placed before this Tashkent hour can start tomorrow. */
+  /** Orders placed before this Tashkent hour can start tomorrow; a customer's pause follows the same rule. */
   cutoffHour: number;
+  /** The cap of paused delivery days per order (pause_max_days, migration 0028). */
+  pauseMaxDays: number;
 };
 
 /** Delivery windows and the order cutoff from the settings table. */
@@ -109,13 +112,17 @@ export async function getOrderSettings(): Promise<OrderSettings> {
   cacheTag(CATALOG_TAG);
   cacheLife("hours");
 
-  const settings: OrderSettings = { deliveryWindows: DEFAULT_DELIVERY_WINDOWS, cutoffHour: DEFAULT_CUTOFF_HOUR };
+  const settings: OrderSettings = {
+    deliveryWindows: DEFAULT_DELIVERY_WINDOWS,
+    cutoffHour: DEFAULT_CUTOFF_HOUR,
+    pauseMaxDays: PAUSE_MAX_DAYS_DEFAULT,
+  };
   if (!isSupabaseConfigured) return settings;
 
   const { data, error } = await createPublicClient()
     .from("settings")
     .select("key, value")
-    .in("key", ["delivery_windows", "order_cutoff_hour"]);
+    .in("key", ["delivery_windows", "order_cutoff_hour", PAUSE_MAX_DAYS_KEY]);
   if (error) throw new Error(`settings: ${error.message}`);
 
   for (const row of data ?? []) {
@@ -131,6 +138,7 @@ export async function getOrderSettings(): Promise<OrderSettings> {
       const hour = Number(row.value);
       if (Number.isInteger(hour) && hour >= 0 && hour <= 24) settings.cutoffHour = hour;
     }
+    if (row.key === PAUSE_MAX_DAYS_KEY) settings.pauseMaxDays = parsePauseMax(row.value);
   }
   return settings;
 }

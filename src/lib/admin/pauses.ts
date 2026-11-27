@@ -82,6 +82,10 @@ export type PausePreview = {
   added: number;
 };
 
+export type PauseCheck =
+  | { ok: true; preview: PausePreview }
+  | { ok: false; error: Extract<PauseError, "bad_range" | "pause_too_soon" | "not_pausable" | "no_delivery_days" | "pause_limit">; preview?: PausePreview };
+
 /**
  * What adding the pause from..to would do, or why it cannot be added: the checks of staff_pause_order in the same
  * order. `pauses` are the order's active ranges.
@@ -93,9 +97,24 @@ export function previewPause(
   to: string,
   today: string,
   max: number,
-): { ok: true; preview: PausePreview } | { ok: false; error: PauseError; preview?: PausePreview } {
+): PauseCheck {
+  return previewPauseFrom(order, pauses, from, to, firstPauseDay(today), max);
+}
+
+/**
+ * previewPause with the first day a pause may start given: tomorrow for staff (firstPauseDay), the earliest start of a
+ * new order for a customer (private.add_order_pause, 0029, the checks of staff_pause_order with that day).
+ */
+export function previewPauseFrom(
+  order: Schedule,
+  pauses: readonly DayRange[],
+  from: string,
+  to: string,
+  firstDay: string,
+  max: number,
+): PauseCheck {
   if (!from || !to || to < from || daysBetween(from, to) >= PAUSE_RANGE_MAX_DAYS) return { ok: false, error: "bad_range" };
-  if (from < firstPauseDay(today)) return { ok: false, error: "pause_too_soon" };
+  if (from < firstDay) return { ok: false, error: "pause_too_soon" };
   if (!canPause(order.status)) return { ok: false, error: "not_pausable" };
 
   const endBefore = orderEndDate(order.start_date, order.weekdays_only, order.days, pauses);

@@ -6,13 +6,17 @@ import fixture from "./account-fixture.json";
  */
 export const SESSION_COOKIE = "sb-localhost-auth-token";
 
-/** The session cookie as @supabase/ssr writes it: "base64-" + base64url(JSON), named after the project host. */
-export function sessionCookie() {
+/**
+ * The session cookie as @supabase/ssr writes it: "base64-" + base64url(JSON), named after the project host. The mock
+ * keeps pauses per session id (scripts/e2e-mock-supabase.mjs): a suite that adds pauses passes its own id starting
+ * with "pause-", so it never changes what another suite or project sees.
+ */
+export function sessionCookie(sessionId = "e2e") {
   const b64 = (value: string) => Buffer.from(value).toString("base64url");
   const expiresAt = Math.floor(Date.now() / 1000) + 30 * 86_400;
   const accessToken = [
     b64(JSON.stringify({ alg: "HS256", typ: "JWT" })),
-    b64(JSON.stringify({ sub: fixture.user.id, exp: expiresAt, role: "authenticated", aud: "authenticated", session_id: "e2e" })),
+    b64(JSON.stringify({ sub: fixture.user.id, exp: expiresAt, role: "authenticated", aud: "authenticated", session_id: sessionId })),
     fixture.tokenSignature,
   ].join(".");
   const session = {

@@ -9,12 +9,16 @@ import { requireCustomer } from "@/lib/account/auth";
 import { authMethods, isAccountEnabled } from "@/lib/account/methods";
 import { orderProgress, renewDue, type OrderProgress } from "@/lib/account/order-status";
 import { listMyOrders, type CustomerOrder } from "@/lib/account/orders";
+import { customerCanPause, customerFirstPauseDay, formatPauseRange, hasDaysToPause } from "@/lib/account/pauses";
 import { STATUS_TONES } from "@/lib/admin/orders";
-import { getPrograms } from "@/lib/data/catalog";
+import { PAUSE_MAX_DAYS_DEFAULT } from "@/lib/admin/pauses";
+import { getOrderSettings, getPrograms, type OrderSettings } from "@/lib/data/catalog";
 import type { Program } from "@/lib/data/types";
 import { tashkentToday } from "@/lib/order/days";
+import { DEFAULT_CUTOFF_HOUR } from "@/lib/order/rules";
 import { pageMetadata } from "@/lib/seo";
 import { AccountAnalytics, NameForm, SignOutButton } from "./AccountForms";
+import { PauseSheet, type PauseSheetLabels } from "./PauseSheet";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/account">): Promise<Metadata> {
   const { locale } = await params;
@@ -155,11 +159,24 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
   // plain form.
   const today = tashkentToday();
   let programs: Program[] = [];
-  try {
-    programs = await getPrograms();
-  } catch (error) {
-    console.error("account: catalogue unavailable", error instanceof Error ? error.message : error);
-  }
+  let settings: Pick<OrderSettings, "cutoffHour" | "pauseMaxDays"> = {
+    cutoffHour: DEFAULT_CUTOFF_HOUR,
+    pauseMaxDays: PAUSE_MAX_DAYS_DEFAULT,
+  };
+  const [programsRead, settingsRead] = await Promise.allSettled([getPrograms(), getOrderSettings()]);
+  if (programsRead.status === "fulfilled") programs = programsRead.value;
+  else console.error("account: catalogue unavailable", errorMessage(programsRead.reason));
+  if (settingsRead.status === "fulfilled") settings = settingsRead.value;
+  else console.error("account: settings unavailable", errorMessage(settingsRead.reason));
+  // The first day a customer may pause or remove a pause: the earliest start of a new order placed now (0029).
+  const firstPauseDay = customerFirstPauseDay(new Date(), settings.cutoffHour);
+  const pauseLabels: PauseSheetLabels = {
+    ...a.pause,
+    orderNumber: a.orderNumber,
+    monthNames: o.monthNames,
+    weekdayNames: o.weekdayNames,
+    dayForms: o.dayForms,
+  };
   const progressText = (progress: OrderProgress) => {
     switch (progress.kind) {
       case "starts":
@@ -175,7 +192,22 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
   };
   const cards = orders.map((order) => {
     const progress = orderProgress(order, today);
-    return { order, progress, renewHref: renewDue(progress, today) ? renewHref(locale, order, programs) : null };
+    // The pause sheet needs every pause's id (my_order_pauses_v2, 0029) to offer Remove and an end date it can trust.
+    const pauses =
+      order.pauses && order.pauses.every((pause) => pause.id) && hasDaysToPause(order, order.pauses, firstPauseDay)
+        ? order.pauses
+        : null;
+    return {
+      order,
+      progress,
+      pauses,
+      // Only on an order that still runs: a cancelled or finished order keeps its pause rows, but they no longer apply.
+      pauseLine:
+        customerCanPause(order.status) && progress !== null && progress.kind !== "ended"
+          ? upcomingPauses(order, today, o.monthNames)
+          : null,
+      renewHref: renewDue(progress, today) ? renewHref(locale, order, programs) : null,
+    };
   });
   // One gold order button per page: when a card offers Renew, the general order button below steps back to outline.
   const renewing = cards.some((card) => card.renewHref);
@@ -183,7 +215,7 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
   return (
     <>
       <ul className="mt-5 grid gap-3">
-        {cards.map(({ order, progress, renewHref }) => (
+        {cards.map(({ order, progress, pauses, pauseLine, renewHref }) => (
           <li key={order.number} className="rounded-2xl border border-line p-4 md:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-semibold text-forest tabular-nums">
@@ -202,6 +234,11 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
                 {progressText(progress)}
               </p>
             )}
+            {pauseLine && (
+              <p className="mt-1 text-sm text-muted tabular-nums" data-order-pauses>
+                {a.pause.cardLine.replace("{ranges}", pauseLine)}
+              </p>
+            )}
             <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
               <div className="flex gap-2">
                 <dt className="text-muted">{a.orderStart}</dt>
@@ -214,6 +251,23 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
                 </dd>
               </div>
             </dl>
+            {pauses && (
+              <PauseSheet
+                order={{
+                  number: order.number,
+                  status: order.status,
+                  start_date: order.start_date,
+                  days: order.days,
+                  weekdays_only: order.weekdays_only,
+                }}
+                pauses={pauses}
+                firstDay={firstPauseDay}
+                cutoffHour={settings.cutoffHour}
+                max={settings.pauseMaxDays}
+                locale={locale}
+                labels={pauseLabels}
+              />
+            )}
             {renewHref && (
               <Link
                 href={renewHref}
@@ -236,6 +290,16 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
       {telegramOn && <p className="mt-5 text-sm text-muted">{a.ordersNote}</p>}
     </>
   );
+}
+
+function errorMessage(error: unknown): unknown {
+  return error instanceof Error ? error.message : error;
+}
+
+/** The order's pauses that end today or later, as "3–5 dek, 9 dek"; null when there are none. */
+function upcomingPauses(order: CustomerOrder, today: string, monthNames: readonly string[]): string | null {
+  const ahead = (order.pauses ?? []).filter((pause) => pause.to >= today).sort((x, y) => x.from.localeCompare(y.from));
+  return ahead.length > 0 ? ahead.map((pause) => formatPauseRange(pause.from, pause.to, monthNames)).join(", ") : null;
 }
 
 /**

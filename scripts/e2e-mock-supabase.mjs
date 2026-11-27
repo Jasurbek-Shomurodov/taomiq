@@ -4,10 +4,14 @@
 //    POST /auth/v1/logout (204).
 //  - Customer data: GET /rest/v1/profiles, POST /rest/v1/rpc/my_orders (the fixture order, then its progressOrders with
 //    start dates counted from today in Tashkent, so the account's status lines are the same whatever day the suite runs),
-//    POST /rest/v1/rpc/my_order_pauses (none).
+//    POST /rest/v1/rpc/my_order_pauses and my_order_pauses_v2 (the session's pauses), pause_my_order and cancel_my_pause
+//    (migration 0029). Pauses are kept in memory per session id (the access token's session_id claim), so the suites
+//    and the two account projects never see each other's pauses: the default session "e2e" has none, and a session
+//    whose id starts with "pause-" starts with one pause staff set on the fixture's pauseOrder (e2e/account-pauses.spec.ts).
 //  - Catalogue (read by the build too, e.g. generateStaticParams of /[locale]/programs/[slug]): one program with one
 //    calorie level, the durations and a small 30-day menu. Every other table is empty.
 // The customer is made up (e2e/account-fixture.json). Nothing here is a real key or a real person.
+import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import http from "node:http";
 
@@ -110,6 +114,86 @@ function myOrders() {
   return [fixture.order, ...progress];
 }
 
+/** Today in Tashkent plus `days`, YYYY-MM-DD. */
+function tashkentDay(days = 0) {
+  const date = new Date(Date.now() + 5 * 3_600_000);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** The first day a customer may pause (private.customer_pause_first_day, 0029) with the default cutoff hour 14. */
+function firstPauseDay() {
+  return tashkentDay(new Date(Date.now() + 5 * 3_600_000).getUTCHours() < 14 ? 1 : 2);
+}
+
+/** The order the "pause-" sessions start with a staff pause on, and how many days after today that pause is. */
+const PAUSE_ORDER = fixture.pauseOrder;
+const STAFF_PAUSE_OFFSET = fixture.staffPauseOffsetDays;
+
+/** session id → that session's active pauses ({ id, number, from_date, to_date, source }). */
+const pausesBySession = new Map();
+
+function sessionPauses(sessionId) {
+  let list = pausesBySession.get(sessionId);
+  if (!list) {
+    list = sessionId.startsWith("pause-")
+      ? [{ id: randomUUID(), number: PAUSE_ORDER, from_date: tashkentDay(STAFF_PAUSE_OFFSET), to_date: tashkentDay(STAFF_PAUSE_OFFSET), source: "staff" }]
+      : [];
+    pausesBySession.set(sessionId, list);
+  }
+  return list;
+}
+
+/** The session_id claim of a bearer token, "" when there is none. */
+function sessionOf(token) {
+  try {
+    return String(JSON.parse(Buffer.from(token.split(".")[1] ?? "", "base64url").toString("utf8")).session_id ?? "");
+  } catch {
+    return "";
+  }
+}
+
+/** The JSON body of a request ({} when empty or not JSON). */
+function readBody(req) {
+  return new Promise((resolve) => {
+    let raw = "";
+    req.on("data", (chunk) => (raw += chunk));
+    req.on("end", () => {
+      try {
+        resolve(raw ? JSON.parse(raw) : {});
+      } catch {
+        resolve({});
+      }
+    });
+  });
+}
+
+/** pause_my_order and cancel_my_pause, with the checks the account suite can reach (the database has them all). */
+async function pauseRpc(req, name, session, send) {
+  const body = await readBody(req);
+  const fail = (status, code, message) => send(status, { code, details: null, hint: null, message });
+  const list = sessionPauses(session);
+  const first = firstPauseDay();
+  if (name === "pause_my_order") {
+    const order = myOrders().find((o) => o.number === Number(body.p_number));
+    if (!order) return fail(404, "P0002", "not_found");
+    if (!["confirmed", "paid", "active"].includes(order.status)) return fail(400, "55000", "not_pausable");
+    if (typeof body.p_from !== "string" || typeof body.p_to !== "string" || body.p_to < body.p_from) {
+      return fail(400, "22023", "bad_range");
+    }
+    if (body.p_from < first) return fail(400, "22023", "pause_too_soon");
+    const pause = { id: randomUUID(), number: order.number, from_date: body.p_from, to_date: body.p_to, source: "customer" };
+    list.push(pause);
+    return send(200, { id: pause.id, number: order.number, end_date: null, skipped: null, max: 30 });
+  }
+  const index = list.findIndex((pause) => pause.id === body.p_id);
+  if (index < 0) return fail(404, "P0002", "not_found");
+  if (list[index].source !== "customer") return fail(403, "42501", "staff_pause");
+  if (list[index].from_date < first) return fail(400, "55000", "pause_locked");
+  const [removed] = list.splice(index, 1);
+  return send(200, { number: removed.number, end_date: null });
+}
+
 /** PostgREST "eq." filters from the query string, e.g. ?variant_id=eq.x&cycle_day=eq.1. */
 function matches(row, params) {
   for (const [key, value] of params) {
@@ -148,8 +232,13 @@ export function startMockSupabase(port) {
       case "/rest/v1/rpc/my_orders":
         return send(200, signedIn ? myOrders() : []);
       case "/rest/v1/rpc/my_order_pauses":
-        // The fixture customer has no paused days (migration 0028).
-        return send(200, []);
+        return send(200, signedIn ? sessionPauses(sessionOf(token)).map(({ number, from_date, to_date }) => ({ number, from_date, to_date })) : []);
+      case "/rest/v1/rpc/my_order_pauses_v2":
+        return send(200, signedIn ? sessionPauses(sessionOf(token)) : []);
+      case "/rest/v1/rpc/pause_my_order":
+      case "/rest/v1/rpc/cancel_my_pause":
+        if (!signedIn) return send(401, { code: "42501", details: null, hint: null, message: "permission denied" });
+        return pauseRpc(req, url.pathname.slice("/rest/v1/rpc/".length), sessionOf(token), send);
       case "/rest/v1/programs":
         return rows([program]);
       case "/rest/v1/durations":
