@@ -110,6 +110,17 @@ export function pricePerDay(basePrice: number, markupPct: number): number {
 }
 
 /**
+ * Whether a trial is offered at the same markup (so the same price per day) as the 7-day order, or, without a 7-day
+ * order, as the shortest other one. Then the site says so next to the trial, so it never reads like a discount.
+ */
+export function trialAtWeekPrice(durations: Duration[]): boolean {
+  const trial = durations.find((d) => d.is_trial);
+  const others = durations.filter((d) => !d.is_trial).sort((a, b) => a.days - b.days);
+  const week = others.find((d) => d.days === 7) ?? others[0];
+  return Boolean(trial && week && Number(trial.markup_pct) === Number(week.markup_pct));
+}
+
+/**
  * The lowest catalogue price per day across the given programs' calorie levels: the "from … per day"
  * figure shown in the home hero and the phone call-to-action bar. null when there are no levels.
  */

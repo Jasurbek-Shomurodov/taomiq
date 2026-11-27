@@ -10,7 +10,7 @@ import { getDictionary } from "@/i18n";
 import { formatSum, isLocale, locales } from "@/i18n/config";
 import { getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
-import { lowestPricePerDay, type MenuEntry, type Program } from "@/lib/data/types";
+import { CYCLE_DAYS, lowestPricePerDay, type MenuEntry, type Program } from "@/lib/data/types";
 import { GOAL_PAGES, GOAL_SHARED_FAQ, goalPrograms, isGoalPage } from "@/lib/goal-pages";
 import { pageMetadata } from "@/lib/seo";
 
@@ -175,7 +175,8 @@ export default async function GoalPage({ params }: PageProps<"/[locale]/goals/[g
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="label text-muted">
-                TAOMIQ {featured.name} / {featuredVariant.kcal} · {t.menu.day} 1
+                TAOMIQ {featured.name} / {featuredVariant.kcal} ·{" "}
+                {t.menu.dayOf.replace("{n}", "1").replace("{total}", String(CYCLE_DAYS))}
               </p>
               <h2 className="reveal mt-2 font-serif text-4xl text-forest">{t.goals.sampleTitle}</h2>
             </div>

@@ -14,7 +14,7 @@ import { getDictionary } from "@/i18n";
 import { isLocale, locales } from "@/i18n/config";
 import { getDurations, getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
-import { sumNutrition } from "@/lib/data/types";
+import { CYCLE_DAYS, sumNutrition } from "@/lib/data/types";
 import { goalsForProgram } from "@/lib/goal-pages";
 import { pageMetadata } from "@/lib/seo";
 import { programProduct } from "@/lib/structured-data";
@@ -182,7 +182,8 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="label text-muted">
-                TAOMIQ {program.name} / {firstVariant.kcal} · {t.menu.day} 1
+                TAOMIQ {program.name} / {firstVariant.kcal} ·{" "}
+                {t.menu.dayOf.replace("{n}", "1").replace("{total}", String(CYCLE_DAYS))}
               </p>
               <h2 className="mt-2 font-serif text-4xl text-forest">{t.menu.title}</h2>
             </div>

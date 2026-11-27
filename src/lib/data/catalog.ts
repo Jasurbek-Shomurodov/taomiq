@@ -135,20 +135,33 @@ export async function getOrderSettings(): Promise<OrderSettings> {
   return settings;
 }
 
-/** Today's position in the 30-day cycle (Tashkent time). Refreshes hourly. */
+/** The cycle's anchor date (settings.cycle_anchor; the demo's anchor without a database). */
+export async function getCycleAnchor(): Promise<string> {
+  "use cache";
+  cacheTag(CATALOG_TAG);
+  cacheLife("hours");
+
+  if (!isSupabaseConfigured) return DEMO_ANCHOR;
+  const { data } = await createPublicClient().from("settings").select("value").eq("key", "cycle_anchor").maybeSingle();
+  return typeof data?.value === "string" ? data.value : DEMO_ANCHOR;
+}
+
+/**
+ * Today's position in the 30-day cycle (Tashkent time), cached with the anchor: up to an hour late after midnight.
+ * For static pages (the home preview). A page that renders per request uses currentCycleDay() instead.
+ */
 export async function getTodayCycleDay(): Promise<number> {
   "use cache";
   cacheTag(CATALOG_TAG);
   cacheLife("hours");
 
-  let anchor = DEMO_ANCHOR;
-  if (isSupabaseConfigured) {
-    const { data } = await createPublicClient()
-      .from("settings")
-      .select("value")
-      .eq("key", "cycle_anchor")
-      .maybeSingle();
-    if (typeof data?.value === "string") anchor = data.value;
-  }
-  return cycleDayFor(new Date(), anchor);
+  return cycleDayFor(new Date(), await getCycleAnchor());
+}
+
+/**
+ * Today's position in the 30-day cycle, computed on each request from the cached anchor, so it turns over at
+ * midnight in Tashkent. Only in per-request rendering (after a dynamic read such as searchParams).
+ */
+export async function currentCycleDay(): Promise<number> {
+  return cycleDayFor(new Date(), await getCycleAnchor());
 }

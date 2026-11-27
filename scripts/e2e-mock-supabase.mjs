@@ -2,7 +2,8 @@
 // localhost only, in memory, no packages. It answers just what the build and the account pages ask for:
 //  - Auth: GET /auth/v1/user (the fixture customer when the bearer token carries the fixture's signature, else 401),
 //    POST /auth/v1/logout (204).
-//  - Customer data: GET /rest/v1/profiles, POST /rest/v1/rpc/my_orders.
+//  - Customer data: GET /rest/v1/profiles, POST /rest/v1/rpc/my_orders (the fixture order, then its progressOrders with
+//    start dates counted from today in Tashkent, so the account's status lines are the same whatever day the suite runs).
 //  - Catalogue (read by the build too, e.g. generateStaticParams of /[locale]/programs/[slug]): one program with one
 //    calorie level, the durations and a small 30-day menu. Every other table is empty.
 // The customer is made up (e2e/account-fixture.json). Nothing here is a real key or a real person.
@@ -92,6 +93,22 @@ for (let day = 1; day <= 30; day++) {
   }
 }
 
+/** The fixture's orders as my_orders() returns them: progressOrders get a start date relative to today (Tashkent). */
+function myOrders() {
+  const today = new Date(Date.now() + 5 * 3_600_000);
+  const shifted = (days) => {
+    const date = new Date(today);
+    date.setUTCDate(date.getUTCDate() + days);
+    return date.toISOString().slice(0, 10);
+  };
+  const progress = fixture.progressOrders.map(({ start_offset_days, ...order }) => ({
+    ...order,
+    start_date: shifted(start_offset_days),
+    created_at: "2026-11-24T10:00:00Z",
+  }));
+  return [fixture.order, ...progress];
+}
+
 /** PostgREST "eq." filters from the query string, e.g. ?variant_id=eq.x&cycle_day=eq.1. */
 function matches(row, params) {
   for (const [key, value] of params) {
@@ -128,7 +145,7 @@ export function startMockSupabase(port) {
       case "/rest/v1/profiles":
         return rows(signedIn ? [fixture.profile] : []);
       case "/rest/v1/rpc/my_orders":
-        return send(200, signedIn ? [fixture.order] : []);
+        return send(200, signedIn ? myOrders() : []);
       case "/rest/v1/programs":
         return rows([program]);
       case "/rest/v1/durations":

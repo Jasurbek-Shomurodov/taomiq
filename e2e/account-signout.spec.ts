@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import { getDictionary } from "../src/i18n";
 import fixture from "./account-fixture.json";
+import { SESSION_COOKIE, sessionCookie } from "./account-session";
 import { expect, test } from "./fixtures";
 
 /**
@@ -19,26 +20,6 @@ const CUSTOMER_DATA = [
   String(fixture.order.number),
   fixture.user.id,
 ];
-
-/** The session cookie as @supabase/ssr writes it: "base64-" + base64url(JSON), named after the project host. */
-function sessionCookie() {
-  const b64 = (value: string) => Buffer.from(value).toString("base64url");
-  const expiresAt = Math.floor(Date.now() / 1000) + 30 * 86_400;
-  const accessToken = [
-    b64(JSON.stringify({ alg: "HS256", typ: "JWT" })),
-    b64(JSON.stringify({ sub: fixture.user.id, exp: expiresAt, role: "authenticated", aud: "authenticated", session_id: "e2e" })),
-    fixture.tokenSignature,
-  ].join(".");
-  const session = {
-    access_token: accessToken,
-    token_type: "bearer",
-    expires_in: 30 * 86_400,
-    expires_at: expiresAt,
-    refresh_token: "e2e-refresh",
-    user: { id: fixture.user.id, aud: "authenticated", role: "authenticated", email: fixture.user.email },
-  };
-  return `base64-${b64(JSON.stringify(session))}`;
-}
 
 /** The customer data found anywhere in the current document (DOM, hidden kept routes, inline RSC payload). */
 async function dataInPage(page: Page): Promise<string[]> {
@@ -65,7 +46,7 @@ async function expectNoCustomerData(page: Page, step: string) {
 }
 
 test.beforeEach(async ({ context, baseURL }) => {
-  await context.addCookies([{ name: "sb-localhost-auth-token", value: sessionCookie(), url: baseURL! }]);
+  await context.addCookies([{ name: SESSION_COOKIE, value: sessionCookie(), url: baseURL! }]);
 });
 
 for (const entry of ["direct load", "link from the menu page"] as const) {
@@ -96,7 +77,7 @@ for (const entry of ["direct load", "link from the menu page"] as const) {
     await expect(page).toHaveURL(new RegExp(`/${locale}$`));
     await page.waitForLoadState("load");
     await expectNoCustomerData(page, "after sign-out");
-    expect((await page.context().cookies()).map((cookie) => cookie.name)).not.toContain("sb-localhost-auth-token");
+    expect((await page.context().cookies()).map((cookie) => cookie.name)).not.toContain(SESSION_COOKIE);
 
     // 3. Back: the page before (or the login page), never the account page with the customer's data.
     await page.goBack();

@@ -5,12 +5,17 @@ import { CHIP, DAY_CIRCLE, DAY_ROW, DISH_BODY, DISH_CARD, DISH_IMAGE, DISH_LIST 
 /**
  * Loading state of the menu browser: chips row, day row and three dish cards, built from the same
  * class lists as the real thing so nothing moves when the menu streams in. The labels are real text
- * (they never change); everything else is a placeholder.
+ * (they never change); everything else is a placeholder without words. It is the static shell of /menu, sent before
+ * the URL's ?program=&kcal=&day= is read, so it names no program, level or day: a crawler, or a phone still waiting
+ * for the stream, never sees a program other than the one asked for (docs/plans/customer-site-round-2.md, item 7).
  */
 export function MenuSkeleton({ t }: { t: Dictionary }) {
   const block = "rounded-md bg-ivory-deep";
-  const chip = (text: string) => (
-    <span className={`${CHIP} animate-pulse border-line bg-ivory-deep text-transparent`}>{text}</span>
+  // Same height as a chip (padding + one line of text); the width stands in for the words.
+  const chip = (width: string, key: number) => (
+    <span key={key} className={`${CHIP} ${width} animate-pulse border-line bg-ivory-deep`} aria-hidden>
+      &nbsp;
+    </span>
   );
 
   return (
@@ -19,21 +24,18 @@ export function MenuSkeleton({ t }: { t: Dictionary }) {
         <div>
           <p className="label text-muted">{t.menu.program}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {chip("LIGHT")}
-            {chip("BALANCE")}
-            {chip("PROTEIN")}
+            {["w-20", "w-28", "w-28"].map(chip)}
           </div>
         </div>
         <div>
           <p className="label text-muted">{t.menu.level}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            {chip(`1800 ${t.programs.kcal}`)}
-            {chip(`2200 ${t.programs.kcal}`)}
+            {["w-24", "w-24"].map(chip)}
           </div>
         </div>
       </div>
 
-      <p className="label mt-8 text-muted">{t.menu.day}</p>
+      <p className="label mt-8 text-muted">{t.menu.cycleDay}</p>
       <div className="mt-2">
         <div className={`${DAY_ROW} overflow-hidden`}>
           {Array.from({ length: CYCLE_DAYS }, (_, i) => (
@@ -41,10 +43,11 @@ export function MenuSkeleton({ t }: { t: Dictionary }) {
           ))}
         </div>
       </div>
+      <p className="mt-2 text-sm text-muted">{t.menu.cycleHint.replace("{total}", String(CYCLE_DAYS))}</p>
 
       <div className="mt-8">
-        <p className="label mb-4 text-transparent">
-          <span className={`${block} animate-pulse`}>TAOMIQ BALANCE / 1800 · {t.menu.day} 1</span>
+        <p className="label mb-4" aria-hidden>
+          <span className={`${block} inline-block w-64 max-w-full animate-pulse`}>&nbsp;</span>
         </p>
         <ul className={DISH_LIST}>
           {[0, 1, 2].map((i) => (

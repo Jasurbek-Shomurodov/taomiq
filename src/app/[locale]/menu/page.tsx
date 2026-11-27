@@ -11,7 +11,7 @@ import { ProgramLinks } from "@/components/ProgramLinks";
 import { CHIP } from "@/components/menu-styles";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, type Locale } from "@/i18n/config";
-import { getMenuDay, getPrograms, getTodayCycleDay, hasAnyMenu, hasMenu, isDemoCatalog } from "@/lib/data/catalog";
+import { currentCycleDay, getMenuDay, getPrograms, hasAnyMenu, hasMenu, isDemoCatalog } from "@/lib/data/catalog";
 import { CYCLE_DAYS, type MenuEntry, type Program } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
@@ -95,11 +95,13 @@ async function MenuBrowser({
   if (!program) return <p className="text-muted">{t.menu.empty}</p>;
 
   const variant = program.variants.find((v) => String(v.kcal) === pick("kcal")) ?? program.variants[0];
+  // The day is the menu's cycle day (1–30), never the calendar date. Without ?day= it is the day the kitchen cooks
+  // today, and the caption says so.
   const requestedDay = Number(pick("day"));
-  const day =
-    Number.isInteger(requestedDay) && requestedDay >= 1 && requestedDay <= CYCLE_DAYS
-      ? requestedDay
-      : await getTodayCycleDay();
+  // Per request (not cached): the "cooked today" mark and the default day turn over at midnight in Tashkent.
+  const todayDay = await currentCycleDay();
+  const day = Number.isInteger(requestedDay) && requestedDay >= 1 && requestedDay <= CYCLE_DAYS ? requestedDay : todayDay;
+  const dayOf = (n: number) => t.menu.dayOf.replace("{n}", String(n)).replace("{total}", String(CYCLE_DAYS));
 
   const [entries, levelHasMenu] = variant
     ? await Promise.all([getMenuDay(variant.id, day), hasMenu(variant.id)])
@@ -155,11 +157,20 @@ async function MenuBrowser({
           {/* Anchor for the previous / next buttons: they bring the reader back to the top of the day. */}
           <div id="menu-day" className="scroll-mt-20 lg:scroll-mt-24">
             <p id="menu-day-label" className="label mt-8 text-muted">
-              {t.menu.day}
+              {t.menu.cycleDay}
             </p>
             <div className="mt-2">
-              <DayPicker days={CYCLE_DAYS} active={day} hrefPrefix={dayHref} labelledBy="menu-day-label" />
+              <DayPicker
+                days={CYCLE_DAYS}
+                active={day}
+                hrefPrefix={dayHref}
+                labelledBy="menu-day-label"
+                describedBy="menu-day-hint"
+              />
             </div>
+            <p id="menu-day-hint" className="mt-2 text-sm text-muted">
+              {t.menu.cycleHint.replace("{total}", String(CYCLE_DAYS))}
+            </p>
           </div>
 
           {variant && (
@@ -168,7 +179,8 @@ async function MenuBrowser({
               <ViewTransition key={`${variant.id}-${day}`} name="menu-day-content" share="day-fade" default="none">
                 <div>
                   <p className="label mb-4 text-muted">
-                    TAOMIQ {program.name} / {variant.kcal} · {t.menu.day} {day}
+                    TAOMIQ {program.name} / {variant.kcal} · {dayOf(day)}
+                    {day === todayDay && ` · ${t.menu.todayMark}`}
                   </p>
                   <MenuDay entries={entries} targetKcal={variant.kcal} locale={locale} t={t} eagerFirstImage />
                 </div>
@@ -177,14 +189,14 @@ async function MenuBrowser({
               <div className="mt-6 grid grid-cols-2 gap-3 sm:flex sm:justify-between">
                 <Link
                   href={`${dayHref}${prevDay}#menu-day`}
-                  aria-label={`${t.menu.prevDay}: ${t.menu.day} ${prevDay}`}
+                  aria-label={`${t.menu.prevDay}: ${dayOf(prevDay)}`}
                   className="btn btn-outline min-h-12 text-forest"
                 >
                   <span aria-hidden>←</span> {t.menu.day} {prevDay}
                 </Link>
                 <Link
                   href={`${dayHref}${nextDay}#menu-day`}
-                  aria-label={`${t.menu.nextDay}: ${t.menu.day} ${nextDay}`}
+                  aria-label={`${t.menu.nextDay}: ${dayOf(nextDay)}`}
                   className="btn btn-outline min-h-12 text-forest"
                 >
                   {t.menu.day} {nextDay} <span aria-hidden>→</span>

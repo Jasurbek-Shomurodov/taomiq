@@ -66,6 +66,8 @@ type Props = {
   initialPhone?: string;
   /** Turnstile site key, "" when the bot check is off (src/lib/turnstile/config.ts). */
   turnstileKey: string;
+  /** "The trial costs the same per day as a week", under the durations; "" when that is not so (trialAtWeekPrice). */
+  trialNote?: string;
 };
 
 /** How many start dates are offered as chips. */
@@ -81,6 +83,19 @@ function externalReferrer(): string {
   } catch {
     return "";
   }
+}
+
+/**
+ * A random v4 UUID: the order's request id. crypto.randomUUID needs a secure context (https or localhost); a phone
+ * testing the dev server over the LAN falls back to getRandomValues.
+ */
+function newRequestId(): string {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6] & 0x0f) | 0x40;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function focusField(field: OrderField | undefined) {
@@ -166,6 +181,7 @@ function OrderFormBody({
   initialName = "",
   initialPhone = "",
   turnstileKey,
+  trialNote = "",
   onPlaced,
   viewedStepRef,
 }: Props & { onPlaced: () => void; viewedStepRef: RefObject<OrderStep | null> }) {
@@ -189,12 +205,31 @@ function OrderFormBody({
   const [exclusions, setExclusions] = useState("");
   const [consent, setConsent] = useState(false);
 
+  // One order per tap (migration 0027): one request id for this form round, made at the first send and sent again on
+  // every retry, so a second tap after a lost answer gets the saved order's number instead of a second order. A placed
+  // order starts a new round (a new body, see OrderForm), and with it a new id.
+  const requestId = useRef("");
+
+  // Set when a valid order is sent; cleared by any answer from the server. If the page is hidden while it is still
+  // set, the action redirected to the success page: the order is placed, so the kept form starts over.
+  const sent = useRef(false);
+  /**
+   * Any change to the order. After a send that got no answer yet, the next send is a different order (the customer
+   * corrected something), so it gets a new request id: a retry with the old id would return the first order and
+   * silently drop the correction.
+   */
+  const changed = () => {
+    if (sent.current) requestId.current = "";
+  };
+
   // Client-side check results; null after a check that passed (then the server's answer is shown).
   const [clientErrors, setClientErrors] = useState<FieldErrors | null>(null);
   // Fields edited since the last submit: their old error is hidden.
   const [touched, setTouched] = useState<ReadonlySet<OrderField>>(new Set());
-  const touch = (field: OrderField) =>
+  const touch = (field: OrderField) => {
+    changed();
     setTouched((prev) => (prev.has(field) ? prev : new Set(prev).add(field)));
+  };
 
   const alertRef = useRef<HTMLDivElement>(null);
 
@@ -300,9 +335,6 @@ function OrderFormBody({
     else document.getElementById(stepHeadingId(step))?.focus({ preventScroll: true });
   }, [step]);
 
-  // Set when a valid order is sent; cleared by any answer from the server. If the page is hidden while it is still
-  // set, the action redirected to the success page: the order is placed, so the kept form starts over.
-  const sent = useRef(false);
   const onHide = useEffectEvent(() => {
     if (sent.current) onPlaced();
   });
@@ -411,6 +443,8 @@ function OrderFormBody({
       const referrer = externalReferrer();
       if (referrer) formData.set("ref", referrer);
     }
+    requestId.current ||= newRequestId();
+    formData.set("request_id", requestId.current);
     sent.current = true;
     // Describes the order only: never the name, phone, address or comment.
     track("order_submitted", {
@@ -571,6 +605,7 @@ function OrderFormBody({
                 </div>
                 <p id="order-days-note" className="mt-2 text-sm text-muted">
                   {t.daysNote}
+                  {trialNote && ` ${trialNote}`}
                 </p>
                 <FieldError id={fieldId("duration")} text={errorText("duration")} />
               </fieldset>
@@ -590,6 +625,7 @@ function OrderFormBody({
                       value={value}
                       checked={weekdaysOnly === isWeekdays}
                       onChange={() => {
+                        changed();
                         setWeekdaysOnly(isWeekdays);
                         // A weekend start date moves to the next Monday.
                         setStartDate((current) => {
@@ -799,9 +835,12 @@ function OrderFormBody({
                   }}
                   placeholder={t.exclusionsPlaceholder}
                   aria-invalid={invalid("exclusions") || undefined}
-                  aria-describedby={describedBy("exclusions")}
+                  aria-describedby={describedBy("exclusions", "order-exclusions-hint")}
                   className="field mt-2"
                 />
+                <p id="order-exclusions-hint" className="mt-1.5 text-sm text-muted">
+                  {t.exclusionsHint}
+                </p>
                 <FieldError id={fieldId("exclusions")} text={errorText("exclusions")} />
               </div>
 

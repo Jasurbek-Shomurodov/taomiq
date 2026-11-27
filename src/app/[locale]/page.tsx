@@ -10,9 +10,9 @@ import { RationLabel } from "@/components/RationLabel";
 import { HowItWorks, Included } from "@/components/ServiceSections";
 import { getDictionary } from "@/i18n";
 import { formatSum, isLocale } from "@/i18n/config";
-import { getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
+import { getDurations, getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
-import { lowestPricePerDay, sumNutrition } from "@/lib/data/types";
+import { lowestPricePerDay, sumNutrition, trialAtWeekPrice } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 
@@ -49,6 +49,15 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
   // on the menu): a half-filled day would print a total the customer never gets.
   const previewTotals =
     featuredVariant && preview.length >= featuredVariant.meals_per_day ? sumNutrition(preview) : undefined;
+
+  // The final call to action invites a trial: where the trial costs the same per day as a week, it says so, so the
+  // trial never reads like a discount. Left out if the durations cannot be read.
+  let trialNote = "";
+  try {
+    if (trialAtWeekPrice(await getDurations())) trialNote = t.durations.trialSamePrice;
+  } catch (error) {
+    console.error("home: durations unavailable", error);
+  }
 
   return (
     <PageTransition>
@@ -190,7 +199,10 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
       <section className="bg-ivory-deep py-16 md:py-20">
         <div className="container-page text-center">
           <h2 className="reveal font-serif text-4xl text-forest md:text-5xl">{t.cta.title}</h2>
-          <p className="mx-auto mt-4 max-w-xl text-muted">{t.cta.text}</p>
+          <p className="mx-auto mt-4 max-w-xl text-muted">
+            {t.cta.text}
+            {trialNote && ` ${trialNote}`}
+          </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link href={`/${locale}/order`} className="btn btn-forest">{t.cta.button}</Link>
             <a href={site.telegram} className="btn btn-outline text-forest" rel="noopener">{t.cta.telegram}</a>

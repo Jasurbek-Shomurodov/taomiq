@@ -1,15 +1,17 @@
-import { PROTEIN_MAX_PER_KG, calculate, formatDecimal, largestLevelFarBelow, recommend } from "../src/lib/calculator";
+import { PROTEIN_MAX_PER_KG, formatDecimal, largestLevelFarBelow, recommend } from "../src/lib/calculator";
 import {
   CALCULATOR_DEFAULTS,
   DIRECTION_GOAL,
   calculateBodyGoal,
   maxGoalWeight,
   minGoalWeight,
+  quizBodyGoal,
+  quizGoalWeight,
   suggestGoalWeight,
 } from "../src/lib/body-goal";
 import { GOAL_PAGES, GOAL_PROGRAM } from "../src/lib/goal-pages";
 import { demoDurations, demoPrograms } from "../src/lib/data/demo";
-import { pricePerDay } from "../src/lib/data/types";
+import { CYCLE_DAYS, pricePerDay, trialAtWeekPrice } from "../src/lib/data/types";
 import { defaultLocale, formatSum, htmlLang, localeName, locales, type Locale } from "../src/i18n/config";
 import { getDictionary } from "../src/i18n";
 import { ANALYTICS_PATH } from "../src/lib/analytics/config";
@@ -21,6 +23,8 @@ import { expect, test, watchPageProblems } from "./fixtures";
 
 // Tests that loop over the site's languages read them from the app's own config (src/i18n/config.ts),
 // so a new locale is covered without editing this file. Single-flow tests below pick one language.
+
+const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /** The site's radios are visually hidden inside a card-like label: tap the card, as a visitor would. */
 async function choose(page: Page, name: string) {
@@ -97,7 +101,7 @@ test("the language switch keeps the query string, also after a same-page day cha
   await page.goto("/uz/menu?day=1");
   // A client-side navigation that changes only the query: the switch must pick up the new one.
   await page
-    .getByRole("navigation", { name: uz.menu.day, exact: true })
+    .getByRole("navigation", { name: uz.menu.cycleDay, exact: true })
     .getByRole("link", { name: "2", exact: true })
     .click();
   await expect(page).toHaveURL(/[?&]day=2(&|$)/);
@@ -115,13 +119,37 @@ test("menu: choosing another day changes the dishes", async ({ page }) => {
   const firstDay = await dishes.allTextContents();
 
   await page
-    .getByRole("navigation", { name: uz.menu.day, exact: true })
+    .getByRole("navigation", { name: uz.menu.cycleDay, exact: true })
     .getByRole("link", { name: "2", exact: true })
     .click();
   await expect(page).toHaveURL(/[?&]day=2(&|#|$)/);
-  await expect(page.getByText(new RegExp(`· ${uz.menu.day} 2$`))).toBeVisible();
+  // The caption names the menu day, never a calendar date ("… · Menyuning 2-kuni, jami 30", plus "bugun
+  // tayyorlanadi" on the day the kitchen cooks it).
+  const dayOf2 = uz.menu.dayOf.replace("{n}", "2").replace("{total}", String(CYCLE_DAYS));
+  await expect(page.getByText(new RegExp(`· ${escapeRegExp(dayOf2)}( · ${uz.menu.todayMark})?$`))).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: uz.menu.cycleDay, exact: true }),
+  ).toHaveAccessibleDescription(uz.menu.cycleHint.replace("{total}", String(CYCLE_DAYS)));
   await expect.poll(() => dishes.allTextContents()).not.toEqual(firstDay);
   await expect(dishes.first()).toBeVisible();
+});
+
+test("menu: the URL's program and level are in the server's HTML, and the loading shell names no other", async ({
+  request,
+}) => {
+  // A crawler or a slow phone reads the first response: it must hold LIGHT, never BALANCE first (round 2, item 7).
+  const program = demoPrograms.find((p) => p.slug !== "balance")!;
+  const variant = program.variants[program.variants.length - 1];
+  const response = await request.get(`/uz/menu?program=${program.slug}&kcal=${variant.kcal}&day=3`);
+  expect(response.status()).toBe(200);
+  // React separates neighbouring text with empty comments.
+  const html = (await response.text()).replace(/<!-- -->/g, "");
+  const dayOf3 = uz.menu.dayOf.replace("{n}", "3").replace("{total}", String(CYCLE_DAYS));
+  expect(html).toContain(`TAOMIQ ${program.name} / ${variant.kcal} · ${dayOf3}`);
+  // Neither the streamed menu nor its loading shell (MenuSkeleton) names another program's caption.
+  for (const other of demoPrograms.filter((p) => p.slug !== program.slug)) {
+    expect(html, other.name).not.toContain(`TAOMIQ ${other.name} /`);
+  }
 });
 
 test("menu: a dish card opens its detail sheet, which closes back to the card", async ({ page }) => {
@@ -323,8 +351,17 @@ test("calculator maths: the closest level wins, the goal only breaks ties; prote
   expect(largestLevelFarBelow(demoPrograms, 3400)).toBeNull();
   expect(largestLevelFarBelow(demoPrograms, 3500)).toBe(2500);
 
-  const quiz = calculate({ sex: "male", age: 25, height: 185, weight: 85, activity: "high", goal: "gain" });
-  expect(quiz.protein / 85).toBeLessThanOrEqual(PROTEIN_MAX_PER_KG);
+  const quiz = quizBodyGoal({ sex: "male", age: 25, height: 185, weight: 85, activity: "high", goal: "gain" });
+  expect(quiz.proteinPerKg).toBeLessThanOrEqual(PROTEIN_MAX_PER_KG);
+  // The quiz's "lose" never turns into gaining: underweight (BMI 17.3), the goal stays at today's weight.
+  const underweight = { sex: "female", age: 30, height: 170, weight: 50, activity: "light" } as const;
+  expect(quizGoalWeight("lose", underweight)).toBe(50);
+  expect(quizBodyGoal({ ...underweight, goal: "lose" }).direction).toBe("keep");
+  // Overweight: the calculator's suggested goal; normal weight: 5 % less; "gain" and "maintain" go their way.
+  expect(quizBodyGoal({ ...underweight, weight: 90, goal: "lose" }).direction).toBe("lose");
+  expect(quizBodyGoal({ ...underweight, weight: 62, goal: "lose" }).direction).toBe("lose");
+  expect(quizBodyGoal({ ...underweight, weight: 62, goal: "maintain" }).direction).toBe("keep");
+  expect(quizBodyGoal({ ...underweight, weight: 62, goal: "gain" }).direction).toBe("gain");
   const cut = calculateBodyGoal({
     sex: "male",
     age: 30,
@@ -370,8 +407,20 @@ test("quiz: three questions lead to a program and a pre-filled order link; Back 
   await page.getByLabel(c.weight, { exact: true }).fill("75");
   await page.getByRole("button", { name: t.showResult }).click();
 
-  const result = calculate({ sex: "female", age: 35, height: 160, weight: 75, activity: "light", goal: "lose" });
-  const plan = recommend(demoPrograms, result.kcal, "lose");
+  // The calculator's maths: the same person on /calculator with average muscularity and this goal weight.
+  const result = quizBodyGoal({ sex: "female", age: 35, height: 160, weight: 75, activity: "light", goal: "lose" });
+  expect(result).toEqual(
+    calculateBodyGoal({
+      sex: "female",
+      age: 35,
+      height: 160,
+      weight: 75,
+      activity: "light",
+      muscularity: "average",
+      goalWeight: quizGoalWeight("lose", { height: 160, weight: 75 }),
+    }),
+  );
+  const plan = recommend(demoPrograms, result.kcal, DIRECTION_GOAL[result.direction]);
   expect(plan).not.toBeNull();
   const summary = page.locator('[aria-live="polite"]');
   await expect(summary).toContainText(`${c.resultLabel}: ${formatSum(result.kcal)} ${c.kcal}.`);
@@ -437,6 +486,93 @@ test("order form: errors keep typed values, a valid order gets the demo notice",
   await expect(page.getByRole("alert").filter({ hasText: t.general.demo })).toBeVisible();
   await expect(page).toHaveURL(/\/uz\/order$/);
   await expect(page.getByLabel(t.name, { exact: true })).toHaveValue("Test");
+});
+
+test("order form: every retry of one form round sends the same request id; a new page sends a new one", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "the same form on phones; this checks the request body only");
+  const t = uz.order;
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+  const ids: (string | undefined)[] = [];
+  page.on("request", (r) => {
+    if (r.method() === "POST" && new URL(r.url()).pathname === "/uz/order") ids.push(postedField(r.postData() ?? "", "request_id"));
+  });
+  const fill = async () => {
+    await page.getByLabel(t.address, { exact: true }).fill("Toshkent, Amir Temur koʻchasi 1, 5-xonadon");
+    await page.getByLabel(t.name, { exact: true }).fill("Test");
+    await page.getByLabel(t.phone, { exact: true }).fill("901234567");
+    await page.getByRole("checkbox").check();
+  };
+  const submit = page.getByRole("button", { name: t.submit }).filter({ visible: true });
+  const demoNotice = page.getByRole("alert").filter({ hasText: t.general.demo });
+
+  await page.goto("/uz/order");
+  await fill();
+  await submit.click();
+  await expect(demoNotice).toBeVisible();
+  // A second tap, as after an answer that never arrived: the same id, so the server would return the same order.
+  await submit.click();
+  await expect.poll(() => ids.length).toBe(2);
+  expect(ids[0]).toMatch(UUID);
+  expect(ids[1]).toBe(ids[0]);
+
+  // A new visit is a new form round: a new id.
+  await page.reload();
+  await fill();
+  await submit.click();
+  await expect(demoNotice).toBeVisible();
+  await expect.poll(() => ids.length).toBe(3);
+  expect(ids[2]).toMatch(UUID);
+  expect(ids[2]).not.toBe(ids[0]);
+
+  // A send still without an answer, then a correction: the corrected order is a new request (a new id), so a saved
+  // first order could never swallow the change.
+  let release = () => {};
+  const held = new Promise<void>((resolve) => (release = resolve));
+  let holdNext = true;
+  await page.route("**/uz/order", async (route) => {
+    if (route.request().method() === "POST" && holdNext) {
+      holdNext = false;
+      await held;
+    }
+    await route.continue();
+  });
+  await submit.click();
+  await expect.poll(() => ids.length).toBe(4);
+  expect(ids[3]).toBe(ids[2]);
+  await page.getByLabel(t.name, { exact: true }).fill("Test Testov");
+  const answered = page.waitForResponse((r) => r.request().method() === "POST" && new URL(r.url()).pathname === "/uz/order");
+  release();
+  await answered;
+  await expect(submit).toBeEnabled();
+  await expect(demoNotice).toBeVisible();
+  await submit.click();
+  await expect.poll(() => ids.length).toBe(5);
+  expect(ids[4]).toMatch(UUID);
+  expect(ids[4]).not.toBe(ids[2]);
+});
+
+test("the trial says it costs the same per day as a week, and 'included' promises only what is true", async ({ page }) => {
+  // The demo catalogue prices the 2-day trial like the 7-day order.
+  expect(trialAtWeekPrice(demoDurations)).toBe(true);
+  const note = uz.durations.trialSamePrice;
+
+  await page.goto("/uz");
+  await expect(page.getByText(note)).toBeVisible();
+  // The pause line names the order cutoff hour from the settings (demo: 14:00).
+  for (const item of uz.included.items) {
+    await expect(page.getByText(item.replace("{hour}", "14"), { exact: true })).toBeVisible();
+  }
+  await expect(page.getByText(/\{hour\}/)).toHaveCount(0);
+
+  await page.goto("/uz/prices");
+  await expect(page.getByText(note)).toBeVisible();
+
+  await page.goto("/uz/order");
+  await expect(page.locator("#order-days-note")).toContainText(note);
+  await expect(page.locator("#order-exclusions-hint")).toHaveText(uz.order.exclusionsHint);
 });
 
 /** A field of a server action's multipart body (React prefixes the form's keys, as in "_1_address"). */

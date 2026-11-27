@@ -7,8 +7,12 @@ import { getDictionary, type Dictionary } from "@/i18n";
 import { formatSum, isLocale, plural, type Locale } from "@/i18n/config";
 import { requireCustomer } from "@/lib/account/auth";
 import { authMethods, isAccountEnabled } from "@/lib/account/methods";
+import { orderProgress, renewDue, type OrderProgress } from "@/lib/account/order-status";
 import { listMyOrders, type CustomerOrder } from "@/lib/account/orders";
 import { STATUS_TONES } from "@/lib/admin/orders";
+import { getPrograms } from "@/lib/data/catalog";
+import type { Program } from "@/lib/data/types";
+import { tashkentToday } from "@/lib/order/days";
 import { pageMetadata } from "@/lib/seo";
 import { AccountAnalytics, NameForm, SignOutButton } from "./AccountForms";
 
@@ -144,11 +148,42 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
 
   const date = (iso: string) =>
     `${Number(iso.slice(8, 10))} ${o.monthNames[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
+  const shortDate = (iso: string) => `${Number(iso.slice(8, 10))} ${o.monthNames[Number(iso.slice(5, 7)) - 1]}`;
+
+  // The status line and the Renew button come from the order's own dates (src/lib/account/order-status.ts). The
+  // catalogue only turns the saved program name into the order form's ?program=&kcal=; without it, Renew opens the
+  // plain form.
+  const today = tashkentToday();
+  let programs: Program[] = [];
+  try {
+    programs = await getPrograms();
+  } catch (error) {
+    console.error("account: catalogue unavailable", error instanceof Error ? error.message : error);
+  }
+  const progressText = (progress: OrderProgress) => {
+    switch (progress.kind) {
+      case "starts":
+        return a.progressStarts.replace("{date}", shortDate(progress.date));
+      case "running":
+        return a.progressRunning
+          .replace("{n}", String(progress.day))
+          .replace("{days}", String(progress.days))
+          .replace("{date}", shortDate(progress.end));
+      case "ended":
+        return a.progressEnded.replace("{date}", shortDate(progress.date));
+    }
+  };
+  const cards = orders.map((order) => {
+    const progress = orderProgress(order, today);
+    return { order, progress, renewHref: renewDue(progress, today) ? renewHref(locale, order, programs) : null };
+  });
+  // One gold order button per page: when a card offers Renew, the general order button below steps back to outline.
+  const renewing = cards.some((card) => card.renewHref);
 
   return (
     <>
       <ul className="mt-5 grid gap-3">
-        {orders.map((order) => (
+        {cards.map(({ order, progress, renewHref }) => (
           <li key={order.number} className="rounded-2xl border border-line p-4 md:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-semibold text-forest tabular-nums">
@@ -162,6 +197,11 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
               {order.program_name} · {order.kcal} {o.kcal} · {order.days} {plural(order.days, o.dayForms)}
               {order.weekdays_only ? ` · ${o.weekdaysShort}` : ""}
             </p>
+            {progress && (
+              <p className="mt-1 text-sm font-semibold text-forest tabular-nums" data-order-progress>
+                {progressText(progress)}
+              </p>
+            )}
             <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-sm">
               <div className="flex gap-2">
                 <dt className="text-muted">{a.orderStart}</dt>
@@ -174,16 +214,42 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
                 </dd>
               </div>
             </dl>
+            {renewHref && (
+              <Link
+                href={renewHref}
+                aria-label={`${a.renew}: ${order.program_name} ${order.kcal} ${o.kcal}`}
+                className="btn btn-gold mt-4 min-h-12 w-full sm:w-auto"
+              >
+                {a.renew}
+              </Link>
+            )}
           </li>
         ))}
       </ul>
       {/* One order button per page: here under the list, or in the empty or failed state above. */}
-      <Link href={`/${locale}/order`} className="btn btn-gold mt-5 min-h-12">
+      <Link
+        href={`/${locale}/order`}
+        className={`btn mt-5 min-h-12 ${renewing ? "btn-outline text-forest" : "btn-gold"}`}
+      >
         {a.orderCta}
       </Link>
       {telegramOn && <p className="mt-5 text-sm text-muted">{a.ordersNote}</p>}
     </>
   );
+}
+
+/**
+ * The order form for the same program and level again. Orders keep a snapshot of the program's name, not its slug
+ * (my_orders, 0007), so the name is matched to the catalogue; a renamed or removed program opens the plain form, and a
+ * removed level the program's first.
+ */
+function renewHref(locale: Locale, order: CustomerOrder, programs: Program[]): string {
+  const name = order.program_name.trim().toLowerCase();
+  const program = programs.find((p) => p.name.trim().toLowerCase() === name);
+  if (!program) return `/${locale}/order`;
+  const query = new URLSearchParams({ program: program.slug });
+  if (program.variants.some((v) => v.kcal === order.kcal)) query.set("kcal", String(order.kcal));
+  return `/${locale}/order?${query}`;
 }
 
 function OrdersSkeleton() {

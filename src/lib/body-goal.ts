@@ -600,3 +600,54 @@ export function calculateBodyGoal(input: BodyGoalInput): BodyGoalResult {
     micronutrients: micronutrients(sex, age),
   };
 }
+
+/* ---------------------------------------------------------------------------------------
+   The quiz (/quiz): the same maths as the calculator
+   --------------------------------------------------------------------------------------- */
+
+/** The quiz's "lose" or "gain" moves the goal weight by at least this share of today's weight. */
+export const QUIZ_WEIGHT_STEP_SHARE = 0.05;
+
+/**
+ * The goal weight behind a quiz answer, so the quiz runs the calculator's maths (calculateBodyGoal) with average
+ * muscularity: "maintain" is today's weight; "lose" is the calculator's suggested goal (suggestGoalWeight), or 5 % less
+ * when that suggestion is about today's weight (a normal BMI), and never above today's weight; "gain" is 5 % more.
+ * Inside clampGoalWeight() (for "lose", capped at today's weight too), so at the edge of the healthy range (BMI 18.5
+ * to lose, BMI 30 to gain) the result reads as keeping the weight.
+ */
+export function quizGoalWeight(goal: Goal, input: { height: number; weight: number }): number {
+  const { height, weight } = input;
+  const step = Math.max(SAME_WEIGHT_KG + 1, Math.round(weight * QUIZ_WEIGHT_STEP_SHARE));
+  if (goal === "maintain") return weight;
+  if (goal === "gain") return clampGoalWeight(Math.round(weight) + step, height, weight);
+  // "lose" never ends above today's weight: under BMI 18.5 the clamp would lift the goal to the BMI 18.5 weight, and
+  // the result would read as gaining. At today's weight it reads as keeping it.
+  const today = Math.round(weight);
+  const suggested = Math.min(today, suggestGoalWeight({ height, weight }));
+  if (suggested < weight - SAME_WEIGHT_KG) return suggested;
+  return Math.min(today, clampGoalWeight(today - step, height, weight));
+}
+
+/**
+ * The quiz's result: calculateBodyGoal() for the quiz's answers, average muscularity now and at the goal, and the
+ * goal weight of quizGoalWeight() (none when that is today's weight). The same inputs on /calculator give the same
+ * calories, macros and program.
+ */
+export function quizBodyGoal(input: {
+  sex: Sex;
+  age: number;
+  height: number;
+  weight: number;
+  activity: Activity;
+  goal: Goal;
+}): BodyGoalResult {
+  const { goal, ...body } = input;
+  const goalWeight = quizGoalWeight(goal, body);
+  return calculateBodyGoal({
+    ...body,
+    muscularity: "average",
+    // About today's weight: no goal weight, which calculateBodyGoal() reads as keeping today's weight. Passed as a
+    // number it would be clamped up to the BMI 18.5 weight for an underweight visitor and read as gaining.
+    goalWeight: Math.abs(goalWeight - body.weight) <= SAME_WEIGHT_KG ? undefined : goalWeight,
+  });
+}

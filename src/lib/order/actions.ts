@@ -79,6 +79,41 @@ async function clientIpHash(): Promise<string> {
 }
 
 /**
+ * The number of the order already saved with this request id (migration 0027), or null: none yet, or the read
+ * failed (then submit_order() still finds it and says so with created = false).
+ */
+async function savedOrderNumber(requestId: string): Promise<number | null> {
+  try {
+    const { data, error } = await createSecretClient()
+      .from("orders")
+      .select("number")
+      .eq("request_id", requestId)
+      .maybeSingle();
+    if (error || !data) return null;
+    const number = Number(data.number);
+    return Number.isSafeInteger(number) && number > 0 ? number : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * submit_order()'s answer: since migration 0027 one row { order_number, created } (in an array, as PostgREST returns a
+ * set), before it a bare number (always a new order). Null when it is neither.
+ */
+function savedOrder(data: unknown): { number: number; created: boolean } | null {
+  const row: unknown = Array.isArray(data) ? data[0] : data;
+  let number: number;
+  let created = true;
+  if (typeof row === "number" || typeof row === "string") number = Number(row);
+  else if (row && typeof row === "object" && "order_number" in row) {
+    number = Number(row.order_number);
+    created = !("created" in row) || row.created !== false;
+  } else return null;
+  return Number.isSafeInteger(number) && number > 0 ? { number, created } : null;
+}
+
+/**
  * Never throws: every failure becomes a state the form can show, so nothing typed is lost.
  * Only the final redirect() (outside any try) leaves the function by throwing, as Next.js expects.
  */
@@ -95,6 +130,18 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
 
     const locale = text(form, "locale");
     if (!isLocale(locale)) return { error: "failed" };
+
+    // One order per tap: the form sends one random id per form round, the same on every retry of that round. A retry of
+    // a submission already saved (the first answer was lost) gets that order's number back, before anything is checked
+    // again: a retry a second after the cutoff must find its order, not "pick another date", and its bot-check token is
+    // already spent. submit_order() makes the same check under a lock, so two concurrent calls with one id still make
+    // one order. Not a valid uuid: no id (the old behaviour).
+    const rawRequestId = text(form, "request_id");
+    const requestId = UUID_RE.test(rawRequestId) ? rawRequestId.toLowerCase() : null;
+    if (requestId && isOrderingConfigured) {
+      const saved = await savedOrderNumber(requestId);
+      if (saved) return saved;
+    }
 
     const input: OrderInput = {
       variantId: text(form, "variant_id"),
@@ -123,7 +170,7 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
     if (!isOrderingConfigured) return { demo: true };
     if (!UUID_RE.test(input.variantId)) return { fields: { plan: "invalid" } };
 
-    // Bot check (Turnstile), the last step before the database. Passes when the keys are not set. If Cloudflare
+    // Bot check (Turnstile), the last step before submit_order(). Passes when the keys are not set. If Cloudflare
     // cannot be reached the order goes through: the honeypot and the database rate limit still stand, and no
     // customer is turned away for Cloudflare's outage. A missing or refused token is a state the form recovers from.
     const human = await verifyTurnstile(text(form, TURNSTILE_FIELD), (await clientIp()) || undefined, "order");
@@ -137,7 +184,7 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
 
     // The signed-in customer, from the session on the server (never from the form); null when signed out.
     const customerId = await getCustomerId();
-    const { data, error } = await createSecretClient().rpc("submit_order", {
+    const args = {
       p_variant_id: input.variantId,
       p_days: input.days,
       p_weekdays_only: input.weekdaysOnly,
@@ -152,7 +199,12 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
       p_source: source,
       p_ip_hash: await clientIpHash(),
       p_user_id: customerId,
-    });
+    };
+    const supabase = createSecretClient();
+    let { data, error } = await supabase.rpc("submit_order", { ...args, p_request_id: requestId });
+    // Before migration 0027 is applied there is only the 14-parameter function (PostgREST: no such function): call
+    // that one, so this code can go live first. Remove once 0027 is in production.
+    if (error?.code === "PGRST202") ({ data, error } = await supabase.rpc("submit_order", args));
 
     if (error) {
       if (error.message.includes("invalid_date")) {
@@ -165,8 +217,11 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
       return { error: "failed" };
     }
 
-    const number = Number(data);
-    if (!Number.isSafeInteger(number) || number <= 0) return { error: "failed" };
+    const saved = savedOrder(data);
+    if (!saved) return { error: "failed" };
+    const { number } = saved;
+    // A retry that found the order saved earlier: the alert and the analytics event went out the first time.
+    if (!saved.created) return number;
 
     // The order is saved: from here nothing may turn it into a failure.
     const program = programs.find((p) => p.variants.some((v) => v.id === input.variantId));

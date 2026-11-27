@@ -21,5 +21,12 @@
     "start_date": "2026-12-02",
     "total": 1960000,
     "created_at": "2026-11-24T10:00:00Z"
-  }
+  },
+  "progressOrders//": "More orders of the same customer, with start dates relative to today in Tashkent (start_offset_days), for the status line and the Renew button (e2e/account-orders.spec.ts).",
+  "progressOrders": [
+    { "number": 873570, "status": "active", "program_name": "BALANCE", "kcal": 1800, "days": 4, "weekdays_only": false, "start_offset_days": -2, "total": 1120000 },
+    { "number": 873571, "status": "confirmed", "program_name": "BALANCE", "kcal": 1800, "days": 7, "weekdays_only": false, "start_offset_days": 3, "total": 1960000 },
+    { "number": 873572, "status": "completed", "program_name": "BALANCE", "kcal": 1800, "days": 7, "weekdays_only": false, "start_offset_days": -20, "total": 1960000 },
+    { "number": 873573, "status": "active", "program_name": "BALANCE", "kcal": 1800, "days": 30, "weekdays_only": false, "start_offset_days": -1, "total": 7650000 }
+  ]
 }

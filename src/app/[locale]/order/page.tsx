@@ -7,6 +7,7 @@ import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, type Locale } from "@/i18n/config";
 import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
+import { trialAtWeekPrice } from "@/lib/data/types";
 import { getCustomer } from "@/lib/account/auth";
 import { SOURCE_KEYS, SOURCE_VALUE_MAX, phoneDigits, startDateRange } from "@/lib/order/rules";
 import { pageMetadata } from "@/lib/seo";
@@ -120,6 +121,7 @@ async function OrderLoader({
       initialName={profile?.name ?? ""}
       initialPhone={profile?.phone ? phoneDigits(profile.phone) : ""}
       turnstileKey={turnstileWidgetKey}
+      trialNote={trialAtWeekPrice(durations) ? t.durations.trialSamePrice : ""}
     />
   );
 }

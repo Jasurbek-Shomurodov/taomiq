@@ -5,7 +5,7 @@ import { useLayoutEffect, useRef, ViewTransition } from "react";
 import { DAY_CIRCLE, DAY_ROW } from "./menu-styles";
 
 /**
- * The 30 cycle days as real links. The gold indicator is one named view transition: on a day change
+ * The 30 menu cycle days (not calendar dates) as real links. The gold indicator is one named view transition: on a day change
  * the old and new indicator pair up and the browser glides it across. Without view transitions it
  * simply appears on the new day.
  */
@@ -14,12 +14,15 @@ export function DayPicker({
   active,
   hrefPrefix,
   labelledBy,
+  describedBy,
 }: {
   days: number;
   active: number;
   /** URL up to and including "day=", e.g. "/uz/menu?program=balance&kcal=1800&day=". */
   hrefPrefix: string;
   labelledBy: string;
+  /** The hint that says these are menu days, not dates. */
+  describedBy?: string;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const mounted = useRef(false);
@@ -39,7 +42,7 @@ export function DayPicker({
   }, [active]);
 
   return (
-    <nav aria-labelledby={labelledBy}>
+    <nav aria-labelledby={labelledBy} aria-describedby={describedBy}>
       <div ref={scroller} className={DAY_ROW}>
         {Array.from({ length: days }, (_, i) => i + 1).map((d) => {
           const isActive = d === active;

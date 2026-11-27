@@ -1,8 +1,8 @@
 /**
  * The shared maths of the public calculator (/calculator, src/lib/body-goal.ts) and the program finder (/quiz):
  * input ranges, activity factors, one protein rule and macro split, BMI, water, and the program level that fits.
- * The quiz's own calorie estimate is `calculate()`: Mifflin-St Jeor resting energy × activity factor, adjusted for
- * the goal. Estimates for choosing a ration, not a medical prescription.
+ * Calories come from one place for both pages, calculateBodyGoal() in src/lib/body-goal.ts (the quiz through
+ * quizBodyGoal()). Estimates for choosing a ration, not a medical prescription.
  */
 
 export type Sex = "female" | "male";
@@ -19,16 +19,6 @@ export const ACTIVITY_FACTOR: Record<Activity, number> = {
   moderate: 1.55,
   high: 1.725,
 };
-
-/** The quiz's calorie change for the goal: a moderate deficit or surplus, nothing aggressive. */
-const GOAL_FACTOR: Record<Goal, number> = {
-  lose: 0.85,
-  maintain: 1,
-  gain: 1.1,
-};
-
-/** Never suggest less than this; matches the lowest program level (docs/03). */
-export const MIN_KCAL = 1200;
 
 /** Accepted input ranges (the formulas are meant for adults). */
 export const RANGES = {
@@ -51,25 +41,6 @@ export type CalculatorProgram = {
   name: string;
   tagColor: string;
   variants: { kcal: number; fromPrice: number }[];
-};
-
-export type CalculatorInput = {
-  sex: Sex;
-  age: number;
-  height: number;
-  weight: number;
-  activity: Activity;
-  goal: Goal;
-};
-
-export type CalculatorResult = {
-  /** Daily calories, rounded to 10. */
-  kcal: number;
-  /** True when the formula gave less than MIN_KCAL and the result was raised to it. */
-  floored: boolean;
-  protein: number;
-  fat: number;
-  carbs: number;
 };
 
 /** Parse a typed number; null when empty or not a whole number in range. */
@@ -154,22 +125,6 @@ export function splitMacros(input: { kcal: number; referenceWeight: number; prot
     carbs: Math.max(0, Math.round((kcal - 4 * protein - 9 * fat) / 4)),
     proteinPerKg: Math.round((proteinGrams / refWeight) * 10) / 10,
   };
-}
-
-/** The quiz's estimate: Mifflin-St Jeor × activity × goal factor, then the shared macro split. */
-export function calculate(input: CalculatorInput): CalculatorResult {
-  const resting =
-    10 * input.weight + 6.25 * input.height - 5 * input.age + (input.sex === "male" ? 5 : -161);
-  const raw = resting * ACTIVITY_FACTOR[input.activity] * GOAL_FACTOR[input.goal];
-  const floored = raw < MIN_KCAL;
-  const kcal = Math.round(Math.max(raw, MIN_KCAL) / 10) * 10;
-
-  const { protein, fat, carbs } = splitMacros({
-    kcal,
-    referenceWeight: referenceWeight({ height: input.height, weight: input.weight, goalWeight: input.weight }),
-    proteinPerKg: PROTEIN_G_PER_KG_FOR_GOAL[input.goal],
-  });
-  return { kcal, floored, protein, fat, carbs };
 }
 
 /* ---------------------------------------------------------------------------------------

@@ -13,11 +13,10 @@ import {
 import type { Dictionary } from "@/i18n";
 import { formatSum, type Locale } from "@/i18n/config";
 import { track } from "@/lib/analytics/client";
+import { DIRECTION_GOAL, quizBodyGoal } from "@/lib/body-goal";
 import {
   ACTIVITIES,
   GOALS,
-  MIN_KCAL,
-  calculate,
   recommend,
   type Activity,
   type CalculatorProgram,
@@ -52,7 +51,7 @@ const BODY_FIELDS: readonly NumericField[] = ["age", "height", "weight"];
 
 /**
  * The program finder: goal, activity, then sex / age / height / weight on one screen, then the result from the
- * quiz's calorie estimate, the calculator's protein rule and its recommendation (src/lib/calculator.ts). Answers
+ * calculator's own maths (quizBodyGoal in src/lib/body-goal.ts) and its recommendation (src/lib/calculator.ts). Answers
  * live in component state; the step lives in the URL hash. A reload starts over (the answers are gone), so a hash on arrival is dropped.
  */
 export function Quiz({ locale, t, c, programs, telegramUrl }: Props) {
@@ -69,9 +68,13 @@ export function Quiz({ locale, t, c, programs, telegramUrl }: Props) {
   const step = Math.min(requested, reachable) as Step;
   const answered = [goal !== null, activity !== null, bodyDone][step] ?? false;
 
+  // The calculator's maths (src/lib/body-goal.ts, quizBodyGoal): average muscularity and a goal weight from the
+  // answer, so the quiz and /calculator give the same calories, macros and program for the same person.
   const result =
-    goal && activity && bodyDone ? calculate({ sex: sex!, age: age!, height: height!, weight: weight!, activity, goal }) : null;
-  const plan = result && goal ? recommend(programs, result.kcal, goal) : null;
+    goal && activity && bodyDone
+      ? quizBodyGoal({ sex: sex!, age: age!, height: height!, weight: weight!, activity, goal })
+      : null;
+  const plan = result ? recommend(programs, result.kcal, DIRECTION_GOAL[result.direction]) : null;
   const shownKcal = useCountUp(step === 3 && result ? result.kcal : null);
 
   const section = useRef<HTMLElement>(null);
@@ -283,7 +286,7 @@ export function Quiz({ locale, t, c, programs, telegramUrl }: Props) {
             ))}
           </dl>
           {result.floored && (
-            <p className="mt-4 text-sm leading-relaxed text-ivory/75">{c.floored.replace("{min}", String(MIN_KCAL))}</p>
+            <p className="mt-4 text-sm leading-relaxed text-ivory/75">{c.floored.replace("{min}", String(result.kcalFloor))}</p>
           )}
         </div>
 

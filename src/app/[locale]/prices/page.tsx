@@ -8,7 +8,7 @@ import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { getDurations, getPrograms } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
-import type { Duration, Program } from "@/lib/data/types";
+import { trialAtWeekPrice, type Duration, type Program } from "@/lib/data/types";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { breadcrumbList, programPriceList } from "@/lib/structured-data";
@@ -41,7 +41,14 @@ export default async function PricesPage({ params }: PageProps<"/[locale]/prices
   const listed = durations.length > 0 ? programs.filter((p) => p.variants.length > 0) : [];
 
   // The price rules as the site already states them (order form, delivery page, "included" list).
-  const rules = [t.prices.perDayRule, t.order.daysNote, t.delivery.priceText, t.prices.samePrice];
+  // Where the trial costs the same per day as a week, that is a rule too: the trial is not a discount.
+  const rules = [
+    t.prices.perDayRule,
+    t.order.daysNote,
+    ...(trialAtWeekPrice(durations) ? [t.durations.trialSamePrice] : []),
+    t.delivery.priceText,
+    t.prices.samePrice,
+  ];
 
   return (
     <PageTransition>

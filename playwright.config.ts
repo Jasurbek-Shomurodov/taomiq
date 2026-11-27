@@ -5,15 +5,15 @@ import { defineConfig, devices } from "@playwright/test";
  * It builds and serves its own production copy of the app in demo mode (scripts/e2e-server.mjs): never the
  * real database, never Telegram. The `demo-mode` project runs first and stops the run if demo mode is off.
  *
- * The `account` project is the signed-in suite (e2e/account-signout.spec.ts): a second build, served by
- * `scripts/e2e-server.mjs --account` against a local mock of Supabase with a made-up customer. Only that spec runs
- * there, and it never runs against the demo build (where sign-in is off, which e2e/account.spec.ts asserts).
+ * The `account` project is the signed-in suite (e2e/account-signout.spec.ts, e2e/account-orders.spec.ts): a second build,
+ * served by `scripts/e2e-server.mjs --account` against a local mock of Supabase with a made-up customer. Only those specs
+ * run there, and it never runs against the demo build (where sign-in is off, which e2e/account.spec.ts asserts).
  */
 const port = Number(process.env.E2E_PORT ?? 5599);
 const baseURL = `http://localhost:${port}`;
 const accountPort = Number(process.env.E2E_ACCOUNT_PORT ?? 5598);
 const accountURL = `http://localhost:${accountPort}`;
-const ACCOUNT_SPEC = /account-signout\.spec\.ts$/;
+const ACCOUNT_SPEC = /account-(signout|orders)\.spec\.ts$/;
 
 export default defineConfig({
   testDir: "e2e",
