@@ -8,6 +8,10 @@
 //    (migration 0029). Pauses are kept in memory per session id (the access token's session_id claim), so the suites
 //    and the two account projects never see each other's pauses: the default session "e2e" has none, and a session
 //    whose id starts with "pause-" starts with one pause staff set on the fixture's pauseOrder (e2e/account-pauses.spec.ts).
+//  - Saved delivery details and repeat (migration 0030): GET /rest/v1/profiles also carries the session's saved address,
+//    time and note; POST /rest/v1/rpc/save_my_delivery stores them (with the database's checks), per session id like the
+//    pauses: a session whose id starts with "saved-" starts with the fixture's savedDelivery, every other one with none.
+//    POST /rest/v1/rpc/my_order_for_repeat answers the fixture's orders and its retiredLevelOrder (e2e/account-delivery.spec.ts).
 //  - Catalogue (read by the build too, e.g. generateStaticParams of /[locale]/programs/[slug]): one program with one
 //    calorie level, the durations and a small 30-day menu. Every other table is empty.
 // The customer is made up (e2e/account-fixture.json). Nothing here is a real key or a real person.
@@ -194,6 +198,63 @@ async function pauseRpc(req, name, session, send) {
   return send(200, { number: removed.number, end_date: null });
 }
 
+/** session id → that session's saved delivery details ({ address, delivery_window, courier_note }, null when none). */
+const deliveryBySession = new Map();
+
+function sessionDelivery(sessionId) {
+  if (!deliveryBySession.has(sessionId)) {
+    deliveryBySession.set(sessionId, sessionId.startsWith("saved-") ? { ...fixture.savedDelivery } : null);
+  }
+  return deliveryBySession.get(sessionId);
+}
+
+/** The delivery windows of the e2e build: the settings table is empty, so the app's defaults (src/lib/order/rules.ts). */
+const WINDOWS = ["06:00–08:00", "07:00–09:00", "08:00–10:00"];
+
+/** save_my_delivery (0030) with its checks: blank is null, all null clears, address 5..300, a known window, note ≤ 500. */
+async function saveDeliveryRpc(req, session, send) {
+  const body = await readBody(req);
+  const fail = (code, message) => send(400, { code, details: null, hint: null, message });
+  const clean = (value) => (typeof value === "string" && value.trim() ? value.trim() : null);
+  const address = clean(body.p_address);
+  const window = clean(body.p_window);
+  const note = clean(body.p_note);
+  if (address && (address.length < 5 || address.length > 300)) return fail("22023", "invalid_address");
+  if (window && !WINDOWS.includes(window)) return fail("22023", "invalid_window");
+  if (note && note.length > 500) return fail("22001", "too_long");
+  deliveryBySession.set(session, address || window || note ? { address, delivery_window: window, courier_note: note } : null);
+  return send(200, null);
+}
+
+/** my_order_for_repeat (0030): the caller's own order with its delivery fields; [] for any other number. */
+async function repeatRpc(req, send) {
+  const body = await readBody(req);
+  const number = Number(body.p_number);
+  const retired = fixture.retiredLevelOrder;
+  const fields = {
+    address: fixture.repeat.address,
+    delivery_window: fixture.repeat.delivery_window,
+    comment: fixture.repeat.comment,
+    exclusions: fixture.repeat.exclusions,
+  };
+  if (number === retired.number) {
+    const { variant_id, program_slug, kcal, days, weekdays_only } = retired;
+    return send(200, [{ variant_id, program_slug, kcal, days, weekdays_only, ...fields }]);
+  }
+  const order = myOrders().find((o) => o.number === number);
+  if (!order) return send(200, []);
+  return send(200, [
+    {
+      variant_id: program.variants.find((v) => v.kcal === order.kcal)?.id ?? `e2e-balance-${order.kcal}`,
+      program_slug: program.slug,
+      kcal: order.kcal,
+      days: order.days,
+      weekdays_only: order.weekdays_only,
+      ...fields,
+    },
+  ]);
+}
+
 /** PostgREST "eq." filters from the query string, e.g. ?variant_id=eq.x&cycle_day=eq.1. */
 function matches(row, params) {
   for (const [key, value] of params) {
@@ -227,8 +288,24 @@ export function startMockSupabase(port) {
         return signedIn ? send(200, user) : send(401, { code: 401, error_code: "bad_jwt", msg: "invalid JWT" });
       case "/auth/v1/logout":
         return send(204);
-      case "/rest/v1/profiles":
-        return rows(signedIn ? [fixture.profile] : []);
+      case "/rest/v1/profiles": {
+        if (!signedIn) return rows([]);
+        const delivery = sessionDelivery(sessionOf(token));
+        return rows([
+          {
+            ...fixture.profile,
+            address: delivery?.address ?? null,
+            delivery_window: delivery?.delivery_window ?? null,
+            courier_note: delivery?.courier_note ?? null,
+          },
+        ]);
+      }
+      case "/rest/v1/rpc/save_my_delivery":
+        if (!signedIn) return send(401, { code: "42501", details: null, hint: null, message: "permission denied" });
+        return saveDeliveryRpc(req, sessionOf(token), send);
+      case "/rest/v1/rpc/my_order_for_repeat":
+        if (!signedIn) return send(401, { code: "42501", details: null, hint: null, message: "permission denied" });
+        return repeatRpc(req, send);
       case "/rest/v1/rpc/my_orders":
         return send(200, signedIn ? myOrders() : []);
       case "/rest/v1/rpc/my_order_pauses":

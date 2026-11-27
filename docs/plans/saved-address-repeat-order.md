@@ -1,5 +1,7 @@
 # Plan · Saved delivery details and "Repeat last order"
 
+Status: all three slices shipped (0030)
+
 Approved for planning by Jasurbek on 27 Nov 2026 (round-two research, item 5). Signed-in customers get their
 name and phone prefilled, but they type the address, window, courier note and exclusions again on every
 order. Renewal is the main retention moment for prepaid plans, so it should take one tap.

@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { isLocale } from "@/i18n/config";
 import { getCustomerId } from "@/lib/account/auth";
+import { saveDelivery } from "@/lib/account/delivery";
 import { captureServerEvent } from "@/lib/analytics/server";
 import type { ServerEventProperties } from "@/lib/analytics/events";
 import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog";
@@ -114,6 +115,17 @@ function savedOrder(data: unknown): { number: number; created: boolean } | null 
 }
 
 /**
+ * "Save for next time" (migration 0030): when the customer is signed in and ticked the box, the order's address, time and
+ * courier note go onto their own profile, in their own session (public.save_my_delivery checks them again). Runs only
+ * after the order is saved. A failure is logged (the code only, never the address) and never fails the order.
+ */
+async function saveDeliveryIfAsked(form: FormData, customerId: string | null): Promise<void> {
+  if (!customerId || form.get("save_delivery") !== "on") return;
+  const failed = await saveDelivery({ address: text(form, "address"), window: text(form, "window"), note: text(form, "comment") });
+  if (failed) console.error("submitOrder: delivery details not saved", failed);
+}
+
+/**
  * Never throws: every failure becomes a state the form can show, so nothing typed is lost.
  * Only the final redirect() (outside any try) leaves the function by throwing, as Next.js expects.
  */
@@ -140,7 +152,11 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
     const requestId = UUID_RE.test(rawRequestId) ? rawRequestId.toLowerCase() : null;
     if (requestId && isOrderingConfigured) {
       const saved = await savedOrderNumber(requestId);
-      if (saved) return saved;
+      if (saved) {
+        // The first answer may have been lost before the details were saved: save them now, as the first round would.
+        if (form.get("save_delivery") === "on") await saveDeliveryIfAsked(form, await getCustomerId());
+        return saved;
+      }
     }
 
     const input: OrderInput = {
@@ -220,6 +236,11 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
     const saved = savedOrder(data);
     if (!saved) return { error: "failed" };
     const { number } = saved;
+
+    // "Save for next time": also when submit_order found this request's order already saved (created = false), and in
+    // the early return above for a retry the order number was read for. Saving the same details twice is harmless.
+    await saveDeliveryIfAsked(form, customerId);
+
     // A retry that found the order saved earlier: the alert and the analytics event went out the first time.
     if (!saved.created) return number;
 

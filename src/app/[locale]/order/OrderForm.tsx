@@ -48,6 +48,19 @@ export type OrderProgram = {
   variants: { id: string; kcal: number; meals: number; price: number }[];
 };
 
+/**
+ * Fields filled in on the server for a signed-in customer: their saved delivery details (migration 0030), or an earlier
+ * order of theirs (?repeat=). Undefined fields keep the form's own defaults.
+ */
+export type OrderPrefill = {
+  days?: number;
+  weekdaysOnly?: boolean;
+  address?: string;
+  window?: string;
+  comment?: string;
+  exclusions?: string;
+};
+
 type Props = {
   locale: Locale;
   t: Dictionary["order"];
@@ -68,6 +81,11 @@ type Props = {
   turnstileKey: string;
   /** "The trial costs the same per day as a week", under the durations; "" when that is not so (trialAtWeekPrice). */
   trialNote?: string;
+  prefill?: OrderPrefill;
+  /** Signed in: the "Save for next time" checkbox is shown (unticked). */
+  canSaveDelivery?: boolean;
+  /** One line above the form: where a repeated order's fields came from, or why one could not be used. */
+  notice?: string;
 };
 
 /** How many start dates are offered as chips. */
@@ -162,7 +180,9 @@ export function OrderForm(props: Props) {
     viewedStepRef.current = 0;
     setRound((n) => n + 1);
   }, []);
-  return <OrderFormBody key={round} {...props} onPlaced={placed} viewedStepRef={viewedStepRef} />;
+  // The fresh form after an order starts empty, as before: no prefill and no repeat line.
+  const fresh = round === 0 ? {} : { prefill: undefined, notice: "" };
+  return <OrderFormBody key={round} {...props} {...fresh} onPlaced={placed} viewedStepRef={viewedStepRef} />;
 }
 
 function OrderFormBody({
@@ -182,6 +202,9 @@ function OrderFormBody({
   initialPhone = "",
   turnstileKey,
   trialNote = "",
+  prefill,
+  canSaveDelivery = false,
+  notice = "",
   onPlaced,
   viewedStepRef,
 }: Props & { onPlaced: () => void; viewedStepRef: RefObject<OrderStep | null> }) {
@@ -191,19 +214,36 @@ function OrderFormBody({
   const [programSlug, setProgramSlug] = useState(initialProgram);
   const [variantId, setVariantId] = useState(initialVariant);
   const [days, setDays] = useState(
-    () => (durations.find((d) => d.days === 7) ?? durations.find((d) => !d.is_trial) ?? durations[0]).days,
+    () =>
+      (
+        durations.find((d) => d.days === prefill?.days) ??
+        durations.find((d) => d.days === 7) ??
+        durations.find((d) => !d.is_trial) ??
+        durations[0]
+      ).days,
   );
-  const [weekdaysOnly, setWeekdaysOnly] = useState(false);
+  const [weekdaysOnly, setWeekdaysOnly] = useState(prefill?.weekdaysOnly ?? false);
   // Allowed start dates. The server sends a fresh range when the cutoff passed while the page was open.
   const [range, setRange] = useState({ earliest, latest });
-  const [startDate, setStartDate] = useState(earliest);
-  const [address, setAddress] = useState("");
-  const [deliveryWindow, setDeliveryWindow] = useState(windows[1] ?? windows[0] ?? "");
-  const [comment, setComment] = useState("");
+  // The earliest allowed date; a repeated weekdays-only order moves a weekend to the next Monday.
+  const [startDate, setStartDate] = useState(() => {
+    const first = firstDeliveryDate(earliest, prefill?.weekdaysOnly ?? false);
+    return first <= latest ? first : earliest;
+  });
+  const defaultWindow = windows[1] ?? windows[0] ?? "";
+  const [address, setAddress] = useState(prefill?.address ?? "");
+  const [deliveryWindow, setDeliveryWindow] = useState(
+    prefill?.window && windows.includes(prefill.window) ? prefill.window : defaultWindow,
+  );
+  const [comment, setComment] = useState(prefill?.comment ?? "");
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
-  const [exclusions, setExclusions] = useState("");
+  const [exclusions, setExclusions] = useState(prefill?.exclusions ?? "");
   const [consent, setConsent] = useState(false);
+  // "Save for next time" (signed in only): off until the customer ticks it (consent to keep the address).
+  const [saveDelivery, setSaveDelivery] = useState(false);
+  // The address and note were filled in for the customer: "Clear" empties them while there is something to clear.
+  const deliveryPrefilled = Boolean(prefill?.address || prefill?.comment);
 
   // One order per tap (migration 0027): one request id for this form round, made at the first send and sent again on
   // every retry, so a second tap after a lost answer gets the saved order's number instead of a second order. A placed
@@ -363,6 +403,16 @@ function OrderFormBody({
     onAnswer(state);
   }, [state]);
 
+  /** "Clear": the filled-in address, time and courier note give way to an empty address field (focused). */
+  function clearDelivery() {
+    changed();
+    setAddress("");
+    setComment("");
+    setDeliveryWindow(defaultWindow);
+    setTouched((prev) => new Set([...prev, "address", "window", "comment"]));
+    document.getElementById(fieldId("address"))?.focus();
+  }
+
   function check(): FieldErrors {
     return validateOrder(
       {
@@ -494,6 +544,11 @@ function OrderFormBody({
 
       {/* scroll-mt: a step change scrolls the step header to just under the sticky 56 px header. */}
       <div ref={columnRef} className="grid min-w-0 scroll-mt-16 gap-6 md:gap-12">
+        {notice && (
+          <p role="status" className="rounded-2xl bg-ivory-deep px-4 py-3 text-sm text-forest" data-order-notice>
+            {notice}
+          </p>
+        )}
         {/* Phones only: where you are, and the way back. From md every section shows and there are no steps. */}
         <div className="md:hidden">
           <StepProgress current={step} total={ORDER_STEPS} label={stepLabel(step)}>
@@ -683,10 +738,24 @@ function OrderFormBody({
             {/* 02 · Delivery */}
             <Section step={1} current={step} number="02" title={t.sections.delivery} stepLabel={stepLabel(1)} help={help}>
               <div>
-                <label htmlFor={fieldId("address")} className="label text-muted">
-                  {t.address}
-                </label>
+                <div className="flex items-center justify-between gap-3">
+                  <label htmlFor={fieldId("address")} className="label text-muted">
+                    {t.address}
+                  </label>
+                  {deliveryPrefilled && (address || comment) && (
+                    <button
+                      type="button"
+                      onClick={clearDelivery}
+                      aria-label={t.clearDeliveryLabel}
+                      className="-my-2 inline-flex min-h-11 items-center px-1 text-sm font-semibold text-forest underline decoration-gold underline-offset-4"
+                    >
+                      {t.clearDelivery}
+                    </button>
+                  )}
+                </div>
+                {/* data-ph-mask: session replays never show the address (src/lib/analytics/client.ts). */}
                 <textarea
+                  data-ph-mask
                   id={fieldId("address")}
                   name="address"
                   required
@@ -756,6 +825,28 @@ function OrderFormBody({
                 />
                 <FieldError id={fieldId("comment")} text={errorText("comment")} />
               </div>
+
+              {canSaveDelivery && (
+                <div className="flex items-start gap-3">
+                  <input
+                    id="order-save-delivery"
+                    name="save_delivery"
+                    type="checkbox"
+                    checked={saveDelivery}
+                    onChange={(e) => setSaveDelivery(e.target.checked)}
+                    aria-describedby="order-save-delivery-hint"
+                    className="mt-0.5 h-5 w-5 shrink-0 accent-forest"
+                  />
+                  <div>
+                    <label htmlFor="order-save-delivery" className="text-sm font-semibold text-graphite">
+                      {t.saveDelivery}
+                    </label>
+                    <p id="order-save-delivery-hint" className="mt-0.5 text-sm text-muted">
+                      {t.saveDeliveryHint}
+                    </p>
+                  </div>
+                </div>
+              )}
             </Section>
 
             {/* 03 · Contact */}

@@ -221,6 +221,17 @@ const uz: Dictionary = {
     window: "Yetkazib berish vaqti",
     comment: "Kuryer uchun izoh",
     commentPlaceholder: "Masalan: qoʻngʻiroq qilmang, eshik oldida qoldiring",
+    /** Saved delivery details and repeat (docs/plans/saved-address-repeat-order.md). {n}: order number. */
+    saveDelivery: "Keyingi buyurtmalar uchun saqlash",
+    saveDeliveryHint: "Manzil, vaqt va kuryer uchun izoh kabinetingizda saqlanadi. Ularni oʻsha yerda oʻchirish mumkin.",
+    clearDelivery: "Tozalash",
+    clearDeliveryLabel: "Tozalash: manzil, vaqt va izoh",
+    repeatFrom: "№{n} buyurtma asosida toʻldirdik. Maʼlumotlarni tekshiring: birinchi yetkazib berish eng yaqin kunga qoʻyildi.",
+    repeatLevel: "{from} kkal endi yoʻq — eng yaqin darajani, {to} kkal tanladik.",
+    repeatProgram: "Bu dastur endi yoʻq — boshqasini tanlang.",
+    repeatFailed: "№{n} buyurtmani yuklab boʻlmadi. Iltimos, shaklni toʻldiring.",
+    /** On a repeat, the saved address and courier note are used; said when the order had another address. */
+    repeatSavedAddress: "Saqlangan manzilingizni qoʻydik — buyurtmada boshqa manzil boʻlgan.",
     optional: "ixtiyoriy",
     name: "Ism",
     phone: "Telefon",
@@ -276,7 +287,7 @@ const uz: Dictionary = {
   privacy: {
     title: "Maxfiylik siyosati",
     lead: "TAOMIQ sayt orqali qanday maʼlumotlarni oladi, nima uchun va ular qayerda saqlanadi.",
-    updated: "Yangilangan: 2026-yil 24-noyabr",
+    updated: "Yangilangan: 2026-yil 28-noyabr",
     sections: [
       {
         title: "Qanday maʼlumotlarni olamiz",
@@ -320,6 +331,7 @@ const uz: Dictionary = {
           "Telegram, Google yoki elektron pochtaga keladigan kod orqali kirish mumkin. Parollarni olmaymiz va saqlamaymiz.",
           "Akkaunt uchun ism, elektron pochta manzili, telefon raqami (agar Telegram uni ulashgan boʻlsa) va Telegram identifikatorini saqlaymiz.",
           "Bu maʼlumotlar buyurtmalaringizni koʻrsatish va buyurtma shaklini siz uchun toʻldirish uchun kerak.",
+          "Yetkazib berish manzili, vaqti va kuryer uchun izoh akkauntda faqat oʻzingiz tanlasangiz saqlanadi: buyurtma berishda «Keyingi buyurtmalar uchun saqlash»ni belgilasangiz yoki ularni shaxsiy kabinetdagi «Yetkazib berish maʼlumotlari» boʻlimida qoʻshsangiz. Ularni oʻsha yerda istalgan vaqtda oʻchirish mumkin.",
         ],
       },
       {
@@ -693,6 +705,34 @@ const uz: Dictionary = {
     progressRunning: "{n}-kun, jami {days} · {date} kuni tugaydi",
     progressEnded: "{date} kuni tugadi",
     renew: "Uzaytirish",
+    /** Opens the order form filled in from the newest order (order form ?repeat=). */
+    repeat: "Buyurtmani takrorlash",
+    delivery: {
+      title: "Yetkazib berish maʼlumotlari",
+      hint: "Ular buyurtma shaklini toʻldirish uchun ishlatiladi. Berilgan buyurtmalarda hech narsa oʻzgarmaydi.",
+      empty: "Saqlangan manzil hozircha yoʻq. Buyurtma berishda «Keyingi buyurtmalar uchun saqlash»ni belgilang yoki manzilni shu yerda qoʻshing.",
+      address: "Manzil",
+      window: "Yetkazib berish vaqti",
+      anyWindow: "Tanlanmagan",
+      note: "Kuryer uchun izoh",
+      add: "Manzil qoʻshish",
+      edit: "Oʻzgartirish",
+      remove: "Oʻchirish",
+      removing: "Oʻchirilmoqda…",
+      save: "Saqlash",
+      saving: "Saqlanmoqda…",
+      cancel: "Bekor qilish",
+      saved: "Saqlandi. Keyingi buyurtmada shaklga qoʻyib beramiz.",
+      removed: "Manzil kabinetdan oʻchirildi. Berilgan buyurtmalarda u oʻzgarmadi.",
+      readFailed: "Yetkazib berish maʼlumotlarini yuklab boʻlmadi. Sahifani yangilab koʻring.",
+      errors: {
+        address: "Manzilni kiriting: 5 tadan 300 tagacha belgi.",
+        window: "Roʻyxatdagi vaqtlardan birini tanlang.",
+        tooLong: "Izoh 500 belgidan oshmasligi kerak.",
+        signIn: "Maʼlumotlarni oʻzgartirish uchun qaytadan kiring.",
+        failed: "Saqlab boʻlmadi. Qayta urinib koʻring.",
+      },
+    },
     pause: {
       open: "Pauza yoki kunlarni oʻtkazib yuborish",
       title: "Yetkazib berish pauzasi",

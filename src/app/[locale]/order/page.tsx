@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { connection } from "next/server";
 import { Suspense } from "react";
 import { PageTransition } from "@/components/PageTransition";
@@ -9,11 +9,14 @@ import { getDurations, getOrderSettings, getPrograms } from "@/lib/data/catalog"
 import { localized } from "@/lib/data/localized";
 import { trialAtWeekPrice } from "@/lib/data/types";
 import { getCustomer } from "@/lib/account/auth";
+import { readRepeatOrder, readSavedDelivery, type RepeatOrder } from "@/lib/account/delivery";
+import { isAccountEnabled } from "@/lib/account/methods";
+import { pickRepeatVariant, repeatNumberOf } from "@/lib/order/repeat";
 import { SOURCE_KEYS, SOURCE_VALUE_MAX, phoneDigits, startDateRange } from "@/lib/order/rules";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { turnstileWidgetKey } from "@/lib/turnstile/config";
-import { OrderForm, type OrderProgram } from "./OrderForm";
+import { OrderForm, type OrderPrefill, type OrderProgram } from "./OrderForm";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/order">): Promise<Metadata> {
   const { locale } = await params;
@@ -91,9 +94,9 @@ async function OrderLoader({
   }
 
   // ?program=balance&kcal=1800 from program pages and the calculator
-  const program =
+  let program =
     programs.find((p) => p.slug === pick("program")) ?? programs.find((p) => p.slug === "balance") ?? programs[0];
-  const variant = program.variants.find((v) => String(v.kcal) === pick("kcal")) ?? program.variants[0];
+  let variant = program.variants.find((v) => String(v.kcal) === pick("kcal")) ?? program.variants[0];
 
   const source: Record<string, string> = {};
   for (const key of SOURCE_KEYS) {
@@ -102,7 +105,50 @@ async function OrderLoader({
   }
 
   const { earliest, latest } = startDateRange(new Date(), settings.cutoffHour);
-  const profile = (await customerPromise)?.profile;
+  const customer = await customerPromise;
+  const profile = customer?.profile;
+
+  // ?repeat=<order number> ("Repeat last order" and Renew in the account): only the number is in the URL; the rest is
+  // read on the server, from the signed-in customer's own order. Signed out: the login page first, then back here.
+  const repeatNumber = isAccountEnabled ? repeatNumberOf(pick("repeat")) : null;
+  if (repeatNumber && !customer) {
+    redirect(`/${locale}/login?next=${encodeURIComponent(`/${locale}/order?repeat=${repeatNumber}`)}`);
+  }
+
+  // Signed in: the saved address, time and courier note (0030), and the order to repeat. A failed read leaves the
+  // fields empty; the order is never blocked by it.
+  const [saved, repeat] = customer
+    ? await Promise.all([readSavedDelivery(customer.id), repeatNumber ? readRepeatOrder(repeatNumber) : null])
+    : [null, null];
+  const delivery = saved && saved !== "failed" ? saved : null;
+  const validWindow = (w: string | undefined) => (w && settings.deliveryWindows.includes(w) ? w : undefined);
+
+  const o = t.order;
+  let prefill: OrderPrefill | undefined;
+  let notice = "";
+  if (delivery) {
+    prefill = { address: delivery.address, window: validWindow(delivery.window), comment: delivery.note };
+  }
+  if (repeatNumber) {
+    if (repeat && repeat !== "failed") {
+      ({ program, variant, notice } = repeatChoice(programs, repeat, program, variant, o));
+      if (!notice) notice = o.repeatFrom.replace("{n}", String(repeatNumber));
+      // A saved address (and its courier note) wins over the old order's: it is what the customer keeps up to date. The
+      // plan, days, time and exclusions still come from the order.
+      const own = delivery?.address ? delivery : null;
+      if (own && own.address !== repeat.address) notice = `${notice} ${o.repeatSavedAddress}`;
+      prefill = {
+        days: durations.some((d) => d.days === repeat.days) ? repeat.days : undefined,
+        weekdaysOnly: repeat.weekdaysOnly,
+        address: own ? own.address : repeat.address,
+        window: validWindow(repeat.window) ?? prefill?.window,
+        comment: own ? own.note : repeat.comment,
+        exclusions: repeat.exclusions,
+      };
+    } else {
+      notice = o.repeatFailed.replace("{n}", String(repeatNumber));
+    }
+  }
 
   return (
     <OrderForm
@@ -122,8 +168,33 @@ async function OrderLoader({
       initialPhone={profile?.phone ? phoneDigits(profile.phone) : ""}
       turnstileKey={turnstileWidgetKey}
       trialNote={trialAtWeekPrice(durations) ? t.durations.trialSamePrice : ""}
+      prefill={prefill}
+      canSaveDelivery={Boolean(customer)}
+      notice={notice}
     />
   );
+}
+
+/**
+ * The program and level of a repeated order in today's catalogue: the same level, else the same program's nearest level
+ * with a note, else the page's default choice with a note.
+ */
+function repeatChoice(
+  programs: OrderProgram[],
+  repeat: RepeatOrder,
+  program: OrderProgram,
+  variant: OrderProgram["variants"][number],
+  o: Dictionary["order"],
+): { program: OrderProgram; variant: OrderProgram["variants"][number]; notice: string } {
+  const pickResult = pickRepeatVariant(programs, repeat);
+  if (pickResult.kind === "none") return { program, variant, notice: o.repeatProgram };
+  const found = programs.find((p) => p.slug === pickResult.programSlug) ?? program;
+  const level = found.variants.find((v) => v.id === pickResult.variantId) ?? found.variants[0];
+  const notice =
+    pickResult.kind === "nearest"
+      ? o.repeatLevel.replace("{from}", String(pickResult.fromKcal)).replace("{to}", String(pickResult.toKcal))
+      : "";
+  return { program: found, variant: level, notice };
 }
 
 function Unavailable({ t, message }: { t: Dictionary; message: string }) {

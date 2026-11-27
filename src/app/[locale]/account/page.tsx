@@ -6,18 +6,19 @@ import { PageTransition } from "@/components/PageTransition";
 import { getDictionary, type Dictionary } from "@/i18n";
 import { formatSum, isLocale, plural, type Locale } from "@/i18n/config";
 import { requireCustomer } from "@/lib/account/auth";
+import { readSavedDelivery } from "@/lib/account/delivery";
 import { authMethods, isAccountEnabled } from "@/lib/account/methods";
 import { orderProgress, renewDue, type OrderProgress } from "@/lib/account/order-status";
 import { listMyOrders, type CustomerOrder } from "@/lib/account/orders";
 import { customerCanPause, customerFirstPauseDay, formatPauseRange, hasDaysToPause } from "@/lib/account/pauses";
 import { STATUS_TONES } from "@/lib/admin/orders";
 import { PAUSE_MAX_DAYS_DEFAULT } from "@/lib/admin/pauses";
-import { getOrderSettings, getPrograms, type OrderSettings } from "@/lib/data/catalog";
-import type { Program } from "@/lib/data/types";
+import { getOrderSettings, type OrderSettings } from "@/lib/data/catalog";
 import { tashkentToday } from "@/lib/order/days";
-import { DEFAULT_CUTOFF_HOUR } from "@/lib/order/rules";
+import { DEFAULT_CUTOFF_HOUR, DEFAULT_DELIVERY_WINDOWS } from "@/lib/order/rules";
 import { pageMetadata } from "@/lib/seo";
 import { AccountAnalytics, NameForm, SignOutButton } from "./AccountForms";
+import { DeliveryDetails } from "./DeliveryDetails";
 import { PauseSheet, type PauseSheetLabels } from "./PauseSheet";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/account">): Promise<Metadata> {
@@ -97,6 +98,16 @@ async function AccountContent({ locale, t }: { locale: Locale; t: Dictionary }) 
         </dl>
       </section>
 
+      {/* data-ph-mask: the saved address is never shown in session replays (src/lib/analytics/client.ts). */}
+      <section aria-labelledby="delivery-details" className="rounded-3xl bg-white p-6 md:p-8" data-ph-mask>
+        <h2 id="delivery-details" className="font-serif text-2xl text-forest md:text-3xl">
+          {a.delivery.title}
+        </h2>
+        <Suspense fallback={<div className="mt-5 h-24 animate-pulse rounded-2xl bg-ivory-deep" aria-hidden />}>
+          <SavedDelivery customerId={customer.id} locale={locale} t={t} />
+        </Suspense>
+      </section>
+
       <section aria-labelledby="my-orders" className="rounded-3xl bg-white p-6 md:p-8" data-ph-mask>
         <h2 id="my-orders" className="font-serif text-2xl text-forest md:text-3xl">
           {a.myOrders}
@@ -112,6 +123,29 @@ async function AccountContent({ locale, t }: { locale: Locale; t: Dictionary }) 
       </div>
     </div>
   );
+}
+
+/** The saved address, delivery time and courier note (migration 0030), to change or remove. */
+async function SavedDelivery({ customerId, locale, t }: { customerId: string; locale: Locale; t: Dictionary }) {
+  const d = t.account.delivery;
+  const [saved, windows] = await Promise.all([
+    readSavedDelivery(customerId),
+    getOrderSettings().then(
+      (settings) => settings.deliveryWindows,
+      (error: unknown) => {
+        console.error("account: settings unavailable", errorMessage(error));
+        return DEFAULT_DELIVERY_WINDOWS;
+      },
+    ),
+  ]);
+  if (saved === "failed") {
+    return (
+      <p role="alert" className="mt-4 rounded-2xl bg-danger/10 p-4 text-danger">
+        {d.readFailed}
+      </p>
+    );
+  }
+  return <DeliveryDetails locale={locale} saved={saved} windows={windows} t={d} />;
 }
 
 /** The customer's own orders, newest first. A failed read shows one sentence instead of breaking the page. */
@@ -154,20 +188,18 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
     `${Number(iso.slice(8, 10))} ${o.monthNames[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}`;
   const shortDate = (iso: string) => `${Number(iso.slice(8, 10))} ${o.monthNames[Number(iso.slice(5, 7)) - 1]}`;
 
-  // The status line and the Renew button come from the order's own dates (src/lib/account/order-status.ts). The
-  // catalogue only turns the saved program name into the order form's ?program=&kcal=; without it, Renew opens the
-  // plain form.
+  // The status line and the Renew button come from the order's own dates (src/lib/account/order-status.ts). Renew and
+  // "Repeat last order" open the order form with ?repeat=<number>: the form reads the rest of the order on the server.
   const today = tashkentToday();
-  let programs: Program[] = [];
   let settings: Pick<OrderSettings, "cutoffHour" | "pauseMaxDays"> = {
     cutoffHour: DEFAULT_CUTOFF_HOUR,
     pauseMaxDays: PAUSE_MAX_DAYS_DEFAULT,
   };
-  const [programsRead, settingsRead] = await Promise.allSettled([getPrograms(), getOrderSettings()]);
-  if (programsRead.status === "fulfilled") programs = programsRead.value;
-  else console.error("account: catalogue unavailable", errorMessage(programsRead.reason));
-  if (settingsRead.status === "fulfilled") settings = settingsRead.value;
-  else console.error("account: settings unavailable", errorMessage(settingsRead.reason));
+  try {
+    settings = await getOrderSettings();
+  } catch (error) {
+    console.error("account: settings unavailable", errorMessage(error));
+  }
   // The first day a customer may pause or remove a pause: the earliest start of a new order placed now (0029).
   const firstPauseDay = customerFirstPauseDay(new Date(), settings.cutoffHour);
   const pauseLabels: PauseSheetLabels = {
@@ -190,7 +222,8 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
         return a.progressEnded.replace("{date}", shortDate(progress.date));
     }
   };
-  const cards = orders.map((order) => {
+  const repeatHref = (order: CustomerOrder) => `/${locale}/order?repeat=${order.number}`;
+  const cards = orders.map((order, index) => {
     const progress = orderProgress(order, today);
     // The pause sheet needs every pause's id (my_order_pauses_v2, 0029) to offer Remove and an end date it can trust.
     const pauses =
@@ -206,16 +239,20 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
         customerCanPause(order.status) && progress !== null && progress.kind !== "ended"
           ? upcomingPauses(order, today, o.monthNames)
           : null,
-      renewHref: renewDue(progress, today) ? renewHref(locale, order, programs) : null,
+      renewHref: renewDue(progress, today) ? repeatHref(order) : null,
+      // "Repeat last order" on the newest order (the list is newest first), unless it already offers Renew (the same link).
+      repeatHref: index === 0 && !renewDue(progress, today) ? repeatHref(order) : null,
     };
   });
-  // One gold order button per page: when a card offers Renew, the general order button below steps back to outline.
-  const renewing = cards.some((card) => card.renewHref);
+  // One gold order button per page: the first Renew when a card offers one, else "Repeat last order"; every other order
+  // button (more Renews, Repeat beside a Renew, the general one) is outline.
+  const goldRenew = cards.find((card) => card.renewHref)?.order.number ?? null;
+  const renewing = goldRenew !== null;
 
   return (
     <>
       <ul className="mt-5 grid gap-3">
-        {cards.map(({ order, progress, pauses, pauseLine, renewHref }) => (
+        {cards.map(({ order, progress, pauses, pauseLine, renewHref, repeatHref }) => (
           <li key={order.number} className="rounded-2xl border border-line p-4 md:p-5">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="font-semibold text-forest tabular-nums">
@@ -272,19 +309,29 @@ async function MyOrders({ locale, t }: { locale: Locale; t: Dictionary }) {
               <Link
                 href={renewHref}
                 aria-label={`${a.renew}: ${order.program_name} ${order.kcal} ${o.kcal}`}
-                className="btn btn-gold mt-4 min-h-12 w-full sm:w-auto"
+                className={`btn mt-4 min-h-12 w-full sm:w-auto ${
+                  order.number === goldRenew ? "btn-gold" : "btn-outline text-forest"
+                }`}
               >
                 {a.renew}
+              </Link>
+            )}
+            {repeatHref && (
+              <Link
+                href={repeatHref}
+                aria-label={`${a.repeat}: ${a.orderNumber.replace("{n}", String(order.number))}`}
+                className={`btn mt-4 min-h-12 w-full sm:w-auto ${renewing ? "btn-outline text-forest" : "btn-gold"}`}
+                data-repeat-order
+              >
+                {a.repeat}
               </Link>
             )}
           </li>
         ))}
       </ul>
-      {/* One order button per page: here under the list, or in the empty or failed state above. */}
-      <Link
-        href={`/${locale}/order`}
-        className={`btn mt-5 min-h-12 ${renewing ? "btn-outline text-forest" : "btn-gold"}`}
-      >
+      {/* One gold order button per page: with orders, Renew or "Repeat last order" above is it, so this one is outline;
+          the empty and failed states above have the gold one. */}
+      <Link href={`/${locale}/order`} className="btn btn-outline mt-5 min-h-12 text-forest">
         {a.orderCta}
       </Link>
       {telegramOn && <p className="mt-5 text-sm text-muted">{a.ordersNote}</p>}
@@ -300,20 +347,6 @@ function errorMessage(error: unknown): unknown {
 function upcomingPauses(order: CustomerOrder, today: string, monthNames: readonly string[]): string | null {
   const ahead = (order.pauses ?? []).filter((pause) => pause.to >= today).sort((x, y) => x.from.localeCompare(y.from));
   return ahead.length > 0 ? ahead.map((pause) => formatPauseRange(pause.from, pause.to, monthNames)).join(", ") : null;
-}
-
-/**
- * The order form for the same program and level again. Orders keep a snapshot of the program's name, not its slug
- * (my_orders, 0007), so the name is matched to the catalogue; a renamed or removed program opens the plain form, and a
- * removed level the program's first.
- */
-function renewHref(locale: Locale, order: CustomerOrder, programs: Program[]): string {
-  const name = order.program_name.trim().toLowerCase();
-  const program = programs.find((p) => p.name.trim().toLowerCase() === name);
-  if (!program) return `/${locale}/order`;
-  const query = new URLSearchParams({ program: program.slug });
-  if (program.variants.some((v) => v.kcal === order.kcal)) query.set("kcal", String(order.kcal));
-  return `/${locale}/order?${query}`;
 }
 
 function OrdersSkeleton() {

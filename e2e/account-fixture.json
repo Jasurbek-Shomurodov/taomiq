@@ -31,5 +31,9 @@
     { "number": 873571, "status": "confirmed", "program_name": "BALANCE", "kcal": 1800, "days": 7, "weekdays_only": false, "start_offset_days": 3, "total": 1960000 },
     { "number": 873572, "status": "completed", "program_name": "BALANCE", "kcal": 1800, "days": 7, "weekdays_only": false, "start_offset_days": -20, "total": 1960000 },
     { "number": 873573, "status": "active", "program_name": "BALANCE", "kcal": 1800, "days": 30, "weekdays_only": false, "start_offset_days": -1, "total": 7650000 }
-  ]
+  ],
+  "delivery//": "Saved delivery details and repeat (e2e/account-delivery.spec.ts, scripts/e2e-mock-supabase.mjs): sessions whose id starts with \"saved-\" start with savedDelivery; my_order_for_repeat answers every order above with repeat's delivery fields, and retiredLevelOrder (not in my_orders) with a level the catalogue no longer has. Made-up data.",
+  "savedDelivery": { "address": "Yunusobod 4-kvartal, 12-uy, 45-xonadon", "delivery_window": "06:00–08:00", "courier_note": "Domofon 45" },
+  "repeat": { "address": "Chilonzor 9-kvartal, 7-uy, 21-xonadon", "delivery_window": "08:00–10:00", "comment": "Eshik oldida qoldiring", "exclusions": "qoʻziqorin" },
+  "retiredLevelOrder": { "number": 873590, "variant_id": "e2e-balance-2200", "program_slug": "balance", "kcal": 2200, "days": 14, "weekdays_only": true }
 }

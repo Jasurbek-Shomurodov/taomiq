@@ -45,7 +45,8 @@ test("order cards say where each order stands, and offer Renew only near the end
 
     const renew = card.getByRole("link", { name: new RegExp(`^${t.account.renew}`) });
     if (renewDue(progress, today)) {
-      await expect(renew).toHaveAttribute("href", `/${locale}/order?program=balance&kcal=${order.kcal}`);
+      // The order form fills itself in from the order on the server: only the number is in the URL.
+      await expect(renew).toHaveAttribute("href", `/${locale}/order?repeat=${order.number}`);
     } else {
       await expect(renew).toHaveCount(0);
     }
@@ -56,6 +57,16 @@ test("order cards say where each order stands, and offer Renew only near the end
   await expect(cards.getByRole("link", { name: new RegExp(`^${t.account.renew}`) })).toHaveCount(1);
   await expect(page.getByText(t.account.progressRunning.replace("{n}", "3").replace("{days}", "4").split(" ·")[0])).toBeVisible();
 
-  // With a Renew on the page, the general order button is the outline one: one gold order button per page.
+  // "Repeat last order" on the newest order only (the fixture's first, not one with Renew).
+  const repeat = page.locator("[data-repeat-order]");
+  await expect(repeat).toHaveCount(1);
+  await expect(repeat).toHaveAttribute("href", `/${locale}/order?repeat=${fixture.order.number}`);
+  await expect(
+    page.getByRole("listitem").filter({ hasText: t.account.orderNumber.replace("{n}", String(fixture.order.number)) }),
+  ).toContainText(t.account.repeat);
+
+  // With a Renew on the page, Repeat and the general order button are outline: one gold order button per page.
+  await expect(repeat).toHaveClass(/btn-outline/);
   await expect(page.getByRole("link", { name: t.account.orderCta, exact: true })).toHaveClass(/btn-outline/);
+  await expect(page.locator("section[aria-labelledby='my-orders'] a.btn-gold")).toHaveCount(1);
 });
