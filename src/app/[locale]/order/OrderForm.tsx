@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { unstable_rethrow } from "next/navigation";
 import {
   ViewTransition,
   addTransitionType,
@@ -29,7 +30,7 @@ import {
 } from "@/lib/allergens";
 import { track } from "@/lib/analytics/client";
 import { pricePerDay, type Duration } from "@/lib/data/types";
-import { submitOrder, type OrderState } from "@/lib/order/actions";
+import { submitOrder, type OrderGeneralError, type OrderState } from "@/lib/order/actions";
 import {
   clearDraft,
   parseDraft,
@@ -47,9 +48,11 @@ import {
   addDays,
   firstDeliveryDate,
   firstErrorField,
+  formatPhone,
   fullPhone,
+  isUzMobile,
   isWeekend,
-  phoneDigits,
+  phoneFromInput,
   validateOrder,
   weekday,
   type FieldErrors,
@@ -107,6 +110,11 @@ type Props = {
   prefill?: OrderPrefill;
   /** Signed in: the "Save for next time" checkbox is shown (unticked). */
   canSaveDelivery?: boolean;
+  /**
+   * Customer sign-in is on (isAccountEnabled): the line by the order button says pauses are made in the account;
+   * otherwise by a message to the manager, as the home page's "included" list says.
+   */
+  pauseInAccount?: boolean;
   /** One line above the form: where a repeated order's fields came from, or why one could not be used. */
   notice?: string;
   /**
@@ -123,6 +131,25 @@ function defaultDays(durations: Duration[]): number {
 
 /** How many start dates are offered as chips. */
 const DATE_CHOICES = 21;
+
+/** A send without an answer this long shows "Still sending…" under the button. */
+const STILL_SENDING_MS = 8000;
+
+/**
+ * What the form shows: the server's answer, or "offline" when the browser is offline (nothing is sent) or the request
+ * failed on the way (the order may or may not be saved; the next tap sends the same request id, so it can't be doubled).
+ */
+type FormState = Omit<OrderState, "error"> & { error?: OrderGeneralError | "offline" };
+
+/** The phone field's caret after `count` digits of the formatted number ("90 1|23 45 67" after 3). */
+function caretAfterDigits(formatted: string, count: number): number {
+  if (count <= 0) return 0;
+  let seen = 0;
+  for (let i = 0; i < formatted.length; i++) {
+    if (/\d/.test(formatted[i]) && ++seen === count) return i + 1;
+  }
+  return formatted.length;
+}
 
 const fieldId = (field: OrderField) => `order-${field}`;
 
@@ -158,7 +185,8 @@ function newRequestId(): string {
 function focusField(field: OrderField | undefined) {
   if (!field) return;
   const element = document.getElementById(fieldId(field));
-  element?.focus();
+  // Focus without the browser's own jump, then one smooth scroll that puts the field mid-screen (above the bar).
+  element?.focus({ preventScroll: true });
   element?.scrollIntoView({ block: "center", behavior: "smooth" });
   if (element) nudge(element);
 }
@@ -246,12 +274,43 @@ function OrderFormBody({
   trialNote = "",
   prefill,
   canSaveDelivery = false,
+  pauseInAccount = false,
   notice = "",
   resumable = false,
   onPlaced,
   viewedStepRef,
 }: Props & { onPlaced: () => void; viewedStepRef: RefObject<OrderStep | null> }) {
-  const [state, formAction, pending] = useActionState<OrderState, FormData>(submitOrder, {});
+  // A send that got no answer from the action: still in flight, or lost on the way (no connection, a dropped request,
+  // a proxy's error page). The order may be saved then, so a correction after it needs a new request id (changed()).
+  const unanswered = useRef(false);
+  /**
+   * The order action, wrapped so a network failure becomes a calm message instead of the page's error screen (an action
+   * that throws would replace the whole form, and every answer with it). Offline: nothing is sent. The redirect to the
+   * success page is Next's own throw and passes through.
+   */
+  const send = async (previous: FormState, formData: FormData): Promise<FormState> => {
+    if (navigator.onLine === false) return { error: "offline" };
+    unanswered.current = true;
+    try {
+      const answer = await submitOrder(previous as OrderState, formData);
+      unanswered.current = false;
+      return answer;
+    } catch (error) {
+      unstable_rethrow(error);
+      // TypeError: fetch failed (no connection, or it dropped). Anything else is an answer that was not the action's.
+      return { error: error instanceof TypeError ? "offline" : "failed" };
+    }
+  };
+  const [state, formAction, pending] = useActionState<FormState, FormData>(send, {});
+  // "Still sending…" after STILL_SENDING_MS: each send has a number, and the timer marks only its own send as slow.
+  const [sendCount, setSendCount] = useState(0);
+  const [slowSend, setSlowSend] = useState(-1);
+  useEffect(() => {
+    if (!pending) return;
+    const timer = window.setTimeout(() => setSlowSend(sendCount), STILL_SENDING_MS);
+    return () => window.clearTimeout(timer);
+  }, [pending, sendCount]);
+  const slow = pending && slowSend === sendCount;
 
   // Every field is controlled, so nothing typed is lost when the server returns an error.
   const [programSlug, setProgramSlug] = useState(initialProgram);
@@ -313,7 +372,7 @@ function OrderFormBody({
    * silently drop the correction.
    */
   const changed = () => {
-    if (sent.current) requestId.current = "";
+    if (sent.current || unanswered.current) requestId.current = "";
   };
 
   // Client-side check results; null after a check that passed (then the server's answer is shown).
@@ -418,6 +477,20 @@ function OrderFormBody({
     document.getElementById(stepHeadingId(0))?.focus({ preventScroll: true });
   }
 
+  // The chosen start date's chip is scrolled into the strip when it changes off-screen (a resumed draft, a weekend moved
+  // to Monday, the cutoff moving the date) or when its step comes up. Sideways only: the page itself never moves.
+  const datesStrip = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const strip = datesStrip.current;
+    const chip = strip?.querySelector("input:checked")?.closest("label");
+    if (!strip || !chip) return;
+    const box = strip.getBoundingClientRect();
+    const at = chip.getBoundingClientRect();
+    if (box.width === 0 || (at.left >= box.left && at.right <= box.right)) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    strip.scrollBy({ left: at.left - box.left - 8, behavior: reduce ? "auto" : "smooth" });
+  }, [startDate, range, step]);
+
   const dates: string[] = [];
   for (let i = 0; i < DATE_CHOICES; i++) {
     const date = addDays(range.earliest, i);
@@ -430,7 +503,11 @@ function OrderFormBody({
     const code = errors[field];
     if (!code || touched.has(field)) return null;
     if (code === "too_long") return t.errors.tooLong;
-    if (field === "start" && !clientErrors && state.startRange) return t.errors.startMoved;
+    // The cutoff passed while the form was open: the date was moved to the new earliest one (see handledState); say which.
+    if (field === "start" && !clientErrors && state.startRange) {
+      const moved = dateLabel(startDate);
+      return t.errors.startMoved.replace("{date}", `${moved.day}, ${moved.date}`);
+    }
     return field in t.errors ? t.errors[field as keyof typeof t.errors] : null;
   };
   const invalid = (field: OrderField) => Boolean(errorText(field));
@@ -483,8 +560,17 @@ function OrderFormBody({
     if (!moved.current) return;
     const field = focusAfter.current;
     focusAfter.current = null;
-    if (field) focusField(field);
-    else document.getElementById(stepHeadingId(step))?.focus({ preventScroll: true });
+    if (field) return focusField(field);
+    // The new step starts on screen: a shorter step that left the page scrolled past its heading is brought back.
+    const column = columnRef.current;
+    if (column && column.getBoundingClientRect().top < 0) column.scrollIntoView({ block: "start", behavior: "instant" });
+    // Someone quick already tapped a field of the new step (this runs once the step's cross-fade is done): keep it.
+    const active = document.activeElement;
+    const typing =
+      (active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement) &&
+      active.type !== "hidden" &&
+      active.offsetParent !== null;
+    if (!typing) document.getElementById(stepHeadingId(step))?.focus({ preventScroll: true });
   }, [step]);
 
   const onHide = useEffectEvent(() => {
@@ -494,14 +580,20 @@ function OrderFormBody({
 
   // Analytics: the answer last sent as order_failed. The effect below runs again when the kept page is shown again;
   // each answer is sent once.
-  const trackedAnswer = useRef<OrderState | null>(null);
+  const trackedAnswer = useRef<FormState | null>(null);
 
   // Move focus to whatever the server answered (on a phone, on the step that holds the first invalid field).
-  const onAnswer = useEffectEvent((answer: OrderState) => {
+  const onAnswer = useEffectEvent((answer: FormState) => {
     sent.current = false;
     if ((answer.fields || answer.error) && trackedAnswer.current !== answer) {
       trackedAnswer.current = answer;
-      const reason = answer.fields ? "field-error" : answer.error === "captcha" ? "turnstile" : "server";
+      const reason = answer.fields
+        ? "field-error"
+        : answer.error === "captcha"
+          ? "turnstile"
+          : answer.error === "offline"
+            ? "network"
+            : "server";
       track("order_failed", { reason, locale });
     }
     const field = answer.fields ? firstErrorField(answer.fields) : undefined;
@@ -576,14 +668,94 @@ function OrderFormBody({
     if (step > 0 && !settling) show((step - 1) as OrderStep);
   }
 
-  /** Phones, steps 1–2: Enter in a field goes to the next step instead of sending the form. */
+  /**
+   * Enter (the keyboard's Return / Next) never sends the order early. In a text field it moves on: plan notes →
+   * address → courier note → name → phone, and on a phone the step's last field brings up the next step (with its
+   * check). In the phone field it ticks nothing: it goes to the consent box, or sends once consent is given. On a
+   * choice card, phones go to the next step as before. Shift+Enter in the address still makes a new line.
+   */
   function onKeyDown(event: React.KeyboardEvent<HTMLFormElement>) {
-    if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+    if (event.key !== "Enter" || event.nativeEvent.isComposing || event.shiftKey) return;
     const target = event.target;
-    if (!(target instanceof HTMLInputElement) || target.type === "checkbox") return;
-    if (step >= LAST_STEP || !isStepped()) return;
+    const stepped = isStepped();
+    if (target instanceof HTMLInputElement && target.type === "radio") {
+      if (step >= LAST_STEP || !stepped) return;
+      event.preventDefault();
+      next();
+      return;
+    }
+    const isText =
+      target instanceof HTMLTextAreaElement || (target instanceof HTMLInputElement && target.type !== "checkbox");
+    if (!isText) return;
     event.preventDefault();
-    next();
+    const focus = (field: OrderField) => document.getElementById(fieldId(field))?.focus();
+    switch (target.id) {
+      case fieldId("exclusions"):
+        if (stepped) next();
+        else focus("address");
+        return;
+      case fieldId("address"):
+        focus("comment");
+        return;
+      case fieldId("comment"):
+        if (stepped) next();
+        else focus("name");
+        return;
+      case fieldId("name"):
+        focus("phone");
+        return;
+      case fieldId("phone"):
+        if (consent) event.currentTarget.requestSubmit();
+        else focus("consent");
+        return;
+    }
+  }
+
+  // The phone field shows "90 123 45 67"; the state (and the hidden field sent) holds the 9 digits. The caret is put
+  // back after the same number of digits once the grouped value is in the field.
+  const phoneInput = useRef<HTMLInputElement>(null);
+  const phoneCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const at = phoneCaret.current;
+    const input = phoneInput.current;
+    if (at === null || !input) return;
+    phoneCaret.current = null;
+    if (document.activeElement === input) input.setSelectionRange(at, at);
+  });
+
+  function setPhoneDigits(digits: string, caretDigits: number) {
+    setPhone(digits);
+    phoneCaret.current = caretAfterDigits(formatPhone(digits), caretDigits);
+    touch("phone");
+  }
+
+  /** Typing, autofill or a paste the browser put in: keep the 9 digits after +998, grouped. */
+  function onPhoneChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const raw = event.target.value;
+    const rawDigits = raw.replace(/\D/g, "");
+    let digits = phoneFromInput(raw);
+    // The caret stays after the same digits, unless a +998 was dropped or digits past the 9th were cut (then: the end).
+    let caret = digits === rawDigits ? raw.slice(0, event.target.selectionStart ?? raw.length).replace(/\D/g, "").length : digits.length;
+    // Backspace or Delete took only a space: the digit beside it goes instead, as in a plain number.
+    if (digits === phone && raw.length < formatPhone(phone).length) {
+      const kind = (event.nativeEvent as InputEvent).inputType;
+      if (kind === "deleteContentBackward" && caret > 0) {
+        digits = phone.slice(0, caret - 1) + phone.slice(caret);
+        caret -= 1;
+      } else if (kind === "deleteContentForward") {
+        digits = phone.slice(0, caret) + phone.slice(caret + 1);
+      }
+    }
+    setPhoneDigits(digits, caret);
+  }
+
+  /** A whole number pasted ("+998 90 123-45-67", "998901234567", "901234567") replaces the field, wherever the caret is. */
+  function onPhonePaste(event: React.ClipboardEvent<HTMLInputElement>) {
+    const text = event.clipboardData.getData("text");
+    if (text.replace(/\D/g, "").length < 9) return;
+    event.preventDefault();
+    const digits = phoneFromInput(text);
+    setPhoneDigits(digits, digits.length);
   }
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -609,6 +781,7 @@ function OrderFormBody({
     requestId.current ||= newRequestId();
     formData.set("request_id", requestId.current);
     sent.current = true;
+    setSendCount((n) => n + 1);
     // Describes the order only: never the name, phone, address or comment.
     track("order_submitted", {
       program: program.slug,
@@ -620,18 +793,37 @@ function OrderFormBody({
     startTransition(() => formAction(formData));
   }
 
-  const dateLabel = (iso: string) => ({
-    day: t.weekdayNames[weekday(iso)],
-    date: `${Number(iso.slice(8, 10))} ${t.monthNames[Number(iso.slice(5, 7)) - 1]}`,
-  });
+  function dateLabel(iso: string) {
+    return {
+      day: t.weekdayNames[weekday(iso)],
+      date: `${Number(iso.slice(8, 10))} ${t.monthNames[Number(iso.slice(5, 7)) - 1]}`,
+    };
+  }
   const daysWord = (n: number) => plural(n, t.dayForms);
   const money = (amount: number) => `${formatSum(amount)} ${t.currency}`;
   const start = dateLabel(startDate);
 
-  const summaryLine = `${program.name} · ${variant.kcal} ${t.kcal} · ${duration.days} ${daysWord(duration.days)}`;
+  const summaryLine = `${program.name} · ${variant.kcal} ${t.kcal}`;
+  // The phone's first two digits are not a known mobile operator code: a hint under the field, nothing blocked.
+  const codeHint = phone.length >= 2 && !isUzMobile(fullPhone(`${phone.slice(0, 2)}0000000`));
+  // "7 kun · 1 785 000 soʻm": the order's length and its total, under the price per day.
+  // Kept this short so the bar never truncates the total on a narrow phone (weekdays-only is in the summary card).
+  const totalLine = `${duration.days} ${daysWord(duration.days)} · ${money(total)}`;
   const stepLabel = (s: OrderStep) => t.step.replace("{n}", String(s + 1)).replace("{total}", String(ORDER_STEPS));
   // "Talk to a person" on every step (spec §4): under each step heading on phones, once under the summary from md.
   const help = <HelpLink text={t.help} link={t.helpLink} href={telegramUrl} />;
+  // Next to the order button: payment, pauses and a person to ask. Only what is true today (no online payment yet).
+  const reassureLines = [t.reassure.pay, pauseInAccount ? t.reassure.pauseAccount : t.reassure.pauseMessage];
+  const reassure = (
+    <Reassurance lines={reassureLines} help={<HelpLink text={t.help} link={t.helpLink} href={telegramUrl} />} />
+  );
+  const reassureOnDark = (
+    <Reassurance
+      onDark
+      lines={reassureLines}
+      help={<HelpLink onDark text={t.help} link={t.helpLink} href={telegramUrl} />}
+    />
+  );
 
   return (
     // method="post": a tap before the script has loaded must never send the fields as a GET query string (name and
@@ -641,7 +833,9 @@ function OrderFormBody({
       onSubmit={onSubmit}
       onKeyDown={onKeyDown}
       noValidate
-      className="container-page grid gap-8 pt-8 md:grid-cols-[minmax(0,1fr)_20rem] md:pb-16 md:pt-12 lg:gap-12"
+      // No scroll anchoring: a step swap on phones made Chrome jump the page to keep some lower element in place,
+      // which left the next step's heading and first field above the screen.
+      className="container-page grid gap-8 pt-8 [overflow-anchor:none] md:grid-cols-[minmax(0,1fr)_20rem] md:pb-16 md:pt-12 lg:gap-12"
     >
       <input type="hidden" name="locale" value={locale} />
       {Object.entries(source).map(([key, value]) => (
@@ -836,7 +1030,7 @@ function OrderFormBody({
                 className="min-w-0 outline-none"
               >
                 <legend className="label text-muted">{t.start}</legend>
-                <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-2">
+                <div ref={datesStrip} className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-2">
                   {dates.map((iso) => {
                     const label = dateLabel(iso);
                     const disabled = weekdaysOnly && isWeekend(iso);
@@ -914,6 +1108,8 @@ function OrderFormBody({
                       touch("exclusions");
                     }}
                     placeholder={t.exclusionsPlaceholder}
+                    autoComplete="off"
+                    enterKeyHint="next"
                     aria-invalid={invalid("exclusions") || undefined}
                     aria-describedby={describedBy("exclusions", "order-exclusions-hint")}
                     className="field mt-2"
@@ -953,6 +1149,9 @@ function OrderFormBody({
                   rows={3}
                   maxLength={LIMITS.address.max}
                   autoComplete="street-address"
+                  // Return goes to the courier note (Shift+Return still makes a new line): see onKeyDown.
+                  enterKeyHint="next"
+                  spellCheck={false}
                   value={address}
                   onChange={(e) => {
                     setAddress(e.target.value);
@@ -1019,6 +1218,8 @@ function OrderFormBody({
                     touch("comment");
                   }}
                   placeholder={t.commentPlaceholder}
+                  autoComplete="off"
+                  enterKeyHint="next"
                   aria-invalid={invalid("comment") || undefined}
                   aria-describedby={describedBy("comment")}
                   className="field mt-2"
@@ -1062,6 +1263,9 @@ function OrderFormBody({
                     required
                     maxLength={LIMITS.name.max}
                     autoComplete="name"
+                    autoCapitalize="words"
+                    spellCheck={false}
+                    enterKeyHint="next"
                     value={name}
                     onChange={(e) => {
                       setName(e.target.value);
@@ -1086,24 +1290,31 @@ function OrderFormBody({
                     <span className="pl-3 font-semibold text-forest tabular-nums" aria-hidden>
                       +998
                     </span>
+                    {/* Shown grouped ("90 123 45 67"); the 9 digits are what is sent, in the hidden field below. */}
                     <input
+                      ref={phoneInput}
                       id={fieldId("phone")}
-                      name="phone"
                       type="tel"
-                      inputMode="numeric"
+                      inputMode="tel"
                       autoComplete="tel-national"
+                      enterKeyHint={consent ? "send" : "next"}
                       required
-                      value={phone}
-                      onChange={(e) => {
-                        setPhone(phoneDigits(e.target.value));
-                        touch("phone");
-                      }}
-                      placeholder="901234567"
+                      value={formatPhone(phone)}
+                      onChange={onPhoneChange}
+                      onPaste={onPhonePaste}
+                      placeholder="90 123 45 67"
                       aria-invalid={invalid("phone") || undefined}
-                      aria-describedby={describedBy("phone", "order-phone-hint")}
+                      aria-describedby={describedBy("phone", codeHint ? "order-phone-hint order-phone-code" : "order-phone-hint")}
                       className="w-full min-w-0 rounded-r-[0.6rem] bg-transparent py-[0.6rem] pr-3 tabular-nums outline-none"
                     />
+                    <input type="hidden" name="phone" value={phone} />
                   </div>
+                  {/* A calm note, never an error: the operator list may lag behind a new code, and it blocks nothing. */}
+                  {codeHint && (
+                    <p id="order-phone-code" className="mt-1.5 text-sm font-semibold text-gold-ink" data-order-phone-code>
+                      {t.phoneCodeHint}
+                    </p>
+                  )}
                   <p id="order-phone-hint" className="mt-1.5 text-sm text-muted">
                     {t.phoneHint}
                   </p>
@@ -1137,6 +1348,11 @@ function OrderFormBody({
                 </div>
                 <FieldError id={fieldId("consent")} text={errorText("consent")} />
               </div>
+
+              {/* Phones: right above the bar that holds the order button. From md the same lines sit in the summary. */}
+              <div className="md:hidden" data-order-reassure>
+                {reassure}
+              </div>
             </Section>
 
             {/* Bot check: invisible unless Cloudflare asks for a click; a new server answer starts a fresh one. */}
@@ -1150,9 +1366,12 @@ function OrderFormBody({
                 className="rounded-2xl border border-danger/30 bg-danger/10 p-5 outline-none"
               >
                 <p className="text-graphite">{generalError}</p>
-                <a href={telegramUrl} className="btn btn-forest mt-4 !px-5 !py-2.5 !text-sm" rel="noopener">
-                  {t.telegram}
-                </a>
+                {/* Offline the Telegram link would not open either: the message says to tap again instead. */}
+                {state.error !== "offline" && (
+                  <a href={telegramUrl} className="btn btn-forest mt-4 !px-5 !py-2.5 !text-sm" rel="noopener">
+                    {t.telegram}
+                  </a>
+                )}
               </div>
             )}
           </div>
@@ -1173,7 +1392,6 @@ function OrderFormBody({
               />
               <SummaryRow term={t.start} value={`${start.day}, ${start.date}`} />
               <SummaryRow term={t.window} value={deliveryWindow} />
-              <SummaryRow term={t.perDay} value={money(perDay)} />
             </dl>
             {/* What the kitchen will read: the chosen allergens in words, then the free text. */}
             {exclusionsText && (
@@ -1181,9 +1399,12 @@ function OrderFormBody({
                 {exclusionsText}
               </p>
             )}
-            <div className="mt-5 flex items-baseline justify-between gap-3 border-t border-ivory/15 pt-4">
-              <span className="text-sm text-ivory/70">{t.total}</span>
-              <span className="font-serif text-3xl tabular-nums">{money(total)}</span>
+            {/* The price per day is the big figure; the whole order's total stays right under it. */}
+            <div className="mt-5 border-t border-ivory/15 pt-4">
+              <PerDay amount={money(perDay)} unit={t.dayForms[0]} label={t.perDay} className="text-3xl" />
+              <p className="mt-1 text-sm text-ivory/75 tabular-nums" data-order-total>
+                {totalLine}
+              </p>
             </div>
             <button
               type="submit"
@@ -1192,9 +1413,9 @@ function OrderFormBody({
             >
               <ButtonLabel label={t.submit} pending={pending} pendingLabel={t.pending} />
             </button>
-            <p className="mt-4 text-xs leading-relaxed text-ivory/60">{t.payNote}</p>
+            <StillSending text={slow ? t.stillSending : ""} className="mt-2 text-sm text-gold" />
+            <div className="mt-4">{reassureOnDark}</div>
           </div>
-          <div className="mt-3 px-2">{help}</div>
         </div>
       </aside>
 
@@ -1203,7 +1424,10 @@ function OrderFormBody({
         <div className="flex items-center gap-3">
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs text-muted">{summaryLine}</p>
-            <p className="font-serif text-xl text-forest tabular-nums">{money(total)}</p>
+            <PerDay amount={money(perDay)} unit={t.dayForms[0]} label={t.perDay} className="text-xl text-forest" />
+            <p className="truncate text-xs text-muted tabular-nums" data-order-total>
+              {totalLine}
+            </p>
           </div>
           {/* Two different buttons (keys), so React never turns the Next under a finger into the Order button:
               Next (type="button") on steps 1–2, the submit button only on step 3. Both rest for SETTLE_MS after a
@@ -1229,7 +1453,7 @@ function OrderFormBody({
             </button>
           )}
         </div>
-        <p className="mt-2 text-[11px] leading-snug text-muted">{t.payNote}</p>
+        <StillSending text={slow ? t.stillSending : ""} className="mt-2 text-sm font-semibold text-forest" />
       </div>
     </form>
   );
@@ -1315,18 +1539,70 @@ function Section({
   );
 }
 
-/** A quiet "Questions? Ask in Telegram" line; the link is a 44 px tap target. */
-function HelpLink({ text, link, href }: { text: string; link: string; href: string }) {
+/** A quiet "Questions? Ask in Telegram" line; the link is a 44 px tap target. onDark: on the forest summary card. */
+function HelpLink({ text, link, href, onDark }: { text: string; link: string; href: string; onDark?: boolean }) {
   return (
-    <p className="text-sm text-muted">
+    <p className={`text-sm ${onDark ? "text-ivory/75" : "text-muted"}`}>
       {text}{" "}
       <a
         href={href}
         rel="noopener"
-        className="inline-flex min-h-11 items-center font-semibold text-forest underline decoration-gold underline-offset-4"
+        className={`inline-flex min-h-11 items-center font-semibold underline decoration-gold underline-offset-4 ${
+          onDark ? "text-ivory" : "text-forest"
+        }`}
       >
         {link}
       </a>
+    </p>
+  );
+}
+
+/** "255 000 soʻm / kun": the price per day, read out as "255 000 soʻm kuniga". */
+function PerDay({ amount, unit, label, className }: { amount: string; unit: string; label: string; className: string }) {
+  return (
+    <p className={`font-serif leading-tight tabular-nums ${className}`} data-order-per-day>
+      {amount}
+      <span className="font-sans text-sm opacity-75" aria-hidden>
+        {" "}
+        / {unit}
+      </span>
+      <span className="sr-only"> {label}</span>
+    </p>
+  );
+}
+
+/** Short lines by the order button, each with a check mark, then the Telegram line. */
+function Reassurance({ lines, help, onDark }: { lines: string[]; help: ReactNode; onDark?: boolean }) {
+  return (
+    <div>
+      <ul className={`grid gap-1.5 text-sm ${onDark ? "text-ivory/80" : "text-graphite"}`}>
+        {lines.map((line) => (
+          <li key={line} className="flex items-start gap-2">
+            <svg
+              viewBox="0 0 16 16"
+              fill="none"
+              aria-hidden
+              className={`mt-0.5 size-4 shrink-0 ${onDark ? "text-gold" : "text-gold-ink"}`}
+            >
+              <path d="M3 8.5 6.5 12 13 4.5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            {line}
+          </li>
+        ))}
+      </ul>
+      {help}
+    </div>
+  );
+}
+
+/**
+ * "Still sending…" after 8 s without an answer. Always rendered (empty when not slow) so screen readers announce the
+ * words when they appear.
+ */
+function StillSending({ text, className }: { text: string; className: string }) {
+  return (
+    <p role="status" className={text ? className : "sr-only"} data-order-still-sending>
+      {text}
     </p>
   );
 }

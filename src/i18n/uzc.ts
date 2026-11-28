@@ -263,6 +263,8 @@ const uzc: Dictionary = {
     name: "Исм",
     phone: "Телефон",
     phoneHint: "Буюртмани тасдиқлаш учун қўнғироқ қиламиз ёки Telegram орқали ёзамиз.",
+    /** Under the phone when its first two digits are not a known mobile operator code: a hint, never an error. */
+    phoneCodeHint: "Кодни текширинг — бу мобил рақамми?",
     exclusions: "Яна нимадир (учтагача маҳсулот)",
     exclusionsPlaceholder: "Масалан: пиёз, булғор қалампири",
     consentBefore: "Маълумотларимни ",
@@ -274,6 +276,14 @@ const uzc: Dictionary = {
     payNote: "Тўлов менежер буюртмани тасдиқлагандан сўнг амалга оширилади. Payme ва Click орқали онлайн тўлов тез орада қўшилади.",
     submit: "Буюртма бериш",
     pending: "Юборилмоқда…",
+    /** Under the order button after 8 s without an answer. */
+    stillSending: "Ҳали юборилмоқда… Саҳифани ёпманг.",
+    /** Next to the order button: three short true lines (Telegram is the help line). Online payment is not live: never say it is. */
+    reassure: {
+      pay: "Тўлов — менежер тасдиқлагандан сўнг",
+      pauseAccount: "Пауза ва кунларни кўчириш — шахсий кабинетда",
+      pauseMessage: "Пауза ва кунларни кўчириш — менежерга хабар орқали",
+    },
     next: "Давом этиш",
     back: "Орқага",
     step: "{n}-қадам, жами {total}",
@@ -282,7 +292,7 @@ const uzc: Dictionary = {
       plan: "Дастур ва калорияни танланг.",
       duration: "Муддатни танланг.",
       start: "Рўйхатдан санани танланг.",
-      startMoved: "Саҳифа очиқ турганда энг яқин етказиб бериш санаси ўзгарди. Янги санани танладик — уни текширинг ва буюртмани қайта юборинг.",
+      startMoved: "Саҳифа очиқ турганда энг яқин етказиб бериш санаси ўзгарди. Биринчи етказиб бериш энди — {date}. Текширинг ва буюртмани қайта юборинг.",
       address: "Манзилни киритинг: кўча, уй ва хонадон.",
       window: "Етказиб бериш вақтини танланг.",
       name: "Исмингизни киритинг.",
@@ -295,6 +305,8 @@ const uzc: Dictionary = {
       rate_limited: "Бу рақамдан бир нечта янги буюртма бор. Тез орада сиз билан боғланамиз; бирор нарсани ўзгартириш керак бўлса, Telegram орқали ёзинг.",
       demo: "Онлайн буюртма тез орада очилади. Ҳозирча Telegram орқали ёзинг — буюртмани қўлда расмийлаштирамиз.",
       captcha: "Робот эмаслигингизни текшириб бўлмади. Интернетни текширинг, бир-икки сония кутиб, тугмани яна босинг; текширув чиқса, белгиланг. Бўлмаса, Telegram орқали ёзинг.",
+      /** Sent nothing, or got no answer: no connection. The same request id is sent again on the next tap. */
+      offline: "Интернет алоқаси йўқ. Жавобларингиз сақланди — интернет қайтгач, тугмани яна босинг.",
     },
     help: "Саволларингиз борми?",
     helpLink: "Telegram орқали сўранг",

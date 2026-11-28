@@ -262,6 +262,8 @@ const uz: Dictionary = {
     name: "Ism",
     phone: "Telefon",
     phoneHint: "Buyurtmani tasdiqlash uchun qoʻngʻiroq qilamiz yoki Telegramda yozamiz.",
+    /** Under the phone when its first two digits are not a known mobile operator code: a hint, never an error. */
+    phoneCodeHint: "Kodni tekshiring — bu mobil raqammi?",
     exclusions: "Yana nimadir (uchtagacha mahsulot)",
     exclusionsPlaceholder: "Masalan: piyoz, bulgʻor qalampiri",
     consentBefore: "Maʼlumotlarimni ",
@@ -273,6 +275,14 @@ const uz: Dictionary = {
     payNote: "Toʻlov menejer buyurtmani tasdiqlagandan soʻng amalga oshiriladi. Payme va Click orqali onlayn toʻlov tez orada qoʻshiladi.",
     submit: "Buyurtma berish",
     pending: "Yuborilmoqda…",
+    /** Under the order button after 8 s without an answer. */
+    stillSending: "Hali yuborilmoqda… Sahifani yopmang.",
+    /** Next to the order button: three short true lines (Telegram is the help line). Online payment is not live: never say it is. */
+    reassure: {
+      pay: "Toʻlov — menejer tasdiqlagandan soʻng",
+      pauseAccount: "Pauza va kunlarni koʻchirish — shaxsiy kabinetda",
+      pauseMessage: "Pauza va kunlarni koʻchirish — menejerga xabar orqali",
+    },
     next: "Davom etish",
     back: "Orqaga",
     step: "{n}-qadam, jami {total}",
@@ -281,7 +291,7 @@ const uz: Dictionary = {
       plan: "Dastur va kaloriyani tanlang.",
       duration: "Muddatni tanlang.",
       start: "Roʻyxatdan sanani tanlang.",
-      startMoved: "Sahifa ochiq turganda eng yaqin yetkazib berish sanasi oʻzgardi. Yangi sanani tanladik — uni tekshiring va buyurtmani qayta yuboring.",
+      startMoved: "Sahifa ochiq turganda eng yaqin yetkazib berish sanasi oʻzgardi. Birinchi yetkazib berish endi — {date}. Tekshiring va buyurtmani qayta yuboring.",
       address: "Manzilni kiriting: koʻcha, uy va xonadon.",
       window: "Yetkazib berish vaqtini tanlang.",
       name: "Ismingizni kiriting.",
@@ -294,6 +304,8 @@ const uz: Dictionary = {
       rate_limited: "Bu raqamdan bir nechta yangi buyurtma bor. Tez orada siz bilan bogʻlanamiz; biror narsani oʻzgartirish kerak boʻlsa, Telegramda yozing.",
       demo: "Onlayn buyurtma tez orada ochiladi. Hozircha Telegramda yozing — buyurtmani qoʻlda rasmiylashtiramiz.",
       captcha: "Robot emasligingizni tekshirib boʻlmadi. Internetni tekshiring, bir-ikki soniya kutib, tugmani yana bosing; tekshiruv chiqsa, belgilang. Boʻlmasa, Telegramda yozing.",
+      /** Sent nothing, or got no answer: no connection. The same request id is sent again on the next tap. */
+      offline: "Internet aloqasi yoʻq. Javoblaringiz saqlandi — internet qaytgach, tugmani yana bosing.",
     },
     help: "Savollaringiz bormi?",
     helpLink: "Telegramda soʻrang",

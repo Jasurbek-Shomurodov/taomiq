@@ -291,6 +291,8 @@ const ru = {
     name: "Имя",
     phone: "Телефон",
     phoneHint: "Позвоним или напишем в Telegram, чтобы подтвердить заказ.",
+    /** Under the phone when its first two digits are not a known mobile operator code: a hint, never an error. */
+    phoneCodeHint: "Проверьте код — это мобильный номер?",
     exclusions: "Что-то ещё (до трёх продуктов)",
     exclusionsPlaceholder: "Например: лук, болгарский перец",
     consentBefore: "Я согласен(на) на обработку моих данных в соответствии с ",
@@ -302,6 +304,14 @@ const ru = {
     payNote: "Оплата — после подтверждения заказа менеджером. Онлайн-оплата через Payme и Click скоро появится.",
     submit: "Оформить заказ",
     pending: "Отправляем…",
+    /** Under the order button after 8 s without an answer. */
+    stillSending: "Всё ещё отправляем… Не закрывайте страницу.",
+    /** Next to the order button: three short true lines (Telegram is the help line). Online payment is not live: never say it is. */
+    reassure: {
+      pay: "Оплата — после подтверждения менеджером",
+      pauseAccount: "Пауза и перенос дней — в личном кабинете",
+      pauseMessage: "Пауза и перенос дней — по сообщению менеджеру",
+    },
     next: "Продолжить",
     back: "Назад",
     step: "Шаг {n} из {total}",
@@ -310,7 +320,7 @@ const ru = {
       plan: "Выберите программу и калорийность.",
       duration: "Выберите срок.",
       start: "Выберите дату из списка.",
-      startMoved: "Ближайшая дата доставки сдвинулась, пока страница была открыта. Мы выбрали новую — проверьте её и отправьте заказ ещё раз.",
+      startMoved: "Пока страница была открыта, ближайшая дата доставки сдвинулась. Первая доставка теперь — {date}. Проверьте и отправьте заказ ещё раз.",
       address: "Укажите адрес: улицу, дом и квартиру.",
       window: "Выберите время доставки.",
       name: "Укажите имя.",
@@ -323,6 +333,8 @@ const ru = {
       rate_limited: "С этого номера уже есть несколько новых заказов. Мы скоро свяжемся с вами; если нужно что-то изменить, напишите в Telegram.",
       demo: "Онлайн-оформление откроется совсем скоро. А пока напишите нам в Telegram — оформим заказ вручную.",
       captcha: "Не удалось проверить, что вы не робот. Проверьте интернет, подождите пару секунд и нажмите кнопку ещё раз; если появится проверка, отметьте её. Не получается — напишите нам в Telegram.",
+      /** Sent nothing, or got no answer: no connection. The same request id is sent again on the next tap. */
+      offline: "Нет соединения. Ваши ответы сохранены — нажмите кнопку ещё раз, когда интернет вернётся.",
     },
     /** Under each step heading (phones) and under the summary (desktop). */
     help: "Есть вопросы?",

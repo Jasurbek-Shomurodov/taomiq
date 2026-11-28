@@ -90,6 +90,37 @@ export function fullPhone(digits: string): string {
 
 export const PHONE_RE = /^\+998[0-9]{9}$/;
 
+/**
+ * Uzbek mobile operator codes: the two digits after +998 (Beeline 90, 91; Ucell 93, 94, 50; Mobiuz 97, 88; Uzmobile 95,
+ * 99, 77, 55; Perfectum 98; Humans 33; OQ 20). A hint only: the order form shows a calm "is this a mobile number?" note
+ * under the phone when the code is not here, and never blocks the order. The server accepts any 9 digits (PHONE_RE).
+ * A new operator: add its code here.
+ */
+export const UZ_MOBILE_CODES: readonly string[] = ["20", "33", "50", "55", "77", "88", "90", "91", "93", "94", "95", "97", "98", "99"];
+
+/** "+998901234567" with a known mobile operator code (for the form's hint; never a reason to refuse an order). */
+export function isUzMobile(phone: string): boolean {
+  return PHONE_RE.test(phone) && UZ_MOBILE_CODES.includes(phone.slice(4, 6));
+}
+
+/**
+ * What the order form's phone field keeps from what was typed, pasted or autofilled: the 9 digits after +998.
+ * "+998 90 123-45-67" and "998901234567" (a whole international number) drop the 998; "90 123 45 67" and
+ * "901234567" are kept as they are. Unlike phoneDigits, a 10th digit typed after a number that happens to start with
+ * 998 (operator 99, then 8) never strips it: only a whole number (12 digits) or a leading "+998" does.
+ */
+export function phoneFromInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "");
+  if ((digits.length >= 12 && digits.startsWith("998")) || /^\s*\+\s*998/.test(raw)) return digits.slice(3, 12);
+  return digits.slice(0, 9);
+}
+
+/** "901234567" → "90 123 45 67"; a partial number is grouped as far as it goes ("9012" → "90 12"). */
+export function formatPhone(digits: string): string {
+  const d = digits.replace(/\D/g, "").slice(0, 9);
+  return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(" ");
+}
+
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // ---------- dates (Asia/Tashkent is UTC+5 all year, no daylight saving) ----------

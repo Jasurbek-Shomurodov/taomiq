@@ -34,7 +34,8 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/[l
   return (
     <PageTransition>
       <section className="bg-forest text-ivory">
-        <div className="container-page py-10 md:py-14">
+        {/* Phones: a shorter band, so the form's first choice is on screen sooner. */}
+        <div className="container-page py-8 md:py-14">
           <p className="label text-gold">TAOMIQ</p>
           <h1 className="mt-3 font-serif text-4xl md:text-6xl">{t.order.title}</h1>
           <p className="mt-3 max-w-xl text-ivory/80">{t.order.lead}</p>
@@ -175,6 +176,7 @@ async function OrderLoader({
       trialNote={trialAtWeekPrice(durations) ? t.durations.trialSamePrice : ""}
       prefill={prefill}
       canSaveDelivery={Boolean(customer)}
+      pauseInAccount={isAccountEnabled}
       notice={notice}
       resumable={!pick("program") && !pick("repeat")}
     />

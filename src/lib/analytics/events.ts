@@ -12,7 +12,8 @@ export type ClientEvents = {
   /** Order form: the visitor pressed submit. */
   order_submitted: { program: string; kcal: number; days: number; weekdays_only: boolean };
   /** Order form: the action came back with an error. */
-  order_failed: { reason: "field-error" | "server" | "turnstile" };
+  /** network: no connection, or the request failed on the way (the form keeps every answer). */
+  order_failed: { reason: "field-error" | "server" | "turnstile" | "network" };
   /** Quiz: the result was shown. */
   quiz_completed: { goal: string; program: string };
   /**
