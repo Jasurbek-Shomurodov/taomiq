@@ -396,6 +396,10 @@ const uzc: AdminDictionary = {
     address: "Манзил",
     time: "Вақт",
     courierComment: "Курьер учун изоҳ",
+    location: "Харитадаги нуқта",
+    locationHint: "Мижоз буюртма беришда юборган. Асосийси — манзил.",
+    openYandex: "Yandex Хариталарда очиш",
+    openGoogle: "Google Maps",
     exclusions: "Менюдаги истиснолар",
     noExclusions: "Йўқ",
     source: "Қаердан келган",
@@ -716,6 +720,7 @@ const uzc: AdminDictionary = {
     emptyAwaiting: (count) => `Тўловни кутмоқда: ${count}.`,
     ordersFailed: "Бу куннинг етказишларини юклаб бўлмади.",
     windowsFailed: "Созламалардан етказиб бериш вақтини юклаб бўлмади: вақтлар алифбо тартибида.",
+    coordinates: "Координаталар",
   },
   finance: {
     title: "Молия",

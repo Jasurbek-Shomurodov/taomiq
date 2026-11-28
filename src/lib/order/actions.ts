@@ -15,6 +15,7 @@ import { pricePerDay } from "@/lib/data/types";
 import { createSecretClient, isOrderingConfigured, supabaseSecretKey } from "@/lib/supabase/secret";
 import { TURNSTILE_FIELD } from "@/lib/turnstile/shared";
 import { verifyTurnstile } from "@/lib/turnstile/verify";
+import { locationFromForm, type LatLng } from "./location";
 import {
   SOURCE_KEYS,
   SOURCE_VALUE_MAX,
@@ -139,6 +140,33 @@ function scheduleExclusionTags(number: number, tags: readonly AllergenKey[]): vo
 }
 
 /**
+ * The map point from "Share my location" (migration 0032, public.set_order_location, service_role only), for the courier.
+ * Optional: the hidden fields are checked again here (plain numbers inside Tashkent's box, locationFromForm) and anything
+ * invalid is dropped without a word. Sent after the response (after()), like the allergen tags: after a new order, and
+ * again on a retry that found the order saved. A failure (also: the migration not applied yet) is only logged, with its
+ * code and never the point; the text address is on the order either way.
+ */
+function scheduleOrderLocation(number: number, location: LatLng | null): void {
+  if (!location) return;
+  try {
+    after(async () => {
+      try {
+        const { error } = await createSecretClient().rpc("set_order_location", {
+          p_number: number,
+          p_lat: location.lat,
+          p_lng: location.lng,
+        });
+        if (error) console.error("submitOrder: location not saved", error.code);
+      } catch (error) {
+        console.error("submitOrder: location not saved", error instanceof Error ? error.name : "unknown");
+      }
+    });
+  } catch (error) {
+    console.error("submitOrder: location not scheduled", error instanceof Error ? error.name : "unknown");
+  }
+}
+
+/**
  * "Save for next time" (migration 0030): when the customer is signed in and ticked the box, the order's address, time and
  * courier note go onto their own profile, in their own session (public.save_my_delivery checks them again). Runs only
  * after the order is saved. A failure is logged (the code only, never the address) and never fails the order.
@@ -174,6 +202,8 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
     // one order. Not a valid uuid: no id (the old behaviour).
     // The allergen chips: known keys only, each once (also for a retry below, which sets them again).
     const exclusionTags = normalizeTags(form.getAll("allergens"));
+    // "Share my location": a point inside Tashkent, or null (not shared, or not valid: then it is simply left out).
+    const location = locationFromForm(form);
 
     const rawRequestId = text(form, "request_id");
     const requestId = UUID_RE.test(rawRequestId) ? rawRequestId.toLowerCase() : null;
@@ -183,6 +213,7 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
         // The first answer may have been lost before the details were saved: save them now, as the first round would.
         if (form.get("save_delivery") === "on") await saveDeliveryIfAsked(form, await getCustomerId());
         scheduleExclusionTags(saved, exclusionTags);
+        scheduleOrderLocation(saved, location);
         return saved;
       }
     }
@@ -274,6 +305,8 @@ async function placeOrder(form: FormData): Promise<OrderState | number> {
 
     // The tags on the order: also on a retry (created = false), whose first round may have stopped before setting them.
     scheduleExclusionTags(number, exclusionTags);
+    // The point too, for the same reason.
+    scheduleOrderLocation(number, location);
 
     // A retry that found the order saved earlier: the alert and the analytics event went out the first time.
     if (!saved.created) return number;

@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Dish, Duration, MenuItem, Program } from "@/lib/data/types";
+import { parseLocation } from "@/lib/order/location";
 import {
   ORDER_EVENT_KINDS,
   ORDER_STATUSES,
@@ -126,14 +127,23 @@ export async function newOrderCount(supabase: SupabaseClient): Promise<number> {
 const ORDER_DETAIL_COLUMNS =
   "id, number, status, variant_id, program_name, kcal, days, weekdays_only, start_date, price_per_day, total, customer_name, phone, address, delivery_window, comment, exclusions, locale, source, staff_note, payment_method, cancel_reason, created_by, user_id, consent_at, created_at, updated_at";
 
+/** The map point the customer shared (migration 0032). */
+const ORDER_LOCATION_COLUMNS = "delivery_lat, delivery_lng";
+
 export async function getOrder(supabase: SupabaseClient, id: string): Promise<Order | null> {
-  const { data, error } = await supabase
-    .from("orders")
-    .select(ORDER_DETAIL_COLUMNS)
-    .eq("id", id)
-    .maybeSingle();
+  const read = (columns: string) => supabase.from("orders").select(columns).eq("id", id).maybeSingle();
+  let { data, error } = await read(`${ORDER_DETAIL_COLUMNS}, ${ORDER_LOCATION_COLUMNS}`);
+  // Before migration 0032 is applied the two columns do not exist (42703): read the order without them. Remove once
+  // 0032 is in production.
+  if (error?.code === "42703") ({ data, error } = await read(ORDER_DETAIL_COLUMNS));
   if (error) throw new Error(error.message);
-  return data as unknown as Order | null;
+  if (!data) return null;
+  const row = data as unknown as Omit<Order, "delivery_lat" | "delivery_lng"> & {
+    delivery_lat?: unknown;
+    delivery_lng?: unknown;
+  };
+  const location = parseLocation(row.delivery_lat, row.delivery_lng);
+  return { ...row, delivery_lat: location?.lat ?? null, delivery_lng: location?.lng ?? null };
 }
 
 /** How many history rows the order page shows (newest first); an order collects a handful, so this is a guard. */

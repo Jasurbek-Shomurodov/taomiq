@@ -444,6 +444,11 @@ const ru = {
     address: "Адрес",
     time: "Время",
     courierComment: "Комментарий курьеру",
+    /** The map point the customer shared on the order form (migration 0032); shown only when there is one. */
+    location: "Точка на карте",
+    locationHint: "Отправлена клиентом при заказе. Главное — адрес.",
+    openYandex: "Открыть в Яндекс Картах",
+    openGoogle: "Google Maps",
     exclusions: "Исключения из меню",
     noExclusions: "Нет",
     source: "Откуда пришёл",
@@ -788,6 +793,8 @@ const ru = {
     emptyAwaiting: (count: number) => `Ждут оплаты: ${count}.`,
     ordersFailed: "Не удалось загрузить доставки на этот день.",
     windowsFailed: "Не удалось загрузить время доставки из настроек: окна идут по алфавиту.",
+    /** Before the map point on the printed sheet. */
+    coordinates: "Координаты",
   },
   /** Business → Finance: the ledger, the month and the year (docs/plans/finance-investor-payroll.md). Owner only. */
   finance: {

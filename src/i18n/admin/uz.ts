@@ -396,6 +396,10 @@ const uz: AdminDictionary = {
     address: "Manzil",
     time: "Vaqt",
     courierComment: "Kuryer uchun izoh",
+    location: "Xaritadagi nuqta",
+    locationHint: "Mijoz buyurtma berishda yuborgan. Asosiysi — manzil.",
+    openYandex: "Yandex Xaritalarda ochish",
+    openGoogle: "Google Maps",
     exclusions: "Menyudagi istisnolar",
     noExclusions: "Yoʻq",
     source: "Qayerdan kelgan",
@@ -716,6 +720,7 @@ const uz: AdminDictionary = {
     emptyAwaiting: (count) => `Toʻlovni kutmoqda: ${count}.`,
     ordersFailed: "Bu kunning yetkazishlarini yuklab boʻlmadi.",
     windowsFailed: "Sozlamalardan yetkazib berish vaqtini yuklab boʻlmadi: vaqtlar alifbo tartibida.",
+    coordinates: "Koordinatalar",
   },
   finance: {
     title: "Moliya",

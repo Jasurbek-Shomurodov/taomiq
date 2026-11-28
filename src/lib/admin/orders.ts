@@ -136,6 +136,9 @@ export type Order = {
   delivery_window: string;
   comment: string;
   exclusions: string;
+  /** The map point the customer shared on the order form (migration 0032): both set (inside Tashkent) or both null. */
+  delivery_lat: number | null;
+  delivery_lng: number | null;
   locale: Locale;
   source: Record<string, string>;
   staff_note: string;

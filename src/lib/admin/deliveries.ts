@@ -1,6 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { htmlLang, type Locale } from "@/i18n/config";
+import { parseLocation, type LatLng } from "@/lib/order/location";
 import { DEFAULT_DELIVERY_WINDOWS } from "@/lib/order/rules";
 import { isFirm, type KitchenStatus } from "./kitchen";
 
@@ -10,13 +11,14 @@ import { isFirm, type KitchenStatus } from "./kitchen";
  * same rule as the kitchen's sheet); this file reads it and groups. buildDeliverySheet() is a pure function of its
  * arguments, so it can be checked without a database.
  *
- * The rows carry personal data (name, phone, address, comment): the function returns them to owners and managers
- * only (private.can_handle_orders(), migration 0011).
+ * The rows carry personal data (name, phone, address, comment, the shared map point): the function returns them to
+ * owners and managers only (private.can_handle_orders(), migration 0011). The rows come from
+ * public.delivery_orders_v2 (migration 0032: the same rows plus the map point).
  */
 
 // ---------- rows ----------
 
-/** One row of public.delivery_orders(date). */
+/** One row of public.delivery_orders_v2(date), the map point taken together. */
 export type DeliveryOrder = {
   id: string;
   number: number;
@@ -33,6 +35,8 @@ export type DeliveryOrder = {
   comment: string;
   exclusions: string;
   staff_note: string;
+  /** The point the customer shared with "Share my location"; null for none (and before migration 0032). */
+  location: LatLng | null;
 };
 
 export type DeliveryRow = DeliveryOrder & { firstDay: boolean; lastDay: boolean };
@@ -127,14 +131,19 @@ function logFailure(what: string, error: unknown) {
 
 async function readOrders(supabase: SupabaseClient, day: string): Promise<DeliveryOrder[] | null> {
   try {
-    const { data, error } = await supabase.rpc("delivery_orders", { p_date: day });
+    let { data, error } = await supabase.rpc("delivery_orders_v2", { p_date: day });
+    // Before migration 0032 is applied there is only delivery_orders (PostgREST: no such function): the same rows
+    // without the map point. Remove once 0032 is in production.
+    if (error?.code === "PGRST202") ({ data, error } = await supabase.rpc("delivery_orders", { p_date: day }));
     if (error) throw new Error(error.message);
-    return ((data ?? []) as DeliveryOrder[]).map((row) => ({
+    type Row = Omit<DeliveryOrder, "location"> & { delivery_lat?: unknown; delivery_lng?: unknown };
+    return ((data ?? []) as Row[]).map(({ delivery_lat, delivery_lng, ...row }) => ({
       ...row,
       number: Number(row.number),
       comment: row.comment ?? "",
       exclusions: row.exclusions ?? "",
       staff_note: row.staff_note ?? "",
+      location: parseLocation(delivery_lat, delivery_lng),
     }));
   } catch (error) {
     logFailure("orders read", error);

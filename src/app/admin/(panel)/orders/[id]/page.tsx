@@ -17,7 +17,9 @@ import {
 import { canPause, PAUSE_MAX_DAYS_DEFAULT, type OrderPause } from "@/lib/admin/pauses";
 import { getOrder, getPauseMaxDays, listOrderEvents, listOrderPauses } from "@/lib/admin/queries";
 import { tashkentDay } from "@/lib/admin/stats";
+import { formatLocation } from "@/lib/order/location";
 import { BeforeHydration } from "../../../kit/BeforeHydration";
+import { MapLinks } from "../../../kit/MapLinks";
 import { Notice } from "../../../kit/Notice";
 import { Panel } from "../../../kit/Panel";
 import { TopBarActions, TopBarBack, TopBarTitle } from "../../../shell/TopBarSlot";
@@ -76,6 +78,9 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
   }
   if (!order) notFound();
 
+  // The point the customer shared (migration 0032); getOrder gives both coordinates or neither.
+  const location =
+    order.delivery_lat !== null && order.delivery_lng !== null ? { lat: order.delivery_lat, lng: order.delivery_lng } : null;
   const sourceEntries = Object.entries(order.source ?? {}).filter(([, v]) => typeof v === "string" && v);
   const siteLanguage = isLocale(order.locale) ? t.order.siteLocales[order.locale] : order.locale;
   const sum = (amount: number) => `${formatSum(amount)} ${t.common.currency}`;
@@ -206,6 +211,17 @@ export default async function OrderPage({ params }: PageProps<"/admin/orders/[id
                 [t.order.courierComment, order.comment || "—"],
               ]}
             />
+            {location && (
+              <dl className="mt-2 grid gap-x-6 gap-y-2 sm:grid-cols-[11rem_1fr]">
+                <dt className="text-sm text-adm-muted sm:pt-2">{t.order.location}</dt>
+                <dd className="min-w-0">
+                  <MapLinks location={location} yandex={t.order.openYandex} google={t.order.openGoogle} />
+                  <span className="adm-caption block tabular-nums" data-ph-mask>
+                    {formatLocation(location)} · {t.order.locationHint}
+                  </span>
+                </dd>
+              </dl>
+            )}
           </Card>
 
           <Card title={t.order.exclusions}>

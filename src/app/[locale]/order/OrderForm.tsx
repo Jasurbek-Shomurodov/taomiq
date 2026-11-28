@@ -56,6 +56,7 @@ import {
   type OrderField,
   type OrderStep,
 } from "@/lib/order/rules";
+import { LocationShare, type SharedLocation } from "./LocationShare";
 import { StepProgress } from "./StepProgress";
 
 export type OrderProgram = {
@@ -266,6 +267,9 @@ function OrderFormBody({
   });
   const defaultWindow = windows[1] ?? windows[0] ?? "";
   const [address, setAddress] = useState(prefill?.address ?? "");
+  // "Share my location": an optional point beside the address, in this state only (never the draft, a URL or analytics),
+  // and never prefilled: saved delivery details and repeated orders carry no point.
+  const [location, setLocation] = useState<SharedLocation | null>(null);
   const [deliveryWindow, setDeliveryWindow] = useState(
     prefill?.window && windows.includes(prefill.window) ? prefill.window : defaultWindow,
   );
@@ -515,6 +519,7 @@ function OrderFormBody({
   function clearDelivery() {
     changed();
     setAddress("");
+    setLocation(null);
     setComment("");
     setDeliveryWindow(defaultWindow);
     setTouched((prev) => new Set([...prev, "address", "window", "comment"]));
@@ -961,6 +966,14 @@ function OrderFormBody({
                   {t.addressHint}
                 </p>
                 <FieldError id={fieldId("address")} text={errorText("address")} />
+                <LocationShare
+                  t={t.location}
+                  value={location}
+                  onChange={(next) => {
+                    changed();
+                    setLocation(next);
+                  }}
+                />
               </div>
 
               <fieldset

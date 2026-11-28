@@ -9,6 +9,7 @@ import { formatDateTime, formatDay, formatPhone } from "@/lib/admin/orders";
 import { Badge } from "../../kit/Badge";
 import { DaySwitcher } from "../../kit/DaySwitcher";
 import { EmptyState } from "../../kit/EmptyState";
+import { MapLinks } from "../../kit/MapLinks";
 import { Notice } from "../../kit/Notice";
 import { Panel } from "../../kit/Panel";
 import { PrintButton, PrintTime } from "../../kit/PrintButton";
@@ -30,8 +31,8 @@ function one(value: string | string[] | undefined): string | undefined {
 /**
  * Sales → Deliveries (docs/plans/kitchen-day-sheet.md, slice 2): who gets a ration on a day, where and in which
  * window, by default tomorrow in Tashkent. Owners and managers only: the rows carry names, phones and addresses
- * (they come through public.delivery_orders, which returns rows to those two roles only, migration 0011). Customer
- * text is printed as typed, as plain text. A failed read prints "—" and a notice, never a made-up 0.
+ * (they come through public.delivery_orders_v2, which returns rows to those two roles only, migrations 0011 and 0032).
+ * Customer text is printed as typed, as plain text; a shared map point is two map links, and its coordinates on paper. A failed read prints "—" and a notice, never a made-up 0.
  */
 export default async function DeliveriesPage({ searchParams }: PageProps<"/admin/deliveries">) {
   const { supabase, staff } = await requireOrdersAccess();
@@ -196,6 +197,7 @@ function DeliveryList({
               </td>
               <td className="px-3 py-3 sm:px-4">
                 <span className="block whitespace-pre-line break-words text-adm-text">{row.address}</span>
+                <Location row={row} t={t} />
                 <Extras row={row} t={t} />
               </td>
               <td className="px-3 py-3 sm:px-4">
@@ -216,6 +218,7 @@ function DeliveryList({
               <Phone phone={row.phone} />
             </div>
             <span className="whitespace-pre-line break-words text-sm text-adm-text">{row.address}</span>
+            <Location row={row} t={t} className="-my-1" />
             <Extras row={row} t={t} />
             <Program row={row} t={t} showWindow={showWindow} />
           </li>
@@ -244,6 +247,23 @@ function Phone({ phone }: { phone: string }) {
     >
       {formatPhone(phone)}
     </a>
+  );
+}
+
+/**
+ * The point the customer shared (migration 0032), only when there is one: map links on screen, the coordinates as
+ * text on paper (the tick-box sheet a courier carries).
+ */
+function Location({ row, t, className }: { row: DeliveryRow; t: AdminDictionary; className?: string }) {
+  if (!row.location) return null;
+  return (
+    <MapLinks
+      location={row.location}
+      yandex={t.order.openYandex}
+      google={t.order.openGoogle}
+      printLabel={t.deliveries.coordinates}
+      className={className}
+    />
   );
 }
 

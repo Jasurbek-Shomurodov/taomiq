@@ -226,6 +226,19 @@ const uz: Dictionary = {
     monthNames: ["yan", "fev", "mar", "apr", "may", "iyn", "iyl", "avg", "sen", "okt", "noy", "dek"],
     address: "Yetkazib berish manzili",
     addressHint: "Koʻcha, uy, podyezd, qavat, xonadon va moʻljal.",
+    /** "Share my location": optional, beside the address. {m}: the fix's accuracy in metres. */
+    location: {
+      share: "Joylashuvimni yuborish",
+      hint: "Ixtiyoriy: kuryer sizni osonroq topadi. Manzil baribir kerak.",
+      locating: "Joylashuv aniqlanmoqda…",
+      added: "Joylashuv qoʻshildi ✓ (±{m} m)",
+      remove: "Olib tashlash",
+      removeLabel: "Joylashuvni olib tashlash",
+      denied: "Joylashuvga ruxsat yoʻq. Uni brauzer sozlamalarida yoqish mumkin, lekin manzil va moʻljal ham yetarli.",
+      unavailable: "Joylashuvni aniqlab boʻlmadi. Manzil va moʻljalni yozing — shu yetarli.",
+      outside: "Siz hozir Toshkentda emasga oʻxshaysiz, shuning uchun joylashuv qoʻshilmadi. Yetkazib berish manzilini matn bilan yozing.",
+      rough: "Joylashuv juda taxminiy aniqlandi (±{m} m), shuning uchun uni qoʻshmadik. Manzil va moʻljalni yozing.",
+    },
     window: "Yetkazib berish vaqti",
     comment: "Kuryer uchun izoh",
     commentPlaceholder: "Masalan: qoʻngʻiroq qilmang, eshik oldida qoldiring",
@@ -308,6 +321,7 @@ const uz: Dictionary = {
         items: [
           "Ism va telefon raqami.",
           "Yetkazib berish manzili va kuryer uchun izoh.",
+          "Xaritadagi nuqtani faqat buyurtma shaklida «Joylashuvimni yuborish» tugmasini bossangiz saqlaymiz; u faqat yetkazib berish uchun kerak va soʻrovingiz bilan uni oʻchiramiz.",
           "Buyurtma tarkibi: dastur, kaloriya, muddat, yetkazib berish kunlari va vaqti, boshlanish sanasi.",
           "Ratsiondan chiqarishni soʻragan mahsulotlaringiz.",
           "Buyurtma berilgan vaqt va saytga oʻtishning reklama manbasi (UTM-belgilar), agar boʻlsa.",
