@@ -95,7 +95,7 @@ export default async function DeliveryPage({ params }: PageProps<"/[locale]/deli
           <ol className="mt-10 grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             {t.delivery.steps.map((step, index) => (
               <li key={step.title} className="border-t border-gold pt-5">
-                <p className="font-serif text-3xl text-gold">0{index + 1}</p>
+                <p className="font-serif text-3xl text-gold-ink">0{index + 1}</p>
                 <h3 className="mt-2 text-lg font-semibold text-forest">{step.title}</h3>
                 <p className="mt-2 leading-relaxed text-muted">{step.text}</p>
               </li>

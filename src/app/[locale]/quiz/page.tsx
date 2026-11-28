@@ -40,7 +40,14 @@ export default async function QuizPage({ params }: PageProps<"/[locale]/quiz">) 
         </div>
       </section>
 
-      <Quiz locale={locale} t={t.quiz} c={t.calculator} programs={programs} telegramUrl={site.telegram} />
+      <Quiz
+        locale={locale}
+        t={t.quiz}
+        c={t.calculator}
+        aboveLargest={t.bodyGoal.aboveLargest}
+        programs={programs}
+        telegramUrl={site.telegram}
+      />
 
       <CalculatorHow t={t} steps={t.calculator.how} />
     </PageTransition>

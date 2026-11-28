@@ -202,6 +202,7 @@ export function BodyGoalCalculator({ locale, t, programs, telegramUrl }: Props) 
       `${tool.resultLabel}: ${formatSum(result.kcal)} ${c.kcal}.`,
       `${c.protein} ${result.protein} ${c.grams}, ${c.fat} ${result.fat} ${c.grams}, ${c.carbs} ${result.carbs} ${c.grams}.`,
       `${tool.water}: ${water}.`,
+      result.water.capped ? tool.waterCapNote : "",
       `${tool.bmi}: ${bmiText}.`,
       `${tool.direction}: ${tool.directions[result.direction]}.`,
       paceText ? `${paceText}.` : "",
@@ -466,9 +467,13 @@ export function BodyGoalCalculator({ locale, t, programs, telegramUrl }: Props) 
             </dl>
 
             <dl className="mt-5 divide-y divide-ivory/15 border-y border-ivory/15">
-              <div className="flex items-baseline justify-between gap-3 py-2.5">
+              <div className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 py-2.5">
                 <dt className="text-sm text-ivory/70">{tool.water}</dt>
-                <dd className="font-semibold tabular-nums">{water}</dd>
+                <dd className="text-right font-semibold tabular-nums">{water}</dd>
+                {/* Held at the 4-litre cap (src/lib/calculator.ts, WATER_CAP_L): more only on a doctor's advice. */}
+                {result.water.capped && (
+                  <dd className="col-span-2 mt-1 text-xs leading-relaxed text-ivory/60">{tool.waterCapNote}</dd>
+                )}
               </div>
               <div className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 py-2.5">
                 <dt className="text-sm text-ivory/70">{tool.bmi}</dt>

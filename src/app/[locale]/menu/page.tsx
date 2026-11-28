@@ -212,7 +212,7 @@ async function MenuBrowser({
                 <Link
                   href={href({ allergens: [] })}
                   scroll={false}
-                  className="press inline-flex min-h-[2.375rem] items-center px-2 text-sm font-semibold text-forest underline decoration-gold underline-offset-4"
+                  className="press inline-flex min-h-11 items-center px-2 text-sm font-semibold text-forest underline decoration-gold underline-offset-4"
                 >
                   {t.allergens.clear}
                 </Link>
@@ -247,10 +247,11 @@ async function MenuBrowser({
               {/* Same place, different content: the old day fades out and the new one in. */}
               <ViewTransition key={`${variant.id}-${day}`} name="menu-day-content" share="day-fade" default="none">
                 <div>
-                  <p className="label mb-4 text-muted">
+                  {/* The day's heading (h2), so the dish names (h3) sit under it in the outline. */}
+                  <h2 className="label mb-4 text-muted">
                     TAOMIQ {program.name} / {variant.kcal} · {dayOf(day)}
                     {day === todayDay && ` · ${t.menu.todayMark}`}
-                  </p>
+                  </h2>
                   {flagged.length > 0 && entries.length > 0 && (
                     <p className="mb-4 rounded-2xl bg-ivory-deep px-4 py-3 text-sm text-forest" data-allergen-summary>
                       {flaggedLine}

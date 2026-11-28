@@ -1,4 +1,4 @@
-import { PROTEIN_MAX_PER_KG, formatDecimal, largestLevelFarBelow, recommend } from "../src/lib/calculator";
+import { PROTEIN_MAX_PER_KG, WATER_CAP_L, formatDecimal, largestLevelFarBelow, recommend, waterNeed } from "../src/lib/calculator";
 import {
   CALCULATOR_DEFAULTS,
   DIRECTION_GOAL,
@@ -12,7 +12,7 @@ import {
 import { GOAL_PAGES, GOAL_PROGRAM } from "../src/lib/goal-pages";
 import { demoDurations, demoPrograms } from "../src/lib/data/demo";
 import { CYCLE_DAYS, pricePerDay, trialAtWeekPrice } from "../src/lib/data/types";
-import { defaultLocale, formatSum, htmlLang, localeName, locales, type Locale } from "../src/i18n/config";
+import { defaultLocale, formatSum, htmlLang, localeLabel, localeName, locales, type Locale } from "../src/i18n/config";
 import { getDictionary } from "../src/i18n";
 import { ANALYTICS_PATH } from "../src/lib/analytics/config";
 import { withoutTrailingSlash } from "../src/lib/url-path";
@@ -25,6 +25,9 @@ import { expect, test, watchPageProblems } from "./fixtures";
 // so a new locale is covered without editing this file. Single-flow tests below pick one language.
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** A language link's accessible name: the visible short label, then the full name for screen readers ("Рус (Русский)"). */
+const switchName = (locale: Locale) => `${localeLabel[locale]} (${localeName[locale]})`;
 
 /** The site's radios are visually hidden inside a card-like label: tap the card, as a visitor would. */
 async function choose(page: Page, name: string) {
@@ -86,9 +89,9 @@ test("the language switch keeps the current page, through every locale and back"
   const [first, ...rest] = locales;
   await page.goto(`/${first}/menu`);
 
-  // Each switch link is named by the language's full name (aria-label), in its own script.
+  // Each switch link is named by its visible label and then the language's full name, in its own script.
   for (const target of [...rest, first]) {
-    const link = page.getByRole("banner").getByRole("link", { name: localeName[target], exact: true });
+    const link = page.getByRole("banner").getByRole("link", { name: switchName(target), exact: true });
     await link.click();
     await expect(page).toHaveURL(new RegExp(`/${target}/menu$`));
     await expect(page.locator("html")).toHaveAttribute("lang", htmlLang[target]);
@@ -107,7 +110,7 @@ test("the language switch keeps the query string, also after a same-page day cha
   await expect(page).toHaveURL(/[?&]day=2(&|$)/);
   const search = new URL(page.url()).search;
 
-  await page.getByRole("banner").getByRole("link", { name: localeName.ru, exact: true }).click();
+  await page.getByRole("banner").getByRole("link", { name: switchName("ru"), exact: true }).click();
   await expect(page).toHaveURL((url) => url.pathname === "/ru/menu" && url.search === search);
   await expect(page.locator("html")).toHaveAttribute("lang", htmlLang.ru);
 });
@@ -436,6 +439,61 @@ test("quiz: three questions lead to a program and a pre-filled order link; Back 
   await expect(page.getByLabel(c.age, { exact: true })).toHaveValue("35");
 });
 
+test("quiz: a norm far above the largest ration gets the calculator's note instead of 'the closest level'", async ({ page }) => {
+  const t = ru.quiz;
+  const c = ru.calculator;
+  await page.goto("/ru/quiz");
+  await choose(page, c.goals.gain.title);
+  await page.getByRole("button", { name: t.next }).click();
+  await choose(page, c.activities.high.title);
+  await page.getByRole("button", { name: t.next }).click();
+  await choose(page, c.male);
+  await page.getByLabel(c.age, { exact: true }).fill("25");
+  await page.getByLabel(c.height, { exact: true }).fill("185");
+  await page.getByLabel(c.weight, { exact: true }).fill("85");
+  await page.getByRole("button", { name: t.showResult }).click();
+
+  // The audit's case: about 3 550 kcal against PROTEIN 2500, the largest ration.
+  const result = quizBodyGoal({ sex: "male", age: 25, height: 185, weight: 85, activity: "high", goal: "gain" });
+  const largest = largestLevelFarBelow(demoPrograms, result.kcal);
+  expect(largest).toBe(2500);
+  const note = ru.bodyGoal.aboveLargest
+    .replace("{gap}", formatSum(result.kcal - largest!))
+    .replace("{max}", formatSum(largest!));
+  // Exact: the screen-reader summary (aria-live) repeats the note inside a longer text.
+  await expect(page.getByText(note, { exact: true })).toBeVisible();
+  await expect(page.getByText(c.planNote)).toBeHidden();
+  await expect(page.locator('[aria-live="polite"]')).toContainText(note);
+});
+
+test("calculator water: held at 4 litres with a doctor note above it, unchanged below", async ({ page }) => {
+  // Unit: 30–35 ml per kg plus activity, never above WATER_CAP_L.max.
+  expect(waterNeed({ weight: 60, activity: "light" })).toEqual({ min: 2.1, max: 2.4, capped: false });
+  expect(waterNeed({ weight: 92, activity: "moderate" })).toEqual({ min: 3.3, max: 3.7, capped: false });
+  // 100 kg, moderate: 3.5–4.0 exactly, not capped.
+  expect(waterNeed({ weight: 100, activity: "moderate" })).toEqual({ min: 3.5, max: 4, capped: false });
+  expect(waterNeed({ weight: 110, activity: "moderate" })).toEqual({ min: WATER_CAP_L.min, max: WATER_CAP_L.max, capped: true });
+  expect(waterNeed({ weight: 200, activity: "high" })).toEqual({ min: 3.5, max: 4, capped: true });
+  for (let weight = 40; weight <= 200; weight += 5) {
+    for (const activity of ["low", "light", "moderate", "high"] as const) {
+      const water = waterNeed({ weight, activity });
+      expect(water.max, `${weight} kg, ${activity}`).toBeLessThanOrEqual(WATER_CAP_L.max);
+      expect(water.min, `${weight} kg, ${activity}`).toBeLessThanOrEqual(water.max);
+    }
+  }
+
+  // Page: 150 kg shows 3,5–4,0 l and the note; 70 kg shows no note.
+  const tool = ru.bodyGoal;
+  const c = ru.calculator;
+  await page.goto("/ru/calculator");
+  const card = page.locator("aside").filter({ hasText: tool.resultLabel });
+  await page.getByLabel(c.weight, { exact: true }).fill("150");
+  await expect(card.getByText(`${formatDecimal(3.5)}–${formatDecimal(4)} ${tool.litres}`)).toBeVisible();
+  await expect(card.getByText(tool.waterCapNote)).toBeVisible();
+  await page.getByLabel(c.weight, { exact: true }).fill("70");
+  await expect(card.getByText(tool.waterCapNote)).toBeHidden();
+});
+
 for (const locale of locales) {
   test(`goal pages render in ${locale}, link their program and state breadcrumbs only`, async ({ page }) => {
     const t = getDictionary(locale);
@@ -737,11 +795,24 @@ test("order form on a wide screen: all three sections at once, no steps", async 
 
 for (const locale of locales) {
   test(`unknown path under /${locale} renders the localized 404`, async ({ page }) => {
+    // The language links point at the same unknown path in the other languages: never prefetched (404s too).
+    const otherLocale404s: string[] = [];
+    page.on("request", (request) => {
+      const url = new URL(request.url());
+      if (url.pathname.endsWith("/no-such-page") && !url.pathname.startsWith(`/${locale}/`)) otherLocale404s.push(url.href);
+    });
     const response = await page.goto(`/${locale}/no-such-page`);
     expect(response?.status()).toBe(404);
+    const t = getDictionary(locale).notFound;
     await expect(page.locator("html")).toHaveAttribute("lang", htmlLang[locale]);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText(getDictionary(locale).notFound.title);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(t.title);
     await expect(page.getByRole("banner")).toBeVisible();
+    // Its own title and description, never the home page's, and noindex.
+    await expect(page).toHaveTitle(`${t.metaTitle} · TAOMIQ`);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", t.metaDescription);
+    await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute("content", /noindex/);
+    await page.waitForLoadState("networkidle");
+    expect(otherLocale404s).toEqual([]);
   });
 }
 

@@ -13,7 +13,7 @@ import { DISH_BODY, DISH_CARD, DISH_CARD_BARE, DISH_IMAGE, DISH_LIST } from "./m
 
 /** The card opens its sheet: the button's ::after covers it (relative), it reacts to a press and shows the focus ring. */
 const DISH_CARD_ACTION =
-  "press lift relative cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-gold";
+  "press lift relative cursor-pointer has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-(color:--focus-ring)";
 
 /** A dish holding a chosen allergen (the menu's ?allergens= filter): a red outline instead of the hairline border. */
 const DISH_CARD_FLAGGED = "!border-danger ring-1 ring-danger";

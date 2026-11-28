@@ -37,11 +37,11 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
     <header className="site-header sticky top-0 z-40 border-b border-ivory/10 bg-forest/95 backdrop-blur">
       {/* One row: 56 px on phones and tablets (sections in the MobileNav sheet), 64 px from lg. */}
       <div className="container-page flex h-14 items-center justify-between gap-3 lg:h-16 lg:gap-4">
-        <Link href={`/${locale}`} className="text-xl">
+        <Link href={`/${locale}`} className="inline-flex min-h-11 items-center text-xl">
           <Lockup layout="inline" markSize={34} />
         </Link>
 
-        <nav className="hidden items-center gap-7 text-sm text-ivory/80 lg:flex">
+        <nav aria-label={t.nav.sections} className="hidden items-center gap-7 text-sm text-ivory/80 lg:flex">
           <DesktopNavLinks links={links} />
         </nav>
 
@@ -55,7 +55,7 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
               className="hidden min-h-11 items-center gap-2 text-sm text-ivory/80 transition-colors hover:text-ivory lg:inline-flex"
             />
           )}
-          <Link href={`/${locale}/order`} className="btn btn-gold hidden !px-5 !py-2.5 !text-sm sm:inline-flex">
+          <Link href={`/${locale}/order`} className="btn btn-gold hidden min-h-11 !px-5 !py-2.5 !text-sm sm:inline-flex">
             {t.nav.cta}
           </Link>
           <MobileNav
@@ -79,6 +79,13 @@ export function Header({ locale, t }: { locale: Locale; t: Dictionary }) {
   );
 }
 
+/**
+ * Footer link rows: on phones and tablets each link is a 44 px tap target and the rows close up to keep about the
+ * same rhythm (gap 0 instead of 8 px); from md the compact 20 px lines with an 8 px gap as before.
+ */
+const FOOTER_LIST = "flex flex-col max-md:gap-0 md:gap-2";
+const FOOTER_LINK = "link self-start hover:text-ivory max-md:min-h-11 max-md:py-3";
+
 export function Footer({
   locale,
   t,
@@ -100,41 +107,41 @@ export function Footer({
         </div>
         {/* Programs, then the goal pages under them: one column, so the footer stays two columns on phones. */}
         <div className="flex flex-col gap-6 text-sm">
-          <nav aria-label={t.nav.programs} className="flex flex-col gap-2">
-            <Link href={`/${locale}/programs`} className="label link self-start text-ivory/50 hover:text-ivory">{t.nav.programs}</Link>
+          <nav aria-label={t.nav.programs} className={FOOTER_LIST}>
+            <Link href={`/${locale}/programs`} className={`label ${FOOTER_LINK} text-ivory/60`}>{t.nav.programs}</Link>
             {programs.map((program) => (
-              <Link key={program.slug} href={`/${locale}/programs/${program.slug}`} className="link self-start hover:text-ivory">
+              <Link key={program.slug} href={`/${locale}/programs/${program.slug}`} className={FOOTER_LINK}>
                 {program.name}
               </Link>
             ))}
           </nav>
-          <nav aria-label={t.goals.label} className="flex flex-col gap-2">
-            <p className="label text-ivory/50">{t.goals.label}</p>
+          <nav aria-label={t.goals.label} className={FOOTER_LIST}>
+            <p className="label text-ivory/60">{t.goals.label}</p>
             {GOAL_PAGES.map((goal) => (
-              <Link key={goal} href={`/${locale}/goals/${goal}`} className="link self-start hover:text-ivory">
+              <Link key={goal} href={`/${locale}/goals/${goal}`} className={FOOTER_LINK}>
                 {t.goals.pages[goal].short}
               </Link>
             ))}
           </nav>
         </div>
-        <nav className="flex flex-col gap-2 text-sm">
-          <Link href={`/${locale}/menu`} className="link self-start hover:text-ivory">{t.nav.menu}</Link>
-          <Link href={`/${locale}/prices`} className="link self-start hover:text-ivory">{t.nav.prices}</Link>
-          <Link href={`/${locale}/calculator`} className="link self-start hover:text-ivory">{t.nav.calculator}</Link>
-          <Link href={`/${locale}/quiz`} className="link self-start hover:text-ivory">{t.quiz.short}</Link>
-          <Link href={`/${locale}/delivery`} className="link self-start hover:text-ivory">{t.nav.delivery}</Link>
-          <Link href={`/${locale}#how`} className="link self-start hover:text-ivory">{t.nav.how}</Link>
-          <Link href={`/${locale}/faq`} className="link self-start hover:text-ivory">{t.nav.faq}</Link>
+        <nav aria-label={t.footer.nav} className={`${FOOTER_LIST} text-sm`}>
+          <Link href={`/${locale}/menu`} className={FOOTER_LINK}>{t.nav.menu}</Link>
+          <Link href={`/${locale}/prices`} className={FOOTER_LINK}>{t.nav.prices}</Link>
+          <Link href={`/${locale}/calculator`} className={FOOTER_LINK}>{t.nav.calculator}</Link>
+          <Link href={`/${locale}/quiz`} className={FOOTER_LINK}>{t.quiz.short}</Link>
+          <Link href={`/${locale}/delivery`} className={FOOTER_LINK}>{t.nav.delivery}</Link>
+          <Link href={`/${locale}#how`} className={FOOTER_LINK}>{t.nav.how}</Link>
+          <Link href={`/${locale}/faq`} className={FOOTER_LINK}>{t.nav.faq}</Link>
         </nav>
-        <div className="col-span-2 flex flex-col gap-2 text-sm md:col-span-1">
-          <a href={site.telegram} className="link self-start hover:text-ivory" rel="noopener">Telegram</a>
-          <a href={site.instagram} className="link self-start hover:text-ivory" rel="noopener">Instagram · @taom_iq</a>
-          <Link href={`/${locale}/privacy`} className="link self-start hover:text-ivory">{t.footer.privacy}</Link>
-          <p className="mt-2 text-xs text-ivory/50">{t.footer.legal}</p>
+        <div className={`col-span-2 ${FOOTER_LIST} text-sm md:col-span-1`}>
+          <a href={site.telegram} className={FOOTER_LINK} rel="noopener">Telegram</a>
+          <a href={site.instagram} className={FOOTER_LINK} rel="noopener">Instagram · @taom_iq</a>
+          <Link href={`/${locale}/privacy`} className={FOOTER_LINK}>{t.footer.privacy}</Link>
+          <p className="mt-2 text-xs text-ivory/60">{t.footer.legal}</p>
         </div>
       </div>
       <div className="border-t border-ivory/10">
-        <p className="container-page py-5 text-xs text-ivory/50">
+        <p className="container-page py-5 text-xs text-ivory/60">
           © 2026 TAOMIQ. {t.footer.rights}
         </p>
       </div>

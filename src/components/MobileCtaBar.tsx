@@ -40,9 +40,15 @@ export function MobileCtaBar({
   const program = PROGRAM_PAGE.exec(pathname)?.[1] ?? (goal && isGoalPage(goal) ? GOAL_PROGRAM[goal] : null);
   const href = `/${locale}/order${program ? `?program=${program}` : ""}`;
 
+  // The spacer is only room for the bar (aria-hidden); the bar itself is a labelled landmark of its own, so nothing on
+  // the page sits outside a landmark.
   return (
-    <div className="cta-bar-space bg-forest-deep md:hidden">
-      <div className="cta-bar fixed inset-x-0 bottom-0 z-30 border-t border-ivory/10 bg-forest text-ivory">
+    <>
+      <div className="cta-bar-space bg-forest-deep md:hidden" aria-hidden />
+      <aside
+        aria-label={labels.cta}
+        className="cta-bar fixed inset-x-0 bottom-0 z-30 border-t border-ivory/10 bg-forest text-ivory md:hidden"
+      >
         <div className="container-page flex items-center justify-between gap-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
           {fromPrice !== null ? (
             <p className="min-w-0 text-sm leading-tight text-ivory/70">
@@ -57,7 +63,7 @@ export function MobileCtaBar({
             {labels.cta}
           </Link>
         </div>
-      </div>
-    </div>
+      </aside>
+    </>
   );
 }

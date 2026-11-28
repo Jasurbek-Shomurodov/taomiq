@@ -56,7 +56,9 @@ for (const route of ROUTES) {
     });
 
     expect(layout.scrollY, "the page scrolled itself on load").toBe(0);
+    // Against the configured width too: a phone browser widens its layout viewport to fit content that overflows.
     expect(layout.scrollWidth, "the page is wider than the viewport").toBeLessThanOrEqual(layout.innerWidth);
+    expect(layout.scrollWidth, "the page is wider than the screen").toBeLessThanOrEqual(page.viewportSize()!.width);
     expect(layout.headerBottom, "no sticky site header").not.toBeNull();
     expect(layout.h1Count, "one h1 per page").toBe(1);
     expect(layout.h1Bottom!, "the h1 sits under the sticky header").toBeGreaterThan(layout.headerBottom!);
@@ -64,3 +66,46 @@ for (const route of ROUTES) {
     expect(problems).toEqual([]);
   });
 }
+
+/**
+ * The narrowest phones in use (360 px): long single words in the big serif headings ("Политика конфиденциальности",
+ * "Сбалансированное") once pushed the page sideways (scrollWidth 424 at 375 px). Every heading fits its box and the
+ * page fits the screen, in each language.
+ */
+const NARROW_ROUTES = [
+  "/ru/privacy",
+  "/uz/privacy",
+  "/uzc/privacy",
+  "/ru/goals/balanced",
+  "/ru/goals/high-protein",
+  "/uzc/goals/balanced",
+  "/ru",
+  "/uzc",
+  "/ru/programs",
+  "/ru/calculator",
+  "/ru/quiz",
+  "/ru/delivery",
+  "/ru/menu",
+  "/ru/no-such-page",
+];
+
+test.describe("at 360 px", () => {
+  test.use({ viewport: { width: 360, height: 740 } });
+
+  for (const route of NARROW_ROUTES) {
+    test(`layout: ${route} fits a 360 px screen`, async ({ page }) => {
+      await page.goto(route);
+      await page.waitForLoadState("networkidle");
+      await page.evaluate(() => document.fonts.ready);
+      const layout = await page.evaluate(() => ({
+        scrollWidth: document.documentElement.scrollWidth,
+        // Headings whose text is wider than their own box (a word that did not fit).
+        overflowing: Array.from(document.querySelectorAll("h1, h2, h3"))
+          .filter((el) => el.scrollWidth > el.clientWidth + 1)
+          .map((el) => `${el.tagName}: ${el.textContent?.trim().slice(0, 60)}`),
+      }));
+      expect(layout.scrollWidth, "the page is wider than the screen").toBeLessThanOrEqual(360);
+      expect(layout.overflowing, "headings wider than their box").toEqual([]);
+    });
+  }
+});

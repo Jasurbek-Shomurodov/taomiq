@@ -36,7 +36,7 @@ export function ProgramLinks({
               <span className="h-1 w-8 rounded-full" style={{ background: program.tag_color }} aria-hidden />
               <span className="mt-3 flex items-baseline justify-between gap-3">
                 <span className="font-serif text-2xl">{program.name}</span>
-                <span aria-hidden className="nudge text-gold">→</span>
+                <span aria-hidden className="nudge text-gold-ink">→</span>
               </span>
               <span className="mt-1 text-sm text-muted tabular-nums">
                 {program.variants.map((v) => v.kcal).join(" · ")} {t.programs.kcal}

@@ -18,12 +18,16 @@ export function ProgramCards({
   locale,
   t,
   className = "mt-10",
+  headingLevel = "h3",
 }: {
   programs: Program[];
   locale: Locale;
   t: Dictionary;
   className?: string;
+  /** The card titles' level: h3 under a section's h2 (home), h2 straight under the page's h1 (/programs). */
+  headingLevel?: "h2" | "h3";
 }) {
+  const Heading = headingLevel;
   const listed = programs.filter((p) => p.variants.length > 0);
   return (
     <ul
@@ -52,7 +56,7 @@ export function ProgramCards({
             )}
             <span className="h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} />
             <p className="label mt-5 text-ivory/60">TAOMIQ</p>
-            <h3 className="font-serif text-4xl">
+            <Heading className="font-serif text-4xl">
               <Link
                 href={`/${locale}/programs/${program.slug}`}
                 className="after:absolute after:inset-0 after:rounded-3xl after:content-['']"
@@ -63,7 +67,7 @@ export function ProgramCards({
                   <span className="inline-block">{program.name}</span>
                 </ViewTransition>
               </Link>
-            </h3>
+            </Heading>
             <p className="mt-1 text-gold">{tagline}</p>
             <p className="mt-4 text-sm leading-relaxed text-ivory/75">{localized(program, "description", locale)}</p>
 
@@ -81,12 +85,12 @@ export function ProgramCards({
             </p>
             <div className="mt-auto flex flex-wrap gap-2 pt-6">
               {/* Looks like a button; the tap target is the whole card (the link on the name). */}
-              <span aria-hidden className="btn btn-gold !px-5 !py-2.5 !text-sm">
+              <span aria-hidden className="btn btn-gold min-h-11 !px-5 !py-2.5 !text-sm">
                 {t.programs.details}
               </span>
               <Link
                 href={`/${locale}/menu?program=${program.slug}`}
-                className="btn btn-outline relative z-10 !px-5 !py-2.5 !text-sm text-ivory"
+                className="btn btn-outline relative z-10 min-h-11 !px-5 !py-2.5 !text-sm text-ivory"
               >
                 {t.programs.viewMenu}
               </Link>

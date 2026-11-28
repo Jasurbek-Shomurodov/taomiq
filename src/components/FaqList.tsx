@@ -11,7 +11,7 @@ export function FaqList({ items }: { items: readonly { q: string; a: string }[] 
           <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-4 py-5 text-lg font-semibold text-forest">
             {item.q}
             <span
-              className="text-gold transition-transform duration-(--duration-base) ease-out-calm group-open:rotate-45"
+              className="text-gold-ink transition-transform duration-(--duration-base) ease-out-calm group-open:rotate-45"
               aria-hidden
             >
               +

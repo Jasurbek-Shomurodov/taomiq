@@ -120,7 +120,7 @@ async function OrderNumber({
 
 function StepNumber({ n }: { n: number }) {
   return (
-    <span aria-hidden className="w-8 shrink-0 pt-0.5 font-serif text-xl leading-none text-gold tabular-nums">
+    <span aria-hidden className="w-8 shrink-0 pt-0.5 font-serif text-xl leading-none text-gold-ink tabular-nums">
       {String(n).padStart(2, "0")}
     </span>
   );

@@ -4,8 +4,8 @@
  * Plain module (not "use client"): server and client components both import the values.
  */
 
-/** Program and calorie chips: 38 px tall. */
-export const CHIP = "rounded-full border px-4 py-2 text-sm font-semibold";
+/** Program, calorie and allergen chips: 44 px tall, a whole tap target. */
+export const CHIP = "inline-flex min-h-11 items-center rounded-full border px-4 py-2 text-sm font-semibold";
 
 /**
  * Day row. Phones: one snapping row that bleeds to the screen edges, with edge fades (.day-scroller

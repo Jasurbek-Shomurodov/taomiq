@@ -3,8 +3,8 @@
  * brand tokens so it stays sharp at any size and works on light and dark backgrounds.
  *
  * Geometry is measured from the source, in its own pixels, with the ring's centre as the origin, and was
- * checked side by side against it: ring stroke ≈ 1% of its diameter; TQ in the serif with a cap height of
- * ≈ 37% of the ring; the wordmark in the sans, bold and wide-set, IQ always gold; the tagline in small,
+ * checked side by side against it: ring stroke ≈ 1% of its diameter; TQ in the serif (as outlines) with a cap height
+ * of ≈ 37% of the ring; the wordmark in the sans, bold and wide-set, IQ always gold; the tagline in small,
  * very wide-tracked gold capitals as wide as the wordmark. Raster forms (favicon, share image, alert card)
  * are crops of the source made by scripts/build-brand-assets.mjs.
  */
@@ -13,7 +13,13 @@ const RING_OUTER = 258;
 const RING_STROKE = 5.5;
 const MONOGRAM_BOX = RING_OUTER * 2;
 
-const TQ = { size: 268, weight: 800, tracking: 4, baseline: 82 };
+/**
+ * TQ, drawn as outlines: Noto Serif Display at weight 800, 268 units, 4 units of tracking, baseline 82, centred as
+ * the text was (the outlines of that text, taken from the font with Core Text and checked against it pixel for pixel).
+ * A path needs no font, so the site no longer loads the serif's weight 800 for two letters.
+ */
+const TQ_PATH =
+  "M-156.6 82L-156.6 79.3L-146.8 79.3Q-142.2 79.3 -138.7 78.1Q-135.3 76.9 -133.4 73.2Q-131.5 69.6 -131.5 62L-131.5 -106.7L-148.7 -106.7Q-163.4 -106.7 -172.5 -103Q-181.7 -99.3 -186.1 -90.8Q-190.6 -82.2 -191.7 -67.7L-192.5 -55.3L-195.2 -55.3L-193.3 -109.4L-21 -109.4L-19.1 -55.3L-21.8 -55.3L-22.7 -67.7Q-23.8 -82.2 -28.3 -90.8Q-32.7 -99.3 -41.8 -103Q-50.8 -106.7 -65.6 -106.7L-82.6 -106.7L-82.6 62.6Q-82.6 69.8 -80.6 73.4Q-78.7 77.1 -75.2 78.2Q-71.6 79.3 -67.3 79.3L-57.5 79.3L-57.5 82ZM137.6 146.3Q125.1 146.3 113 142.8Q100.9 139.2 90.9 131.5Q80.9 123.8 74.5 111.8Q68.1 99.8 66.6 82.9Q42.8 78.4 27.1 65.4Q11.3 52.3 3.5 32Q-4.3 11.6 -4.3 -14.2Q-4.3 -44 6 -65.9Q16.4 -87.9 37.2 -100.1Q58 -112.3 89.4 -112.3Q119.2 -112.3 140 -100.1Q160.7 -87.9 171.5 -65.8Q182.2 -43.7 182.2 -13.9Q182.2 22.7 165.6 48Q148.9 73.2 117.6 81.3Q118.3 100.3 121.4 112.5Q124.6 124.6 129.7 131.4Q134.9 138.2 141.4 140.9Q148 143.6 155.7 143.6L160 143.6L160 146.3ZM89.2 82Q100.5 82 108.5 76.7Q116.5 71.5 121.5 60.1Q126.4 48.7 128.7 30.4Q131 12 131 -13.9Q131 -39.9 128.7 -58.1Q126.4 -76.3 121.4 -87.7Q116.4 -99.1 108.5 -104.3Q100.6 -109.6 89.4 -109.6Q77.9 -109.6 69.8 -104.3Q61.7 -99.1 56.6 -87.7Q51.5 -76.3 49.2 -58.1Q46.9 -39.9 46.9 -13.9Q46.9 12 49.2 30.4Q51.5 48.7 56.6 60.1Q61.6 71.5 69.7 76.7Q77.7 82 89.2 82Z";
 const WORDMARK = { size: 182, weight: 700, tracking: 28, baseline: 451 };
 const TAGLINE = { size: 37, weight: 500, tracking: 17.4, baseline: 542 };
 
@@ -36,17 +42,7 @@ function MonogramShapes({ onDark, strokeWidth }: { onDark: boolean; strokeWidth:
   return (
     <>
       <circle r={RING_OUTER - strokeWidth / 2} fill="none" className="stroke-gold" strokeWidth={strokeWidth} />
-      <text
-        x={centred(TQ.tracking)}
-        y={TQ.baseline}
-        textAnchor="middle"
-        fontSize={TQ.size}
-        fontWeight={TQ.weight}
-        letterSpacing={TQ.tracking}
-        className={`font-serif ${onDark ? "fill-ivory" : "fill-forest"}`}
-      >
-        TQ
-      </text>
+      <path d={TQ_PATH} className={onDark ? "fill-ivory" : "fill-forest"} />
     </>
   );
 }

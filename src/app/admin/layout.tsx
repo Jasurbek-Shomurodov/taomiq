@@ -7,10 +7,12 @@ import { ThemeScript } from "./shell/theme";
 const serif = Noto_Serif_Display({
   variable: "--font-noto-serif-display",
   subsets: ["latin", "cyrillic"],
-  weight: ["400", "500", "800"], // 800: the TQ monogram (components/Logo.tsx)
+  weight: ["400", "500"], // the TQ monogram is an SVG path (components/Logo.tsx)
   display: "swap",
 });
-const sans = Manrope({ variable: "--font-manrope", subsets: ["latin", "latin-ext", "cyrillic"], display: "swap" });
+// No latin-ext preload, as on the public site (src/app/[locale]/layout.tsx): no text needs it, and it still loads on
+// demand. The same subsets as the public call, so the public pages never preload a file only the admin wanted.
+const sans = Manrope({ variable: "--font-manrope", subsets: ["latin", "cyrillic"], display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "TAOMIQ Admin", template: "%s · TAOMIQ Admin" },

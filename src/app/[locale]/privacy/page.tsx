@@ -10,7 +10,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/privacy"
   const { locale } = await params;
   if (!isLocale(locale)) return {};
   const t = getDictionary(locale);
-  return pageMetadata({ locale, path: "/privacy", title: t.privacy.title, description: t.privacy.lead });
+  return pageMetadata({ locale, path: "/privacy", title: t.privacy.title, description: t.privacy.metaDescription });
 }
 
 export default async function PrivacyPage({ params }: PageProps<"/[locale]/privacy">) {
@@ -23,7 +23,8 @@ export default async function PrivacyPage({ params }: PageProps<"/[locale]/priva
       <section className="bg-forest text-ivory">
         <div className="container-page py-12 md:py-16">
           <p className="label text-gold">TAOMIQ</p>
-          <h1 className="mt-3 font-serif text-4xl md:text-6xl">{t.privacy.title}</h1>
+          {/* 28 px on phones: "конфиденциальности" fits a 360 px screen whole. */}
+          <h1 className="mt-3 font-serif text-[1.75rem] leading-tight sm:text-4xl md:text-6xl">{t.privacy.title}</h1>
           <p className="mt-3 max-w-xl text-ivory/80">{t.privacy.lead}</p>
         </div>
       </section>

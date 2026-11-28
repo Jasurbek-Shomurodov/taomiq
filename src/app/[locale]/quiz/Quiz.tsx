@@ -17,6 +17,7 @@ import { DIRECTION_GOAL, quizBodyGoal } from "@/lib/body-goal";
 import {
   ACTIVITIES,
   GOALS,
+  largestLevelFarBelow,
   recommend,
   type Activity,
   type CalculatorProgram,
@@ -31,6 +32,8 @@ type Props = {
   locale: Locale;
   t: Dictionary["quiz"];
   c: Dictionary["calculator"];
+  /** The calculator's note for a norm far above the largest ration (bodyGoal.aboveLargest: {gap} and {max} in kcal). */
+  aboveLargest: string;
   programs: CalculatorProgram[];
   telegramUrl: string;
 };
@@ -54,7 +57,7 @@ const BODY_FIELDS: readonly NumericField[] = ["age", "height", "weight"];
  * calculator's own maths (quizBodyGoal in src/lib/body-goal.ts) and its recommendation (src/lib/calculator.ts). Answers
  * live in component state; the step lives in the URL hash. A reload starts over (the answers are gone), so a hash on arrival is dropped.
  */
-export function Quiz({ locale, t, c, programs, telegramUrl }: Props) {
+export function Quiz({ locale, t, c, aboveLargest, programs, telegramUrl }: Props) {
   const [requested, setRequested] = useState<Step>(0);
   const [goal, setGoal] = useState<Goal | null>(null);
   const [activity, setActivity] = useState<Activity | null>(null);
@@ -75,6 +78,12 @@ export function Quiz({ locale, t, c, programs, telegramUrl }: Props) {
       ? quizBodyGoal({ sex: sex!, age: age!, height: height!, weight: weight!, activity, goal })
       : null;
   const plan = result ? recommend(programs, result.kcal, DIRECTION_GOAL[result.direction]) : null;
+  // As on the calculator: a norm 1,000+ kcal above the largest ration says so instead of "the closest level".
+  const largestFar = plan && result ? largestLevelFarBelow(programs, result.kcal) : null;
+  const largestNote =
+    result && largestFar !== null
+      ? aboveLargest.replaceAll("{gap}", formatSum(result.kcal - largestFar)).replaceAll("{max}", formatSum(largestFar))
+      : null;
   const shownKcal = useCountUp(step === 3 && result ? result.kcal : null);
 
   const section = useRef<HTMLElement>(null);
@@ -143,7 +152,10 @@ export function Quiz({ locale, t, c, programs, telegramUrl }: Props) {
           `${c.resultLabel}: ${formatSum(result.kcal)} ${c.kcal}.`,
           macros.map(([term, grams]) => `${term} ${grams} ${c.grams}`).join(", ") + ".",
           plan ? `${c.planLabel}: ${plan.program.name} ${plan.variant.kcal}.` : c.noPlan,
-        ].join(" ")
+          largestNote ?? "",
+        ]
+          .filter(Boolean)
+          .join(" ")
       : "";
 
   const orderHref = plan ? `/${locale}/order?program=${plan.program.slug}&kcal=${plan.variant.kcal}` : null;
@@ -253,7 +265,11 @@ export function Quiz({ locale, t, c, programs, telegramUrl }: Props) {
               {c.from} <span className="font-semibold text-ivory tabular-nums">{formatSum(plan.variant.fromPrice)}</span>{" "}
               {c.perDay}
             </p>
-            <p className="mt-3 text-xs leading-relaxed text-ivory/60">{c.planNote}</p>
+            {largestNote ? (
+              <p className="mt-3 text-sm leading-relaxed text-ivory/85">{largestNote}</p>
+            ) : (
+              <p className="mt-3 text-xs leading-relaxed text-ivory/60">{c.planNote}</p>
+            )}
           </>
         ) : (
           <>
@@ -406,7 +422,7 @@ function Choice({
     <label className="relative block cursor-pointer">
       <input type="radio" name={name} checked={checked} onChange={onChange} className="peer sr-only" />
       <span
-        className={`flex min-h-14 items-center justify-between gap-4 rounded-2xl border px-4 py-3 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold ${
+        className={`flex min-h-14 items-center justify-between gap-4 rounded-2xl border px-4 py-3 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-(color:--focus-ring) ${
           checked ? "border-forest bg-forest text-ivory" : "border-line bg-white text-forest hover:border-forest"
         }`}
       >

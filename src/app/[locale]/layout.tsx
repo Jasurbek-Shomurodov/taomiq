@@ -13,16 +13,21 @@ import { site } from "@/lib/site";
 import { organizationAndWebsite } from "@/lib/structured-data";
 import "../globals.css";
 
+// `subsets` only picks the files that are preloaded; every subset's @font-face is still in the CSS, so a letter outside
+// them loads its file on demand (unicode-range). Preloaded: latin (Uzbek Latin, ʻ included) and cyrillic (Russian, and
+// the Ў of Cyrillic Uzbek). Not latin-ext: no page's text needs it, and the serif's latin-ext file alone was 170 KB.
+// Cyrillic stays preloaded on the Uzbek Latin pages too: next/font preloads per layout file, not per locale, and two of
+// the three languages draw their h1 (the LCP) in it. The TQ monogram is an SVG path (components/Logo.tsx), so no 800.
 const serif = Noto_Serif_Display({
   variable: "--font-noto-serif-display",
-  subsets: ["latin", "latin-ext", "cyrillic"],
-  weight: ["400", "500", "800"], // 800: the TQ monogram (components/Logo.tsx)
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500"],
   display: "swap",
 });
 
 const sans = Manrope({
   variable: "--font-manrope",
-  subsets: ["latin", "latin-ext", "cyrillic"],
+  subsets: ["latin", "cyrillic"],
   display: "swap",
 });
 

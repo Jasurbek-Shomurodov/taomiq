@@ -12,8 +12,9 @@ export type Crumb = {
 
 /**
  * Where the page sits, for the forest heroes: Home › Programs › BALANCE. Small label type above the h1, each link
- * a 44 px tap target, the last crumb is the page itself (aria-current, not a link). Also states the BreadcrumbList
- * structured data, from the crumbs that have a page, so a page renders this instead of its own breadcrumbList.
+ * a 44 px tap target (its own vertical padding, inside the 44 px row), the last crumb is the page itself
+ * (aria-current, not a link). Also states the BreadcrumbList structured data, from the crumbs that have a page, so
+ * a page renders this instead of its own breadcrumbList.
  */
 export function Breadcrumbs({
   locale,
@@ -47,7 +48,7 @@ export function Breadcrumbs({
                   {crumb.name}
                 </span>
               ) : crumb.path !== undefined ? (
-                <Link href={`/${locale}${crumb.path}`} className="link transition-colors hover:text-ivory">
+                <Link href={`/${locale}${crumb.path}`} className="link py-3.5 transition-colors hover:text-ivory">
                   {crumb.name}
                 </Link>
               ) : (

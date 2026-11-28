@@ -16,7 +16,7 @@ import { getDurations, getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data
 import { localized } from "@/lib/data/localized";
 import { CYCLE_DAYS, sumNutrition } from "@/lib/data/types";
 import { goalsForProgram } from "@/lib/goal-pages";
-import { pageMetadata } from "@/lib/seo";
+import { notFoundMetadata, pageMetadata } from "@/lib/seo";
 import { programProduct } from "@/lib/structured-data";
 
 /**
@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: PageProps<"/[locale]/programs
   const { locale, slug } = await params;
   if (!isLocale(locale)) return {};
   const program = (await getPrograms()).find((p) => p.slug === slug);
-  if (!program) return {};
+  if (!program) return notFoundMetadata(locale);
   // Keyword copy for the known programs; a program added later in admin uses its own tagline and text.
   const seo = getDictionary(locale).programs.seo[program.slug];
   return pageMetadata({

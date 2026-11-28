@@ -11,7 +11,7 @@ export function HowItWorks({ t, id }: { t: Dictionary; /** Anchor for in-page li
       <ol className="mt-10 grid gap-8 md:grid-cols-3">
         {t.how.steps.map((step, index) => (
           <li key={step.title} className="reveal border-t border-gold pt-5">
-            <p className="font-serif text-3xl text-gold">0{index + 1}</p>
+            <p className="font-serif text-3xl text-gold-ink">0{index + 1}</p>
             <h3 className="mt-2 text-lg font-semibold text-forest">{step.title}</h3>
             <p className="mt-2 leading-relaxed text-muted">{step.text}</p>
           </li>

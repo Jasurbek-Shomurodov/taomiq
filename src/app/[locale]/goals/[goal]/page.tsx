@@ -12,7 +12,7 @@ import { getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
 import { CYCLE_DAYS, lowestPricePerDay, type MenuEntry, type Program } from "@/lib/data/types";
 import { GOAL_PAGES, GOAL_SHARED_FAQ, goalPrograms, isGoalPage } from "@/lib/goal-pages";
-import { pageMetadata } from "@/lib/seo";
+import { notFoundMetadata, pageMetadata } from "@/lib/seo";
 
 /**
  * As on the program pages: the whole page comes out of a static render, so an unknown goal reaches
@@ -26,7 +26,8 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/goals/[goal]">): Promise<Metadata> {
   const { locale, goal } = await params;
-  if (!isLocale(locale) || !isGoalPage(goal)) return {};
+  if (!isLocale(locale)) return {};
+  if (!isGoalPage(goal)) return notFoundMetadata(locale);
   const page = getDictionary(locale).goals.pages[goal];
   return pageMetadata({ locale, path: `/goals/${goal}`, title: page.metaTitle, description: page.metaDescription });
 }
@@ -97,7 +98,8 @@ export default async function GoalPage({ params }: PageProps<"/[locale]/goals/[g
             t={t}
             trail={[{ name: t.goals.label }, { name: page.short, path: `/goals/${goal}` }]}
           />
-          <h1 className="mt-5 max-w-4xl font-serif text-4xl leading-[1.1] sm:text-5xl md:text-6xl">{page.title}</h1>
+          {/* 30 px on phones: the longest title word ("Сбалансированное") fits a 360 px screen whole. */}
+          <h1 className="mt-5 max-w-4xl font-serif text-3xl leading-[1.1] sm:text-5xl md:text-6xl">{page.title}</h1>
           <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ivory/80">{page.intro}</p>
           {/* .hero-cta: the phone call-to-action bar waits until these buttons scroll away. */}
           <div className="hero-cta mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -131,7 +133,7 @@ export default async function GoalPage({ params }: PageProps<"/[locale]/goals/[g
                 <span className="h-1.5 w-12 rounded-full" style={{ background: program.tag_color }} aria-hidden />
                 <p className="label mt-5 text-muted">TAOMIQ</p>
                 <h3 className="font-serif text-4xl text-forest">{program.name}</h3>
-                <p className="mt-1 text-gold">{localized(program, "tagline", locale)}</p>
+                <p className="mt-1 text-gold-ink">{localized(program, "tagline", locale)}</p>
                 <p className="mt-3 text-sm leading-relaxed text-muted">{localized(program, "description", locale)}</p>
                 <p className="label mt-5 text-muted">{t.programs.levels}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
@@ -152,12 +154,12 @@ export default async function GoalPage({ params }: PageProps<"/[locale]/goals/[g
                   {t.hero.perDay}
                 </p>
                 <div className="mt-auto flex flex-wrap gap-2 pt-6">
-                  <Link href={`/${locale}/order?program=${program.slug}`} className="btn btn-gold !px-5 !py-2.5 !text-sm">
+                  <Link href={`/${locale}/order?program=${program.slug}`} className="btn btn-gold min-h-11 !px-5 !py-2.5 !text-sm">
                     {t.nav.cta}
                   </Link>
                   <Link
                     href={`/${locale}/programs/${program.slug}`}
-                    className="btn btn-outline !px-5 !py-2.5 !text-sm text-forest"
+                    className="btn btn-outline min-h-11 !px-5 !py-2.5 !text-sm text-forest"
                   >
                     {t.programs.details}
                   </Link>

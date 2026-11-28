@@ -1,4 +1,5 @@
 import { cacheLife, cacheTag } from "next/cache";
+import { connection } from "next/server";
 import { createPublicClient } from "@/lib/supabase/public";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { PAUSE_MAX_DAYS_DEFAULT, PAUSE_MAX_DAYS_KEY, parsePauseMax } from "@/lib/admin/pauses";
@@ -168,8 +169,11 @@ export async function getTodayCycleDay(): Promise<number> {
 
 /**
  * Today's position in the 30-day cycle, computed on each request from the cached anchor, so it turns over at
- * midnight in Tashkent. Only in per-request rendering (after a dynamic read such as searchParams).
+ * midnight in Tashkent. Only in per-request rendering, inside a Suspense boundary (the menu's day browser):
+ * connection() tells the prerender to stop here, so the clock is read at request time and never while prerendering.
  */
 export async function currentCycleDay(): Promise<number> {
-  return cycleDayFor(new Date(), await getCycleAnchor());
+  const anchor = await getCycleAnchor();
+  await connection();
+  return cycleDayFor(new Date(), anchor);
 }

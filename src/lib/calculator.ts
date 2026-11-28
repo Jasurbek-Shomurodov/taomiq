@@ -166,19 +166,27 @@ export function bodyMassIndex(input: { height: number; weight: number }): BmiRes
 /** Daily fluid: 30–35 ml per kg of body weight, plus a little for training. */
 export const WATER_ML_PER_KG = { min: 30, max: 35 } as const;
 export const WATER_ACTIVITY_ML: Record<Activity, number> = { low: 0, light: 250, moderate: 500, high: 750 };
+/**
+ * The most the calculator ever advises, in litres a day: a heavy, very active body would otherwise read 6–7 l, more
+ * than general advice should push anyone to drink. Above WATER_CAP_L.max the range shows as 3.5–4.0 l and the page
+ * says to follow a doctor for more.
+ */
+export const WATER_CAP_L = { min: 3.5, max: 4 } as const;
 
 export type WaterResult = {
   /** Litres, one decimal. */
   min: number;
   max: number;
+  /** The per-kg range went above WATER_CAP_L.max and was held at the cap. */
+  capped: boolean;
 };
 
 export function waterNeed(input: { weight: number; activity: Activity }): WaterResult {
   const extra = WATER_ACTIVITY_ML[input.activity];
-  return {
-    min: Math.round((input.weight * WATER_ML_PER_KG.min + extra) / 100) / 10,
-    max: Math.round((input.weight * WATER_ML_PER_KG.max + extra) / 100) / 10,
-  };
+  const min = Math.round((input.weight * WATER_ML_PER_KG.min + extra) / 100) / 10;
+  const max = Math.round((input.weight * WATER_ML_PER_KG.max + extra) / 100) / 10;
+  if (max <= WATER_CAP_L.max) return { min, max, capped: false };
+  return { min: Math.min(min, WATER_CAP_L.min), max: WATER_CAP_L.max, capped: true };
 }
 
 /** A number with one decimal and the comma all three site languages write: 22.5 → "22,5", 3 → "3,0". */

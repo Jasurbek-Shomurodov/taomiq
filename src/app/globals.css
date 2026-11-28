@@ -8,9 +8,13 @@
   --color-ivory: #f6f1e8;
   --color-ivory-deep: #ece5d7;
   --color-gold: #c7a86b;
+  /* Gold for text on light surfaces (ivory, ivory-deep, white): #c7a86b is only 1.8–2.3:1 there. This one is 5.05:1 on
+     ivory, 4.54:1 on ivory-deep and 5.69:1 on white. Gold on forest stays --color-gold (5.3:1). */
+  --color-gold-ink: #806226;
   --color-sage: #a8b8a3;
   --color-graphite: #2d2d2a;
-  --color-muted: #6b6b63;
+  /* Secondary text: 5.72:1 on ivory, 5.14:1 on ivory-deep, 6.44:1 on white (#6b6b63 was 4.29:1 on ivory-deep). */
+  --color-muted: #5f5f57;
   --color-line: #d9d2c2;
   --color-danger: #a4442f;
 
@@ -235,16 +239,49 @@ body {
   background: color-mix(in srgb, var(--color-gold) 35%, transparent);
 }
 
+/* Keyboard focus ring: forest on light surfaces (10.8:1 on ivory, where gold was 2.0:1), gold inside the forest ones
+   (header, footer, heroes, cards, sheets and bars: 5.3:1 and up). The colour comes from the nearest surface around
+   the focused element through --focus-ring, set on a surface's children, so a forest chip on an ivory page still
+   gets the forest ring it sits next to. The back office keeps its gold ring (body.admin). */
+:root {
+  --focus-ring: var(--color-forest);
+}
+body:not(.admin) :is(.bg-forest, .bg-forest-deep, .bg-forest-soft, .bg-forest\/95, .site-header) > * {
+  --focus-ring: var(--color-gold);
+}
+body:not(.admin) :is(.bg-white, .bg-ivory, .bg-ivory-deep) > * {
+  --focus-ring: var(--color-forest);
+}
+.admin {
+  --focus-ring: var(--color-gold);
+}
 :focus-visible {
-  outline: 2px solid var(--color-gold);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
+}
+
+/* Long single words in the big serif headings ("конфиденциальности", "Сбалансированное") never push a phone page
+   sideways: a word that cannot fit breaks, with a hyphen where the browser hyphenates the page's language (the
+   html lang is uz-Latn, uz-Cyrl or ru). Phones only for hyphens, and only words of 10+ letters, so wide screens
+   and short words are left alone. */
+h1,
+h2,
+h3 {
+  overflow-wrap: break-word;
+}
+@media (max-width: 39.999rem) {
+  h1,
+  :is(h2, h3).font-serif {
+    hyphens: auto;
+    hyphenate-limit-chars: 10 4 4;
+  }
 }
 
 /* Public site text fields: browsers treat every text-input focus as :focus-visible, even a click, so the gold
    ring above showed on each click, and inside the calculators' unit boxes it sat on the inner input, short of
    the box (owner, 27 Nov 2026). The field box shows focus instead: forest border plus a soft forest ring.
    Unlayered, so it beats the rule above; the back office (body.admin) keeps its own kit. Radios, checkboxes and
-   sliders keep their gold keyboard ring. */
+   sliders keep a keyboard ring in the surface's --focus-ring colour. */
 body:not(.admin)
   :is(input:not([type="radio"], [type="checkbox"], [type="range"]), select, textarea):focus-visible {
   outline: none;
@@ -383,6 +420,8 @@ label:active > input[type="radio"].sr-only:not(:disabled) + span {
 }
 .link {
   background-image: linear-gradient(currentColor, currentColor);
+  /* Under the text, not under the padding that makes a link a 44 px tap target (footer, breadcrumbs). */
+  background-origin: content-box;
   background-position: 0 100%;
   background-repeat: no-repeat;
   background-size: 0 1px;
@@ -936,11 +975,11 @@ body {
   scale: 1.12;
 }
 .range:focus-visible::-webkit-slider-thumb {
-  outline: 2px solid var(--color-gold);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
 .range:focus-visible::-moz-range-thumb {
-  outline: 2px solid var(--color-gold);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 3px;
 }
 

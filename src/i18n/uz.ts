@@ -56,9 +56,9 @@ const uz: Dictionary = {
     priceNote: "30 kunlik buyurtmada bir kunlik narx",
     kcal: "kkal",
     rationLabel: "Ratsion yorligʻi",
-    metaTitle: "Toshkentda yetkazib beriladigan ovqatlanish dasturlari: LIGHT, BALANCE, PROTEIN",
+    metaTitle: "LIGHT, BALANCE, PROTEIN ovqatlanish dasturlari Toshkentda",
     metaDescription:
-      "TAOMIQ ovqatlanish dasturlarini solishtiring: kaloriya, kunlik mahallar, oqsil va kunlik narx. Ozish, muvozanatli ovqatlanish va mashgʻulotlar uchun ratsionlar Toshkent boʻylab yetkaziladi.",
+      "TAOMIQ dasturlarini solishtiring: kaloriya, kunlik mahallar, oqsil va narx. Ozish, muvozanat va mashgʻulotlar uchun ratsionlar Toshkent boʻylab yetkaziladi.",
     compareTitle: "Dasturlarni solishtiring",
     compare: {
       meals: "Kuniga necha mahal",
@@ -203,6 +203,7 @@ const uz: Dictionary = {
   },
   footer: {
     tagline: "Premium kundalik ratsionlar",
+    nav: "Xizmat haqida",
     rights: "Barcha huquqlar himoyalangan.",
     privacy: "Maxfiylik siyosati",
     legal: "Ommaviy oferta ishga tushirishdan oldin eʼlon qilinadi.",
@@ -300,6 +301,8 @@ const uz: Dictionary = {
   privacy: {
     title: "Maxfiylik siyosati",
     lead: "TAOMIQ sayt orqali qanday maʼlumotlarni oladi, nima uchun va ular qayerda saqlanadi.",
+    metaDescription:
+      "Maxfiylik siyosati: sayt orqali qanday maʼlumotlarni olamiz, nima uchun, ular qayerda saqlanadi, kim koʻradi va ularni qanday tuzatish yoki oʻchirish mumkin.",
     updated: "Yangilangan: 2026-yil 28-noyabr",
     sections: [
       {
@@ -370,7 +373,7 @@ const uz: Dictionary = {
   calculator: {
     metaTitle: "Kaloriya kalkulyatori: kunlik meʼyor va OYU hisobi",
     metaDescription:
-      "Kunlik kaloriya, oqsil, yogʻ va uglevod, suv, TMI, kletchatka, maqsadgacha xotirjam surʼat va vitaminlar meʼyorini bepul hisoblang — jins, yosh, boʻy, vazn, mushaklar, faollik va maqsad boʻyicha.",
+      "Kunlik kaloriya, oqsil, yogʻ, uglevod, suv, TMI, kletchatka va vitaminlar meʼyorini bepul hisoblang — jins, yosh, boʻy, vazn, faollik va maqsad boʻyicha.",
     title: "Kaloriya va OYU kalkulyatori",
     lead: "Hozirgi holatingizni va erishmoqchi boʻlgan vazningizni belgilang. Kunlik kaloriya va OYU meʼyori, suv, TMI, xotirjam surʼat va meʼyoringizga eng yaqin ratsionni koʻrsatamiz.",
     sex: "Jins",
@@ -481,6 +484,7 @@ const uz: Dictionary = {
     fibre: "Kletchatka",
     water: "Suv",
     litres: "l",
+    waterCapNote: "Bundan koʻpini faqat shifokor tavsiyasi bilan iching.",
     vitaminsTitle: "Kunlik vitamin va minerallar",
     vitaminsLead: "Jinsingiz va yoshingizdagi kattalar uchun meʼyorlar — ular maqsadga bogʻliq emas. Yonida — ular koʻp boʻlgan odatiy mahsulotlar.",
     units: { mg: "mg", mcg: "mkg" },
@@ -657,6 +661,8 @@ const uz: Dictionary = {
   },
   notFound: {
     metaTitle: "Sahifa topilmadi",
+    metaDescription:
+      "Bu manzilda sahifa yoʻq: havola eskirgan yoki manzilda xato bor. TAOMIQ bosh sahifasidan boshlang yoki ovqatlanish dasturlari va menyuga oʻting.",
     title: "Bunday sahifa yoʻq",
     text: "Havola eskirgan yoki manzilda xato boʻlishi mumkin. Bosh sahifadan boshlang yoki boʻlimni tanlang:",
     home: "Bosh sahifaga",

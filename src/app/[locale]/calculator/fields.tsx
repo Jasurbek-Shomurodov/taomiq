@@ -23,7 +23,7 @@ export function Option({
     <label className="relative block cursor-pointer">
       <input type="radio" name={name} value={value} checked={checked} onChange={onChange} className="peer sr-only" />
       <span
-        className={`block h-full border transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold ${
+        className={`block h-full border transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-(color:--focus-ring) ${
           compact ? "rounded-xl px-3.5 py-2.5" : "rounded-2xl p-4"
         } ${checked ? "border-forest bg-forest text-ivory" : "border-line bg-white text-forest hover:border-forest"}`}
       >

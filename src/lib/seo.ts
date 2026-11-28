@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import shareImage from "@/app/[locale]/opengraph-image.jpg";
-import { defaultLocale, htmlLang, locales, ogLocale, type Locale } from "@/i18n/config";
+import { getDictionary } from "@/i18n";
+import { defaultLocale, htmlLang, isLocale, locales, ogLocale, type Locale } from "@/i18n/config";
 import { site } from "@/lib/site";
 
 /**
@@ -73,4 +74,15 @@ export function pageMetadata({
       images: [SHARE_IMAGE],
     },
   };
+}
+
+/**
+ * The 404's own title and description ("Sahifa topilmadi · TAOMIQ"), never the home page's. For the catch-all
+ * [locale]/[...rest] and for a page whose item does not exist (an unknown program or goal), whose notFound() would
+ * otherwise leave the layout's home title in place. An unknown locale gets the default locale's words. No robots
+ * here: Next adds <meta name="robots" content="noindex"> to every 404 itself, and a second tag would only repeat it.
+ */
+export function notFoundMetadata(locale: string): Metadata {
+  const t = getDictionary(isLocale(locale) ? locale : defaultLocale);
+  return { title: t.notFound.metaTitle, description: t.notFound.metaDescription };
 }

@@ -665,7 +665,10 @@ function OrderFormBody({
                         touch("duration");
                       }}
                     >
-                      {d.is_trial && <span className="label block text-gold">{t.trial}</span>}
+                      {/* Gold on the chosen (forest) card, the darker gold ink on the white one. */}
+                      {d.is_trial && (
+                        <span className={`label block ${d.days === duration.days ? "text-gold" : "text-gold-ink"}`}>{t.trial}</span>
+                      )}
                       <span className="block font-serif text-2xl leading-tight tabular-nums">
                         {d.days} <span className="font-sans text-base">{daysWord(d.days)}</span>
                       </span>
@@ -1141,7 +1144,7 @@ function Section({
           className="flex items-baseline gap-3 font-serif text-3xl text-forest focus:outline-none"
         >
           <span className="sr-only md:hidden">{stepLabel}: </span>
-          <span className="text-gold" aria-hidden>
+          <span className="text-gold-ink" aria-hidden>
             {number}
           </span>
           {title}
@@ -1221,8 +1224,9 @@ function Choice({
         className="peer sr-only"
       />
       <span
-        className={`block h-full border transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-gold peer-disabled:opacity-35 ${
-          compact ? "rounded-xl px-3.5 py-2.5" : "rounded-2xl p-4"
+        className={`block h-full border transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-(color:--focus-ring) peer-disabled:opacity-35 ${
+          // compact: 11 px + one 20 px line + 11 px + borders = a 44 px tap target.
+          compact ? "rounded-xl px-3.5 py-[0.6875rem]" : "rounded-2xl p-4"
         } ${checked ? "border-forest bg-forest text-ivory" : "border-line bg-white text-forest hover:border-forest"}`}
       >
         {children}

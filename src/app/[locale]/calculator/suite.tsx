@@ -58,7 +58,7 @@ export function CalculatorHow({ t, steps, children }: { t: Dictionary; steps: re
         <ol className="mt-6 grid gap-4">
           {steps.map((text, index) => (
             <li key={text} className="flex gap-4 leading-relaxed text-graphite">
-              <span className="font-serif text-2xl leading-none text-gold">0{index + 1}</span>
+              <span className="font-serif text-2xl leading-none text-gold-ink">0{index + 1}</span>
               <span>{text}</span>
             </li>
           ))}

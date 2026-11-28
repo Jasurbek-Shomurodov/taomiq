@@ -82,7 +82,7 @@ export default async function PricesPage({ params }: PageProps<"/[locale]/prices
                   <h2 id={`prices-${program.slug}`} className="font-serif text-4xl text-forest">
                     TAOMIQ {program.name}
                   </h2>
-                  <p className="mt-1 text-gold">{localized(program, "tagline", locale)}</p>
+                  <p className="mt-1 text-gold-ink">{localized(program, "tagline", locale)}</p>
                 </div>
                 <Link
                   href={`/${locale}/programs/${program.slug}`}

@@ -59,7 +59,7 @@ export default async function ProgramsPage({ params }: PageProps<"/[locale]/prog
         <>
           <section className="bg-ivory-deep py-12 md:py-16">
             <div className="container-page">
-              <ProgramCards programs={programs} locale={locale} t={t} className="" />
+              <ProgramCards programs={programs} locale={locale} t={t} className="" headingLevel="h2" />
               <p className="mt-4 text-sm text-muted">{t.programs.priceNote}</p>
             </div>
           </section>
