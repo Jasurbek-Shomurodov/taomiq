@@ -98,6 +98,27 @@ export async function hasAnyMenu(programs: Pick<Program, "variants">[]): Promise
   return checks.some(Boolean);
 }
 
+/**
+ * When a dish the public can see last changed (dishes.updated_at, set by every dish save and archive), as an ISO
+ * time: the sitemap's lastModified for /menu. null without a database or a dish. It is the only page date the
+ * catalogue records: programs, prices, menu days and settings have no change time, so their pages state none.
+ */
+export async function getDishesLastModified(): Promise<string | null> {
+  "use cache";
+  cacheTag(CATALOG_TAG);
+  cacheLife("hours");
+
+  if (!isSupabaseConfigured) return null;
+  const { data, error } = await createPublicClient()
+    .from("dishes")
+    .select("updated_at")
+    .order("updated_at", { ascending: false })
+    .limit(1);
+  if (error) throw new Error(`dishes date: ${error.message}`);
+  const latest = data?.[0]?.updated_at;
+  return typeof latest === "string" ? latest : null;
+}
+
 export type OrderSettings = {
   /** Two-hour delivery windows offered on the order form, e.g. "07:00–09:00". */
   deliveryWindows: string[];

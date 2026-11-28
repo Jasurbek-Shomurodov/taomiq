@@ -42,6 +42,14 @@ const DEMO_ENV = {
   TURNSTILE_SECRET_KEY: "",
   // No analytics: PostHog is not loaded and its first-party path is not routed.
   NEXT_PUBLIC_POSTHOG_KEY: "",
+  // No IndexNow key: the key file route is a 404 (e2e/indexnow.spec.ts), and no build ever pings (not Production).
+  INDEXNOW_KEY: "",
+  VERCEL_ENV: "",
+  // Ownership tags: two made-up values and one unset, so the suite sees a tag stated and a tag left out
+  // (e2e/indexnow.spec.ts). The account build states none (below).
+  GOOGLE_SITE_VERIFICATION: "e2e-google-verification",
+  YANDEX_VERIFICATION: "e2e-yandex-verification",
+  BING_SITE_VERIFICATION: "",
 };
 
 const env = {
@@ -60,6 +68,8 @@ if (account) {
     NEXT_PUBLIC_SUPABASE_URL: `http://localhost:${mockPort}`,
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "e2e-mock-publishable-key",
     NEXT_PUBLIC_AUTH_METHODS: "email",
+    GOOGLE_SITE_VERIFICATION: "",
+    YANDEX_VERIFICATION: "",
   });
 }
 

@@ -1,13 +1,21 @@
 import type { MetadataRoute } from "next";
 import { defaultLocale, htmlLang, locales } from "@/i18n/config";
-import { getPrograms } from "@/lib/data/catalog";
+import { getDishesLastModified, getPrograms } from "@/lib/data/catalog";
 import { GOAL_PAGES } from "@/lib/goal-pages";
 import { site } from "@/lib/site";
 
-// No `lastModified`: there is no per-page change date to state yet, and a date that
-// moves on every deploy teaches crawlers to ignore it.
+// `lastModified` only where the database records a real change time: /menu, from the dishes' updated_at. Programs,
+// prices and settings have no change time, so their pages state none; a date that moves on every deploy ("now")
+// teaches crawlers to ignore it.
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const programs = await getPrograms();
+  let dishesChanged: string | null = null;
+  try {
+    dishesChanged = await getDishesLastModified();
+  } catch (error) {
+    console.error("sitemap: dishes date unavailable", error);
+  }
+  const lastModified: Record<string, string | null> = { "/menu": dishesChanged };
   const paths = [
     "",
     "/menu",
@@ -25,6 +33,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return paths.flatMap((path) =>
     locales.map((locale) => ({
       url: `${site.url}/${locale}${path}`,
+      ...(lastModified[path] ? { lastModified: lastModified[path] } : {}),
       alternates: {
         languages: {
           ...Object.fromEntries(locales.map((l) => [htmlLang[l], `${site.url}/${l}${path}`])),

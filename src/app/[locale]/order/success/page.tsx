@@ -9,6 +9,7 @@ import { isLocale } from "@/i18n/config";
 import { getPrograms, hasAnyMenu } from "@/lib/data/catalog";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
+import { ClearOrderDraft } from "./ClearOrderDraft";
 
 export async function generateMetadata({ params }: PageProps<"/[locale]/order/success">): Promise<Metadata> {
   const { locale } = await params;
@@ -36,6 +37,7 @@ export default async function OrderSuccessPage({ params, searchParams }: PagePro
 
   return (
     <PageTransition>
+      <ClearOrderDraft />
       <section className="container-page py-16 text-center md:py-24">
         <Lockup onDark={false} width={120} className="mx-auto" />
         {/* Decorative: the check draws itself in 400 ms (globals.css, .check-draw); static with reduced motion. */}

@@ -13,7 +13,8 @@ import { getDictionary, type Dictionary } from "@/i18n";
 import { isLocale, plural, type Locale } from "@/i18n/config";
 import { ALLERGEN_KEYS, allergenName, allergenWords, allergensIn, normalizeTags, parseAllergenParam, type AllergenKey } from "@/lib/allergens";
 import { currentCycleDay, getMenuDay, getPrograms, hasAnyMenu, hasMenu, isDemoCatalog } from "@/lib/data/catalog";
-import { CYCLE_DAYS, type MenuEntry, type Program } from "@/lib/data/types";
+import { CYCLE_DAYS, lowestPricePerDay, type MenuEntry, type Program } from "@/lib/data/types";
+import { brandWith, directAnswer } from "@/lib/direct-answer";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { breadcrumbList } from "@/lib/structured-data";
@@ -31,7 +32,8 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/[lo
   const t = getDictionary(locale);
 
   // Links to the program pages under the menu. The menu itself still renders without them.
-  // The lead promises a menu seen before paying; until any level has dishes it says the menu comes before launch.
+  // The lead (the direct answer) promises a menu seen before paying; until any level has dishes it says the menu comes
+  // before launch instead.
   let programs: Program[] = [];
   let published = true;
   try {
@@ -48,7 +50,14 @@ export default async function MenuPage({ params, searchParams }: PageProps<"/[lo
         <div className="container-page py-12 md:py-16">
           <p className="label text-gold">TAOMIQ</p>
           <h1 className="mt-3 font-serif text-5xl md:text-6xl">{t.menu.title}</h1>
-          <p className="mt-3 max-w-xl text-ivory/80">{published ? t.menu.lead : t.menu.leadSoon}</p>
+          <p className="mt-3 max-w-2xl text-ivory/80">
+            {directAnswer(
+              t.answer,
+              published ? t.answer.menu : t.answer.menuSoon,
+              { brand: brandWith(t.answer, programs.filter((p) => p.variants.length > 0).map((p) => p.name)) },
+              lowestPricePerDay(programs),
+            )}
+          </p>
         </div>
       </section>
 

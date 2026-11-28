@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { PageTransition } from "@/components/PageTransition";
 import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
+import { getPrograms } from "@/lib/data/catalog";
+import { lowestPricePerDay, type Program } from "@/lib/data/types";
+import { directAnswer } from "@/lib/direct-answer";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { BodyGoalCalculator } from "./BodyGoalCalculator";
@@ -31,10 +34,19 @@ export default async function CalculatorPage({ params }: PageProps<"/[locale]/ca
 
   // The numbers work without the catalogue; only the program suggestion needs it.
   const programs = await getCalculatorPrograms();
+  // The lead's "from" price: the same figure as the hero and the phone bar (lowestPricePerDay), left out if the
+  // catalogue cannot be read.
+  let catalogue: Program[] = [];
+  try {
+    catalogue = await getPrograms();
+  } catch (error) {
+    console.error("calculator: catalogue unavailable", error);
+  }
+  const lead = directAnswer(t.answer, t.answer.calculator, { brand: "TAOMIQ" }, lowestPricePerDay(catalogue));
 
   return (
     <PageTransition>
-      <CalculatorHero locale={locale} t={t} title={t.calculator.title} lead={t.calculator.lead} />
+      <CalculatorHero locale={locale} t={t} title={t.calculator.title} lead={lead} />
       <BodyGoalCalculator
         locale={locale}
         t={{ calculator: t.calculator, tool: t.bodyGoal }}

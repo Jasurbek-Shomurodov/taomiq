@@ -13,6 +13,7 @@ import { formatSum, isLocale } from "@/i18n/config";
 import { getDurations, getMenuDay, getPrograms, getTodayCycleDay, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
 import { lowestPricePerDay, sumNutrition, trialAtWeekPrice } from "@/lib/data/types";
+import { directAnswer } from "@/lib/direct-answer";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 
@@ -74,7 +75,10 @@ export default async function HomePage({ params }: PageProps<"/[locale]">) {
               <span className="text-gold">{t.hero.titleAccent}</span>
             </h1>
             <p className="mt-5 max-w-xl text-lg font-semibold leading-snug text-ivory sm:text-xl">{t.hero.subtitle}</p>
-            <p className="mt-4 max-w-xl text-lg leading-relaxed text-ivory/80">{t.hero.lead}</p>
+            {/* The direct answer: what, where, the "from" price and how to order (src/lib/direct-answer.ts). */}
+            <p className="mt-4 max-w-xl text-lg leading-relaxed text-ivory/80">
+              {directAnswer(t.answer, t.answer.home, { brand: "TAOMIQ" }, minPrice)}
+            </p>
             {/* .hero-cta: the phone call-to-action bar waits until these buttons scroll away. */}
             <div className="hero-cta mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
               <Link href={`/${locale}/order`} className="btn btn-gold w-full sm:w-auto">{t.hero.cta}</Link>

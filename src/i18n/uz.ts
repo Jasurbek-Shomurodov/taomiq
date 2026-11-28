@@ -26,7 +26,6 @@ const uz: Dictionary = {
     title: "Aqlli ovqatlanish.",
     titleAccent: "Har kuni.",
     subtitle: "Toshkentda toʻgʻri ovqatlanish yetkazib berish — kaloriyasi hisoblangan kunlik ratsionlar",
-    lead: "Kechasi tayyorlaymiz, ertalabgacha yetkazamiz. Har bir taomning tarkibi, kaloriyasi va OYU koʻrsatkichlari aniq. Sizga faqat idishni ochish qoladi.",
     cta: "Ratsion tanlash",
     secondary: "Menyuni koʻrish",
     from: "kuniga",
@@ -78,19 +77,16 @@ const uz: Dictionary = {
         title: "ozish uchun ratsion, yetkazib berish bilan",
         description:
           "Ozish uchun ratsion: ochlik hissisiz yengil va toʻyimli ovqatlar, kaloriya va OYU hisoblangan. Har kuni ertalab Toshkent boʻylab yetkazamiz.",
-        subtitle: "Ozish uchun ovqatlar — Toshkent boʻylab har kuni yetkazib berish",
       },
       balance: {
         title: "kaloriya hisoblangan kunlik ratsion",
         description:
           "Har kun uchun muvozanatli ratsion: kaloriya, oqsil, yogʻ va uglevod hisoblangan ovqatlar. Kunlik va haftalik ratsionni Toshkent boʻylab yetkazamiz.",
-        subtitle: "Kaloriya hisoblangan kunlik ratsion — yetkazib berish bilan",
       },
       protein: {
         title: "proteinli ovqatlar va fitnes ratsion",
         description:
           "Proteinli ovqatlar: mashgʻulot qiladiganlar uchun oqsilga boy fitnes ratsion, kaloriya va OYU hisoblangan. Har kuni ertalab Toshkent boʻylab yetkazamiz.",
-        subtitle: "Oqsilga boy fitnes ovqatlar — har kuni yetkazib berish bilan",
       },
     },
   },
@@ -99,8 +95,6 @@ const uz: Dictionary = {
     metaDescription:
       "Har kun uchun sogʻlom menyu: taomlar, grammlar, kaloriya va OYU. LIGHT, BALANCE va PROTEIN dasturlarining 30 kunlik menyusini buyurtmadan oldin koʻring.",
     title: "Menyu",
-    lead: "30 kunlik haqiqiy menyu. Uni toʻlovdan oldin koʻrasiz.",
-    leadSoon: "Grammlar, kaloriya va OYU koʻrsatilgan 30 kunlik menyu. Uni ishga tushirishdan oldin eʼlon qilamiz.",
     today: "Bugungi menyu",
     day: "Kun",
     cycleDay: "Menyu kuni",
@@ -174,7 +168,6 @@ const uz: Dictionary = {
     metaDescription:
       "TAOMIQ ratsion narxlari: LIGHT, BALANCE va PROTEIN, har bir kaloriya va muddat uchun kunlik va jami narx. Yetkazib berish narxga kiritilgan.",
     title: "Ratsion narxlari",
-    lead: "Barcha dasturlar, kaloriya va muddatlar bir sahifada: kunlik narx va butun muddat uchun jami summa.",
     perDayRule: "Narx ratsionning bir kuni uchun koʻrsatilgan, yonida — butun muddat uchun jami summa.",
     samePrice: "Saytdagi narx toʻlovdagi narx bilan bir xil.",
   },
@@ -241,6 +234,11 @@ const uz: Dictionary = {
     saveDeliveryHint: "Manzil, vaqt va kuryer uchun izoh kabinetingizda saqlanadi. Ularni oʻsha yerda oʻchirish mumkin.",
     clearDelivery: "Tozalash",
     clearDeliveryLabel: "Tozalash: manzil, vaqt va izoh",
+    resume: {
+      title: "Buyurtmani davom ettirasizmi?",
+      continue: "Davom ettirish",
+      startOver: "Qaytadan boshlash",
+    },
     repeatFrom: "№{n} buyurtma asosida toʻldirdik. Maʼlumotlarni tekshiring: birinchi yetkazib berish eng yaqin kunga qoʻyildi.",
     repeatLevel: "{from} kkal endi yoʻq — eng yaqin darajani, {to} kkal tanladik.",
     repeatProgram: "Bu dastur endi yoʻq — boshqasini tanlang.",
@@ -375,7 +373,6 @@ const uz: Dictionary = {
     metaDescription:
       "Kunlik kaloriya, oqsil, yogʻ, uglevod, suv, TMI, kletchatka va vitaminlar meʼyorini bepul hisoblang — jins, yosh, boʻy, vazn, faollik va maqsad boʻyicha.",
     title: "Kaloriya va OYU kalkulyatori",
-    lead: "Hozirgi holatingizni va erishmoqchi boʻlgan vazningizni belgilang. Kunlik kaloriya va OYU meʼyori, suv, TMI, xotirjam surʼat va meʼyoringizga eng yaqin ratsionni koʻrsatamiz.",
     sex: "Jins",
     female: "Ayol",
     male: "Erkak",
@@ -556,8 +553,6 @@ const uz: Dictionary = {
         metaDescription:
           "Ozish uchun ratsion Toshkent boʻylab yetkazib berish bilan: yengil va toʻyimli taomlar, kaloriya va OYU hisoblangan. Har kuni ertalab olib kelamiz.",
         title: "Ozish uchun ovqatlar — Toshkentda yetkazib berish",
-        intro:
-          "Kaloriya va OYU hisoblangan bir kunlik ratsion: hech narsani tortish, hisoblash va pishirish shart emas. Meʼyoringizga mos kaloriyani tanlang — kechasi tayyorlab, ertalab olib kelamiz.",
         faq: [
           {
             q: "Vazn kamaytirish uchun qaysi kaloriyani tanlash kerak?",
@@ -579,8 +574,6 @@ const uz: Dictionary = {
         metaDescription:
           "Mashgʻulot qiladiganlar uchun proteinli ratsion: har bir mahalda koʻproq oqsil, kaloriya va OYU hisoblangan. Har kuni ertalab Toshkent boʻylab yetkazamiz.",
         title: "Proteinli ovqatlar — Toshkentda yetkazib berish",
-        intro:
-          "Mashgʻulot qiladiganlar uchun: har bir mahalda koʻproq oqsil va har bir taom boʻyicha aniq raqamlar. Kechasi tayyorlaymiz va bir kunlik ratsionni ertalabgacha olib kelamiz.",
         faq: [
           {
             q: "Menga kuniga qancha oqsil kerak?",
@@ -598,8 +591,6 @@ const uz: Dictionary = {
         metaDescription:
           "Har kun uchun muvozanatli ratsion: har bir taomda kaloriya, oqsil, yogʻ va uglevod hisoblangan. 30 kunlik menyu, Toshkent boʻylab har kuni ertalab.",
         title: "Muvozanatli ovqatlanish — Toshkentda yetkazib berish",
-        intro:
-          "Bozor, oshxona va hisob-kitobsiz bir kunlik ratsion: har bir taomda kaloriya, oqsil, yogʻ va uglevod hisoblangan. 30 kunlik takrorlanmas menyuni buyurtmadan oldin koʻrasiz.",
         faq: [
           {
             q: "Bir kunlik ratsionga nimalar kiradi?",
@@ -617,8 +608,6 @@ const uz: Dictionary = {
         metaDescription:
           "Toshkent boʻylab halol ratsionlar: choʻchqa goʻshti va alkogolsiz, har bir taomda kaloriya va OYU hisoblangan. Har kuni ertalab olib kelamiz.",
         title: "Halol ratsionlar — Toshkentda yetkazib berish",
-        intro:
-          "Choʻchqa goʻshti va alkogol ishlatmaymiz, mahsulotlarni ishonchli yetkazib beruvchilardan olamiz. Bu barcha dasturlarga tegishli — maqsadingizga mosini tanlang.",
         faq: [
           {
             q: "Bu barcha dasturlarga tegishlimi?",
@@ -637,7 +626,6 @@ const uz: Dictionary = {
     metaDescription:
       "Bir kunlik ratsionni har kuni ertalab siz tanlagan ikki soatlik oraliqda, Toshkent halqa yoʻli ichida yetkazamiz. Yetkazib berish narxga kiritilgan.",
     title: "Yetkazib berish",
-    lead: "Har kuni ertalab bir kunlik ratsionni siz tanlagan ikki soatlik oraliqda olib kelamiz.",
     areaTitle: "Qayerga",
     areaText:
       "Toshkent halqa avtomobil yoʻli ichida. Halqa yoʻlidan tashqarida yashasangiz — bizga yozing, yetkazib bera olishimizni tekshiramiz.",
@@ -658,6 +646,42 @@ const uz: Dictionary = {
       { title: "Muzlatkichda saqlang", text: "Taomlarni muzlatkichga qoʻying va ovqatlanishdan oldin isiting." },
     ],
     questions: "Yetkazib berish boʻyicha savollaringiz bormi? Telegramda yozing.",
+  },
+  answer: {
+    and: "va",
+    or: "yoki",
+    orderWithPrice:
+      "Narxi yetkazib berish bilan kuniga {price} soʻmdan: buyurtma saytda onlayn rasmiylashtiriladi, menejer esa uni telefon yoki Telegram orqali tasdiqlaydi.",
+    orderNoPrice: "Buyurtma saytda onlayn rasmiylashtiriladi, menejer esa uni telefon yoki Telegram orqali tasdiqlaydi.",
+    home: "{brand} — Toshkent boʻylab tayyor toʻgʻri ovqatlanish ratsionlarini yetkazib berish: kaloriya va OYU hisoblangan bir kunlik taomlarni kechasi tayyorlab, har kuni ertalab olib kelamiz.",
+    programs:
+      "Toshkent boʻylab yetkazib beriladigan {brand} ovqatlanish dasturlari: kaloriya har bir dastur ichida tanlanadi, bir kunlik ratsionni esa har kuni ertalab olib kelamiz.",
+    program: "{brand} — Toshkent boʻylab yetkazib beriladigan {kind}: kuniga {levels} {kcal}, bir kunlik ratsionni har kuni ertalab olib kelamiz.",
+    programKinds: {
+      light: "ozish uchun ovqatlanish",
+      balance: "har kungi muvozanatli ovqatlanish",
+      protein: "mashgʻulotlar uchun yuqori oqsilli ovqatlanish",
+    } as Record<string, string | undefined>,
+    programKind: "ovqatlanish dasturi",
+    prices:
+      "Toshkent boʻylab yetkazib beriladigan {brand} ratsionlarining narxi bir kun uchun koʻrsatilgan, yonida esa har bir dastur va kaloriya boʻyicha butun muddat uchun jami summa.",
+    menu: "Toshkent boʻylab yetkazib beriladigan {brand} dasturlarining 30 kunlik menyusi: har bir taomning vazni, kaloriyasi va OYU koʻrsatilgan, uni toʻlovdan oldin koʻrasiz.",
+    menuSoon:
+      "Toshkent boʻylab yetkazib beriladigan {brand} dasturlarining 30 kunlik menyusini ishga tushirishdan oldin eʼlon qilamiz — har bir taomning grammi, kaloriyasi va OYU bilan.",
+    delivery:
+      "{brand} bir kunlik ratsionni har kuni ertalab Toshkent halqa avtomobil yoʻli ichida — siz tanlagan ikki soatlik oraliqda, haftada 7 kun yoki faqat ish kunlari olib keladi.",
+    calculator:
+      "{brand} bepul kalkulyatori jins, yosh, boʻy, vazn, faollik va maqsadga qarab kunlik kaloriya va OYU meʼyorini, suv va TMIni hisoblaydi hamda Toshkent boʻylab yetkaziladigan eng yaqin ratsionni koʻrsatadi.",
+    goals: {
+      "weight-loss":
+        "{brand} — Toshkent boʻylab yetkazib beriladigan ozish uchun ratsion: kaloriya va OYU hisoblangan bir kunlik taomlar tortish va pishirishsiz, har kuni ertalab.",
+      "high-protein":
+        "{brand} — mashgʻulot qiladiganlar uchun Toshkent boʻylab yetkazib beriladigan yuqori oqsilli ratsion: har bir mahalda koʻproq oqsil va har kuni ertalab bir kunlik taomlar.",
+      balanced:
+        "{brand} — Toshkent boʻylab yetkazib beriladigan muvozanatli ratsion: kaloriya, oqsil, yogʻ va uglevod hisoblangan bir kunlik taomlar, har kuni ertalab.",
+      halal:
+        "Toshkent boʻylab yetkazib beriladigan {brand} ratsionlari halol: hech bir dasturda choʻchqa goʻshti va alkogol yoʻq, bir kunlik taomlarni esa har kuni ertalab olib kelamiz.",
+    },
   },
   notFound: {
     metaTitle: "Sahifa topilmadi",

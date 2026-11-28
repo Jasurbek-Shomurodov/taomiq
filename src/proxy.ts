@@ -113,7 +113,13 @@ export function proxy(request: NextRequest): NextResponse | Promise<NextResponse
 
   if (isAdminHost) {
     // The back office is never indexed: say so in a header on every admin-host response,
-    // including files such as /robots.txt that are served as they are (second matcher below).
+    // including files such as /robots.txt (second matcher below). The admin host's robots.txt disallows everything:
+    // it is its own route (src/app/admin/robots.txt), not the public site's.
+    if (pathname === "/robots.txt") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/admin/robots.txt";
+      return noindex(NextResponse.rewrite(url));
+    }
     if (FILE_PATH.test(pathname)) return noindex(NextResponse.next());
     const url = request.nextUrl.clone();
     url.pathname = `/admin${pathname === "/" ? "" : pathname}`;

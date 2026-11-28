@@ -12,6 +12,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -29,6 +30,15 @@ import {
 import { track } from "@/lib/analytics/client";
 import { pricePerDay, type Duration } from "@/lib/data/types";
 import { submitOrder, type OrderState } from "@/lib/order/actions";
+import {
+  clearDraft,
+  parseDraft,
+  readDraftRaw,
+  readFreshDraft,
+  resolveDraft,
+  writeDraft,
+  type DraftChoices,
+} from "@/lib/order/draft";
 import {
   FIELD_STEP,
   LIMITS,
@@ -98,12 +108,28 @@ type Props = {
   canSaveDelivery?: boolean;
   /** One line above the form: where a repeated order's fields came from, or why one could not be used. */
   notice?: string;
+  /**
+   * The page was opened without ?program= or ?repeat=: the plan choices saved on this device (src/lib/order/draft.ts)
+   * may be offered back ("Continue your order?"). A link that picks the plan always wins over a saved draft.
+   */
+  resumable?: boolean;
 };
+
+/** The order length chosen at first: a week, else the shortest one that is not a trial, else the first. */
+function defaultDays(durations: Duration[]): number {
+  return (durations.find((d) => d.days === 7) ?? durations.find((d) => !d.is_trial) ?? durations[0]).days;
+}
 
 /** How many start dates are offered as chips. */
 const DATE_CHOICES = 21;
 
 const fieldId = (field: OrderField) => `order-${field}`;
+
+/** The saved draft changes in another tab: offer what it holds now. */
+function subscribeDraft(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
 
 /** Host of an external page that sent the visitor here, if any. */
 function externalReferrer(): string {
@@ -190,10 +216,12 @@ export function OrderForm(props: Props) {
   const viewedStepRef = useRef<OrderStep | null>(null);
   const placed = useCallback(() => {
     viewedStepRef.current = 0;
+    // The order is placed: the saved plan choices are done with (the success page clears them too).
+    clearDraft();
     setRound((n) => n + 1);
   }, []);
-  // The fresh form after an order starts empty, as before: no prefill and no repeat line.
-  const fresh = round === 0 ? {} : { prefill: undefined, notice: "" };
+  // The fresh form after an order starts empty, as before: no prefill, no repeat line and no "continue your order".
+  const fresh = round === 0 ? {} : { prefill: undefined, notice: "", resumable: false };
   return <OrderFormBody key={round} {...props} {...fresh} onPlaced={placed} viewedStepRef={viewedStepRef} />;
 }
 
@@ -218,6 +246,7 @@ function OrderFormBody({
   prefill,
   canSaveDelivery = false,
   notice = "",
+  resumable = false,
   onPlaced,
   viewedStepRef,
 }: Props & { onPlaced: () => void; viewedStepRef: RefObject<OrderStep | null> }) {
@@ -226,15 +255,7 @@ function OrderFormBody({
   // Every field is controlled, so nothing typed is lost when the server returns an error.
   const [programSlug, setProgramSlug] = useState(initialProgram);
   const [variantId, setVariantId] = useState(initialVariant);
-  const [days, setDays] = useState(
-    () =>
-      (
-        durations.find((d) => d.days === prefill?.days) ??
-        durations.find((d) => d.days === 7) ??
-        durations.find((d) => !d.is_trial) ??
-        durations[0]
-      ).days,
-  );
+  const [days, setDays] = useState(() => durations.find((d) => d.days === prefill?.days)?.days ?? defaultDays(durations));
   const [weekdaysOnly, setWeekdaysOnly] = useState(prefill?.weekdaysOnly ?? false);
   // Allowed start dates. The server sends a fresh range when the cutoff passed while the page was open.
   const [range, setRange] = useState({ earliest, latest });
@@ -261,6 +282,18 @@ function OrderFormBody({
   const [saveDelivery, setSaveDelivery] = useState(false);
   // The address and note were filled in for the customer: "Clear" empties them while there is something to clear.
   const deliveryPrefilled = Boolean(prefill?.address || prefill?.comment);
+
+  // Resume an unfinished order (src/lib/order/draft.ts): the plan choices are saved on this device once the visitor
+  // changes one (never the name, phone, address, comment or free-text exclusions), and a draft from an earlier visit
+  // is offered back above the form. Server and hydration render no offer (null snapshot); it appears right after.
+  const draftDirty = useRef(false);
+  const [offerClosed, setOfferClosed] = useState(false);
+  const storedDraft = useSyncExternalStore(subscribeDraft, readFreshDraft, () => null);
+  /** A plan choice changed by the visitor: from now on the choices are saved, and the offer is withdrawn. */
+  const remember = () => {
+    draftDirty.current = true;
+    setOfferClosed(true);
+  };
 
   // One order per tap (migration 0027): one request id for this form round, made at the first send and sent again on
   // every retry, so a second tap after a lost answer gets the saved order's number instead of a second order. A placed
@@ -322,6 +355,64 @@ function OrderFormBody({
   const duration = durations.find((d) => d.days === days) ?? durations[0];
   const perDay = pricePerDay(variant.price, duration.markup_pct);
   const total = perDay * duration.days;
+
+  const choices: DraftChoices = {
+    program: program.slug,
+    variantId: variant.id,
+    kcal: variant.kcal,
+    days: duration.days,
+    weekdaysOnly,
+    startDate,
+    window: deliveryWindow,
+    allergens,
+  };
+  const choicesKey = JSON.stringify(choices);
+
+  // Saved as the visitor goes, once they changed a plan choice (or continued a draft); only the fields of DraftChoices.
+  const saveChoices = useEffectEvent(() => writeDraft(choices));
+  useEffect(() => {
+    if (draftDirty.current) saveChoices();
+  }, [choicesKey]);
+
+  // A draft past its week (or unreadable) is removed, not kept around.
+  useEffect(() => {
+    if (readDraftRaw() !== null && readFreshDraft() === null) clearDraft();
+  }, []);
+
+  // The saved draft fitted to today's form; offered on step 1 only, and only when it differs from what is chosen.
+  const offered = (() => {
+    if (!resumable || offerClosed || step !== 0) return null;
+    const draft = parseDraft(storedDraft);
+    if (!draft) return null;
+    const fitted = resolveDraft(
+      draft,
+      { programs, days: durations.map((d) => d.days), windows, ...range },
+      { days: defaultDays(durations), window: defaultWindow },
+    );
+    return fitted && JSON.stringify(fitted) !== choicesKey ? fitted : null;
+  })();
+
+  /** "Continue": the saved choices back in the form (a start date no longer allowed became the earliest one). */
+  function resumeDraft(draft: DraftChoices) {
+    changed();
+    draftDirty.current = true;
+    setOfferClosed(true);
+    setProgramSlug(draft.program);
+    setVariantId(draft.variantId);
+    setDays(draft.days);
+    setWeekdaysOnly(draft.weekdaysOnly);
+    setStartDate(draft.startDate);
+    setDeliveryWindow(draft.window);
+    setAllergens(draft.allergens);
+    document.getElementById(stepHeadingId(0))?.focus({ preventScroll: true });
+  }
+
+  /** "Start over": the saved choices are removed and the form stays as it is. */
+  function discardDraft() {
+    clearDraft();
+    setOfferClosed(true);
+    document.getElementById(stepHeadingId(0))?.focus({ preventScroll: true });
+  }
 
   const dates: string[] = [];
   for (let i = 0; i < DATE_CHOICES; i++) {
@@ -561,6 +652,18 @@ function OrderFormBody({
 
       {/* scroll-mt: a step change scrolls the step header to just under the sticky 56 px header. */}
       <div ref={columnRef} className="grid min-w-0 scroll-mt-16 gap-6 md:gap-12">
+        {offered && (
+          <ResumeBar
+            t={t}
+            line={[
+              programs.find((p) => p.slug === offered.program)?.name ?? offered.program,
+              `${offered.kcal} ${t.kcal}`,
+              `${offered.days} ${daysWord(offered.days)}${offered.weekdaysOnly ? ` · ${t.weekdaysShort}` : ""}`,
+            ].join(" · ")}
+            onContinue={() => resumeDraft(offered)}
+            onStartOver={discardDraft}
+          />
+        )}
         {notice && (
           <p role="status" className="rounded-2xl bg-ivory-deep px-4 py-3 text-sm text-forest" data-order-notice>
             {notice}
@@ -608,6 +711,7 @@ function OrderFormBody({
                         setProgramSlug(p.slug);
                         setVariantId(p.variants[0].id);
                         touch("plan");
+                        remember();
                       }}
                     >
                       <span className="block h-1 w-8 rounded-full" style={{ background: p.tagColor }} aria-hidden />
@@ -630,6 +734,7 @@ function OrderFormBody({
                       onChange={() => {
                         setVariantId(v.id);
                         touch("plan");
+                        remember();
                       }}
                       compact
                     >
@@ -663,6 +768,7 @@ function OrderFormBody({
                       onChange={() => {
                         setDays(d.days);
                         touch("duration");
+                        remember();
                       }}
                     >
                       {/* Gold on the chosen (forest) card, the darker gold ink on the white one. */}
@@ -701,6 +807,7 @@ function OrderFormBody({
                       checked={weekdaysOnly === isWeekdays}
                       onChange={() => {
                         changed();
+                        remember();
                         setWeekdaysOnly(isWeekdays);
                         // A weekend start date moves to the next Monday.
                         setStartDate((current) => {
@@ -738,6 +845,7 @@ function OrderFormBody({
                         onChange={() => {
                           setStartDate(iso);
                           touch("start");
+                          remember();
                         }}
                         compact
                         className="w-16 shrink-0 text-center"
@@ -775,6 +883,7 @@ function OrderFormBody({
                               on ? current.filter((k) => k !== key) : normalizeTags([...current, key]),
                             );
                             touch("exclusions");
+                            remember();
                           }}
                           compact
                         >
@@ -872,6 +981,7 @@ function OrderFormBody({
                       onChange={() => {
                         setDeliveryWindow(w);
                         touch("window");
+                        remember();
                       }}
                       compact
                     >
@@ -1109,6 +1219,42 @@ function OrderFormBody({
         <p className="mt-2 text-[11px] leading-snug text-muted">{t.payNote}</p>
       </div>
     </form>
+  );
+}
+
+/** "Continue your order? BALANCE · 1800 kcal · 7 days" with Continue and Start over: phones stack, wider screens a row. */
+function ResumeBar({
+  t,
+  line,
+  onContinue,
+  onStartOver,
+}: {
+  t: Dictionary["order"];
+  line: string;
+  onContinue: () => void;
+  onStartOver: () => void;
+}) {
+  return (
+    <div
+      className="grid gap-3 rounded-2xl bg-ivory-deep px-4 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4"
+      data-order-resume
+    >
+      <p role="status" className="text-sm text-forest">
+        <span className="font-semibold">{t.resume.title}</span> <span className="tabular-nums">{line}</span>
+      </p>
+      <div className="flex shrink-0 gap-2">
+        <button type="button" onClick={onContinue} className="btn btn-forest min-h-11 flex-1 !px-5 !py-2 !text-sm sm:flex-none">
+          {t.resume.continue}
+        </button>
+        <button
+          type="button"
+          onClick={onStartOver}
+          className="btn btn-outline min-h-11 flex-1 !px-5 !py-2 !text-sm text-forest sm:flex-none"
+        >
+          {t.resume.startOver}
+        </button>
+      </div>
+    </div>
   );
 }
 

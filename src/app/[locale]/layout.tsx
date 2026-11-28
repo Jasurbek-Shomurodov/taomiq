@@ -76,7 +76,22 @@ export async function generateMetadata({ params }: LayoutProps<"/[locale]">): Pr
       locale: ogLocale[locale],
       type: "website",
     },
+    verification: siteVerification(),
   };
+}
+
+/**
+ * Search Console, Yandex Webmaster and Bing Webmaster Tools ownership tags, from the environment (each unset or empty
+ * value leaves its tag out). On the public site only: the admin layout never states them. Read at build time, when
+ * this layout is prerendered, so a changed value applies with the next deployment.
+ */
+function siteVerification(): Metadata["verification"] {
+  const value = (name: string) => process.env[name]?.trim() || undefined;
+  const google = value("GOOGLE_SITE_VERIFICATION");
+  const yandex = value("YANDEX_VERIFICATION");
+  const bing = value("BING_SITE_VERIFICATION");
+  if (!google && !yandex && !bing) return undefined;
+  return { google, yandex, ...(bing ? { other: { "msvalidate.01": bing } } : {}) };
 }
 
 export default async function LocaleLayout({ children, params }: LayoutProps<"/[locale]">) {

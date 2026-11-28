@@ -176,6 +176,7 @@ async function OrderLoader({
       prefill={prefill}
       canSaveDelivery={Boolean(customer)}
       notice={notice}
+      resumable={!pick("program") && !pick("repeat")}
     />
   );
 }

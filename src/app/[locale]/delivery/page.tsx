@@ -7,7 +7,8 @@ import { JsonLd } from "@/components/JsonLd";
 import { PageTransition } from "@/components/PageTransition";
 import { ProgramLinks } from "@/components/ProgramLinks";
 import { getOrderSettings, getPrograms, type OrderSettings } from "@/lib/data/catalog";
-import type { Program } from "@/lib/data/types";
+import { lowestPricePerDay, type Program } from "@/lib/data/types";
+import { directAnswer } from "@/lib/direct-answer";
 import { DEFAULT_CUTOFF_HOUR, DEFAULT_DELIVERY_WINDOWS } from "@/lib/order/rules";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
@@ -60,7 +61,9 @@ export default async function DeliveryPage({ params }: PageProps<"/[locale]/deli
         <div className="container-page py-12 md:py-16">
           <p className="label text-gold">TAOMIQ</p>
           <h1 className="mt-3 font-serif text-5xl md:text-6xl">{t.delivery.title}</h1>
-          <p className="mt-3 max-w-xl text-lg text-ivory/80">{t.delivery.lead}</p>
+          <p className="mt-3 max-w-2xl text-lg text-ivory/80">
+            {directAnswer(t.answer, t.answer.delivery, { brand: "TAOMIQ" }, lowestPricePerDay(programs))}
+          </p>
         </div>
       </section>
 

@@ -9,7 +9,8 @@ import { getDictionary, type Dictionary } from "@/i18n";
 import { formatSum, isLocale, type Locale } from "@/i18n/config";
 import { getPrograms } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
-import type { Program } from "@/lib/data/types";
+import { lowestPricePerDay, type Program } from "@/lib/data/types";
+import { brandWith, directAnswer } from "@/lib/direct-answer";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { programList } from "@/lib/structured-data";
@@ -51,7 +52,14 @@ export default async function ProgramsPage({ params }: PageProps<"/[locale]/prog
         <div className="container-page py-10 md:py-14">
           <Breadcrumbs locale={locale} t={t} trail={[{ name: t.nav.programs, path: "/programs" }]} />
           <h1 className="hero-enter mt-5 font-serif text-4xl md:text-6xl">{t.programs.title}</h1>
-          <p className="mt-3 max-w-2xl text-lg text-ivory/80">{t.programs.lead}</p>
+          <p className="mt-3 max-w-2xl text-lg text-ivory/80">
+            {directAnswer(
+              t.answer,
+              t.answer.programs,
+              { brand: brandWith(t.answer, programs.map((p) => p.name)) },
+              lowestPricePerDay(programs),
+            )}
+          </p>
         </div>
       </section>
 

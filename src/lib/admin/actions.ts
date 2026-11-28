@@ -7,6 +7,7 @@ import { getAdminDictionary } from "@/i18n/admin";
 import { isLocale } from "@/i18n/config";
 import { CATALOG_TAG } from "@/lib/data/catalog";
 import { CYCLE_DAYS, SLOTS, type Slot } from "@/lib/data/types";
+import { notifySiteChange } from "@/lib/indexnow/ping";
 import { isSupabaseConfigured, supabaseUrl } from "@/lib/supabase/env";
 import { createSessionClient } from "@/lib/supabase/server";
 import { scheduleTelegramDrain } from "@/lib/telegram/drain";
@@ -165,6 +166,7 @@ export async function saveDish(_prev: FormState, form: FormData): Promise<FormSt
   }
 
   updateTag(CATALOG_TAG);
+  notifySiteChange({ kind: "dish" });
   redirect("/dishes");
 }
 
@@ -197,6 +199,7 @@ export async function setDishArchived(_prev: FormState, form: FormData): Promise
   if (!data?.length) return { error: t.dishArchive.notFound };
 
   updateTag(CATALOG_TAG);
+  notifySiteChange({ kind: "dish" });
   refresh();
   return { ok: archive ? t.dishArchive.archived : t.dishArchive.restored };
 }
@@ -242,6 +245,7 @@ export async function saveMenuDay(variantId: string, cycleDay: number, rows: Men
   }
 
   updateTag(CATALOG_TAG);
+  notifySiteChange({ kind: "menu", variantId });
   return { ok: t.menu.daySaved(cycleDay) };
 }
 
@@ -289,6 +293,7 @@ export async function copyMenuFromVariant(
   }
 
   updateTag(CATALOG_TAG);
+  notifySiteChange({ kind: "menu", variantId: targetVariantId });
   return { ok: t.menu.copied(items.length) };
 }
 
@@ -351,7 +356,7 @@ export async function saveProgram(_prev: FormState, form: FormData): Promise<For
     .update(photoChanged ? { ...fields, photo_url: photoUrl || null } : fields)
     .eq("id", id);
   if (photoChanged) update = loadedPhoto ? update.eq("photo_url", loadedPhoto) : update.is("photo_url", null);
-  const { data: updated, error } = await update.select("id");
+  const { data: updated, error } = await update.select("id, slug");
   if (error) return { error: t.common.saveFailed(error.message) };
   if (photoChanged && updated.length === 0) return { error: t.programs.photoStale };
 
@@ -367,6 +372,7 @@ export async function saveProgram(_prev: FormState, form: FormData): Promise<For
   }
 
   updateTag(CATALOG_TAG);
+  notifySiteChange({ kind: "program", slug: updated?.[0]?.slug ?? null });
 
   // The row now points at the new photo (or none) and the site's catalogue cache is refreshed: remove the file
   // it replaced. Only when the row update went through, and only a file of this bucket. Skipped when a price
@@ -391,6 +397,7 @@ export async function saveDurations(_prev: FormState, form: FormData): Promise<F
     if (error) return { error: t.common.saveFailed(error.message) };
   }
   updateTag(CATALOG_TAG);
+  notifySiteChange({ kind: "durations" });
   return { ok: t.common.saved };
 }
 

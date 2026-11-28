@@ -14,7 +14,8 @@ import { getDictionary } from "@/i18n";
 import { isLocale, locales } from "@/i18n/config";
 import { getDurations, getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
-import { CYCLE_DAYS, sumNutrition } from "@/lib/data/types";
+import { CYCLE_DAYS, lowestPricePerDay, sumNutrition } from "@/lib/data/types";
+import { brandWith, directAnswer, joinWords } from "@/lib/direct-answer";
 import { goalsForProgram } from "@/lib/goal-pages";
 import { notFoundMetadata, pageMetadata } from "@/lib/seo";
 import { programProduct } from "@/lib/structured-data";
@@ -57,7 +58,6 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
   if (!program) notFound();
 
   const firstVariant = program.variants[0];
-  const subtitle = t.programs.seo[program.slug]?.subtitle;
   const sample = firstVariant ? await getMenuDay(firstVariant.id, 1) : [];
   const tagline = localized(program, "tagline", locale);
   // The ration label prints the sample day's totals only when that day is complete (every meal of the level).
@@ -74,8 +74,24 @@ export default async function ProgramPage({ params }: PageProps<"/[locale]/progr
         </ViewTransition>
       </h1>
       <p className="mt-2 text-xl text-gold">{tagline}</p>
-      {subtitle && <p className="mt-4 max-w-2xl text-lg font-semibold leading-snug text-ivory">{subtitle}</p>}
-      <p className={`${subtitle ? "mt-3" : "mt-5"} max-w-2xl text-lg leading-relaxed text-ivory/80`}>
+      {/* The direct answer: what, where, levels, the "from" price and how to order (src/lib/direct-answer.ts). */}
+      <p className="mt-4 max-w-2xl text-lg leading-relaxed text-ivory">
+        {directAnswer(
+          t.answer,
+          t.answer.program,
+          {
+            brand: brandWith(t.answer, [program.name]),
+            kind: t.answer.programKinds[program.slug] ?? t.answer.programKind,
+            levels: joinWords(
+              program.variants.map((v) => String(v.kcal)),
+              t.answer.or,
+            ),
+            kcal: t.programs.kcal,
+          },
+          lowestPricePerDay([program]),
+        )}
+      </p>
+      <p className="mt-3 max-w-2xl text-lg leading-relaxed text-ivory/80">
         {localized(program, "description", locale)}
       </p>
       {/* .hero-cta: the phone call-to-action bar waits until this button scrolls away. */}

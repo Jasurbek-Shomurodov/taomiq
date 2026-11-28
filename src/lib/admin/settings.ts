@@ -3,6 +3,8 @@
 import { refresh, updateTag } from "next/cache";
 import { getAdminDictionary } from "@/i18n/admin";
 import { CATALOG_TAG } from "@/lib/data/catalog";
+import { notifySiteChange } from "@/lib/indexnow/ping";
+import type { PublicSetting } from "@/lib/indexnow/shared";
 import type { FormState } from "./actions";
 import { requireOwner } from "./auth";
 import {
@@ -48,10 +50,17 @@ async function write(
     if (error.code === "23514") return { error: t.errors.invalid };
     return { error: t.errors.saveFailed };
   }
-  if (publicSite) updateTag(CATALOG_TAG);
+  if (publicSite) {
+    updateTag(CATALOG_TAG);
+    if (isPublicSetting(name)) notifySiteChange({ kind: "setting", name });
+  }
   refresh();
   return { ok: t.saved };
 }
+
+const PUBLIC_SETTINGS: readonly string[] = ["deliveryWindows", "cutoffHour", "cycleAnchor"] satisfies PublicSetting[];
+const isPublicSetting = (name: BusinessSettingName): name is BusinessSettingName & PublicSetting =>
+  PUBLIC_SETTINGS.includes(name);
 
 /** The delivery windows offered on the order form, in the order given: `from` and `to` fields, one pair per window. */
 export async function saveDeliveryWindows(_prev: FormState, form: FormData): Promise<FormState> {

@@ -11,6 +11,7 @@ import { formatSum, isLocale, locales } from "@/i18n/config";
 import { getMenuDay, getPrograms, isDemoCatalog } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
 import { CYCLE_DAYS, lowestPricePerDay, type MenuEntry, type Program } from "@/lib/data/types";
+import { brandWith, directAnswer } from "@/lib/direct-answer";
 import { GOAL_PAGES, GOAL_SHARED_FAQ, goalPrograms, isGoalPage } from "@/lib/goal-pages";
 import { notFoundMetadata, pageMetadata } from "@/lib/seo";
 
@@ -100,7 +101,10 @@ export default async function GoalPage({ params }: PageProps<"/[locale]/goals/[g
           />
           {/* 30 px on phones: the longest title word ("Сбалансированное") fits a 360 px screen whole. */}
           <h1 className="mt-5 max-w-4xl font-serif text-3xl leading-[1.1] sm:text-5xl md:text-6xl">{page.title}</h1>
-          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ivory/80">{page.intro}</p>
+          {/* The direct answer: what, where, the "from" price and how to order (src/lib/direct-answer.ts). */}
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-ivory/80">
+            {directAnswer(t.answer, t.answer.goals[goal], { brand: brandWith(t.answer, programs.map((p) => p.name)) }, minPrice)}
+          </p>
           {/* .hero-cta: the phone call-to-action bar waits until these buttons scroll away. */}
           <div className="hero-cta mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
             <Link href={orderHref} className="btn btn-gold w-full sm:w-auto">

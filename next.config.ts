@@ -42,10 +42,18 @@ const nextConfig: NextConfig = {
   // forwards it to PostHog EU, so the SDK is first-party. Only with the key set, and only on the public host (PostHog
   // never loads on the admin host; there the proxy sends /k7r2 under /admin, which has no such page). The proxy
   // matcher (src/proxy.ts) skips the path, so it is never locale-redirected.
+  //
+  // IndexNow (docs/plans/findability-and-growth.md, slice 2): the key file taomiq.uz/{key}.txt is served by
+  // src/app/api/indexnow/[key]/route.ts, which answers 404 unless the name is the INDEXNOW_KEY. The name follows
+  // IndexNow's key rule (8–128 of a–z, A–Z, 0–9, "-"), so /llms.txt and /robots.txt never match. Public host only.
   async rewrites() {
-    if (!isAnalyticsEnabled) return [];
     const publicHost = { missing: [{ type: "host" as const, value: "admin\\..*" }] };
+    const indexNow = [
+      { source: "/:key([a-zA-Z0-9-]{8,128})\\.txt", destination: "/api/indexnow/:key", ...publicHost },
+    ];
+    if (!isAnalyticsEnabled) return indexNow;
     return [
+      ...indexNow,
       { source: `${ANALYTICS_PATH}/static/:path*`, destination: `${POSTHOG_ASSETS_HOST}/static/:path*`, ...publicHost },
       { source: `${ANALYTICS_PATH}/array/:path*`, destination: `${POSTHOG_ASSETS_HOST}/array/:path*`, ...publicHost },
       { source: `${ANALYTICS_PATH}/:path*`, destination: `${POSTHOG_API_HOST}/:path*`, ...publicHost },

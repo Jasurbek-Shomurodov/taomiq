@@ -8,7 +8,8 @@ import { getDictionary } from "@/i18n";
 import { isLocale } from "@/i18n/config";
 import { getDurations, getPrograms } from "@/lib/data/catalog";
 import { localized } from "@/lib/data/localized";
-import { trialAtWeekPrice, type Duration, type Program } from "@/lib/data/types";
+import { lowestPricePerDay, trialAtWeekPrice, type Duration, type Program } from "@/lib/data/types";
+import { directAnswer } from "@/lib/direct-answer";
 import { pageMetadata } from "@/lib/seo";
 import { site } from "@/lib/site";
 import { breadcrumbList, programPriceList } from "@/lib/structured-data";
@@ -60,7 +61,9 @@ export default async function PricesPage({ params }: PageProps<"/[locale]/prices
         <div className="container-page py-12 md:py-16">
           <p className="label text-gold">TAOMIQ</p>
           <h1 className="mt-3 font-serif text-4xl md:text-6xl">{t.prices.title}</h1>
-          <p className="mt-3 max-w-2xl text-lg text-ivory/80">{t.prices.lead}</p>
+          <p className="mt-3 max-w-2xl text-lg text-ivory/80">
+            {directAnswer(t.answer, t.answer.prices, { brand: "TAOMIQ" }, lowestPricePerDay(listed))}
+          </p>
           <ul className="mt-6 grid max-w-2xl gap-2 text-ivory/80">
             {rules.map((rule) => (
               <li key={rule} className="flex gap-3">
